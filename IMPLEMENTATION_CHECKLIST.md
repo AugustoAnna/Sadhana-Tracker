@@ -58,8 +58,9 @@
 - [x] Supabase client + sync service wired
 - [x] SQL migration schema (`supabase/migrations/`)
 - [x] `.env.example` + `SUPABASE.md` setup guide
-- [ ] Supabase project created and migration applied (manual step)
-- [ ] `.env.local` filled with real credentials
+- [x] Supabase project created and migration applied (`eevoabfiyzsfoberzsom`)
+- [x] `.env.local` configured locally (gitignored)
+- [x] Generated TypeScript types (`src/types/database.ts`)
 
 ## First draft gaps to refine
 - [ ] Player invocation open/close flow
