@@ -1,10 +1,10 @@
-import { db } from '@/db';
+import { getDb } from '@/db';
 
 export async function scheduleReminders(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
 
   const registration = await navigator.serviceWorker.ready;
-  const reminders = await db.reminders.filter((r) => r.enabled).toArray();
+  const reminders = await getDb().reminders.filter((r) => r.enabled).toArray();
 
   // Clear existing scheduled notifications
   const existing = await registration.getNotifications();

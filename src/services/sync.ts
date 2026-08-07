@@ -1,4 +1,4 @@
-import { db } from '@/db';
+import { getDb, isDemoDatabaseActive } from '@/db';
 import type { PracticeInstance, PracticeLog, Profile, Reminder, SavedSession, SyncQueueItem } from '@/types';
 import { getDeviceId } from './deviceId';
 import { getSupabase, isSupabaseConfigured } from './supabase';
@@ -54,6 +54,9 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
 }
 
 export async function queueSync(item: Omit<SyncQueueItem, 'id' | 'createdAt'>) {
+  if (isDemoDatabaseActive()) return;
+
+  const db = getDb();
   await db.syncQueue.add({
     ...item,
     id: crypto.randomUUID(),
@@ -68,6 +71,7 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) return false;
 
+  const db = getDb();
   const deviceId = getDeviceId();
   const profile = await db.profile.get('profile');
   if (!profile) return false;
@@ -140,8 +144,9 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
 }
 
 export async function drainSyncQueue() {
-  if (syncInProgress || !navigator.onLine || !isSupabaseConfigured()) return;
+  if (syncInProgress || !navigator.onLine || !isSupabaseConfigured() || isDemoDatabaseActive()) return;
 
+  const db = getDb();
   syncInProgress = true;
   try {
     const profile = await db.profile.get('profile');
@@ -162,8 +167,9 @@ export async function drainSyncQueue() {
 }
 
 export async function syncFullState(): Promise<void> {
-  if (!isSupabaseConfigured()) return;
+  if (!isSupabaseConfigured() || isDemoDatabaseActive()) return;
 
+  const db = getDb();
   const profile = await db.profile.get('profile');
   if (!profile?.name) return;
 

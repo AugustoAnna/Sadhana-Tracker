@@ -1,9 +1,9 @@
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppRouter } from '@/app/router';
-import { initDB } from '@/db';
 import { useAppStore } from '@/stores/appStore';
 import { initSyncListener, syncFullState } from '@/services/sync';
+import { ensureDatabasesReady, recoverFromInterruptedDemo } from '@/services/demoMode';
 import './index.css';
 
 function Bootstrap() {
@@ -12,10 +12,13 @@ function Bootstrap() {
 
   useEffect(() => {
     async function init() {
-      await initDB();
+      await ensureDatabasesReady();
+      const recovered = await recoverFromInterruptedDemo();
       await hydrate();
-      initSyncListener();
-      await syncFullState();
+      if (!recovered) {
+        initSyncListener();
+        await syncFullState();
+      }
       setReady(true);
     }
     init();

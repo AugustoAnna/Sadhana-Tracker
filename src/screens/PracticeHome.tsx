@@ -1,8 +1,8 @@
-import { useState, forwardRef, useEffect } from 'react';
+import { useState, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BackHeader, StickyAction, PracticeCard, PlantVisual, ProgressBar,
-  BottomSheet, MinutePicker, Button, Toast,
+  BottomSheet, MinutePicker, Button, Toast, DemoModePicker, useDemoModeEntry,
 } from '@/components';
 import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { computeJourneyProgress, getLevelLabel } from '@/data/journey';
@@ -26,19 +26,10 @@ export function PracticeHome() {
   const logPractice = useAppStore((s) => s.logPractice);
   const addPracticeInstance = useAppStore((s) => s.addPracticeInstance);
   const toast = useAppStore((s) => s.toast);
-  const demoAnimateEmpty = useAppStore((s) => s.demoAnimateEmpty);
-  const setDemoAnimateEmpty = useAppStore((s) => s.setDemoAnimateEmpty);
   const haptic = useHaptic();
 
-  const [animateIn, setAnimateIn] = useState(false);
-
-  useEffect(() => {
-    if (demoAnimateEmpty) {
-      setAnimateIn(true);
-      const timer = setTimeout(() => setDemoAnimateEmpty(false), 1200);
-      return () => clearTimeout(timer);
-    }
-  }, [demoAnimateEmpty, setDemoAnimateEmpty]);
+  const [demoPickerOpen, setDemoPickerOpen] = useState(false);
+  const demoEntryHandlers = useDemoModeEntry(() => setDemoPickerOpen(true));
 
   const [minuteSheet, setMinuteSheet] = useState<string | null>(null);
   const [selectedMinutes, setSelectedMinutes] = useState(5);
@@ -70,7 +61,6 @@ export function PracticeHome() {
   // Empty state
   if (!hasPractices && !hasLogs) {
     const startHere = isMeditator ? START_HERE_MEDITATOR : START_HERE_POTENTIAL;
-    const anim = demoAnimateEmpty || animateIn;
     return (
       <div className="h-full overflow-y-auto pb-8">
         <BackHeader
@@ -88,29 +78,29 @@ export function PracticeHome() {
         />
         <div className="px-6 pt-4">
           {!isMeditator && (
-            <div className={`flex justify-center mb-6 ${anim ? 'empty-enter-delay-1' : ''}`}>
-              <PlantVisual level={0} size="lg" animating={anim} />
+            <div className="flex justify-center mb-6">
+              <PlantVisual level={0} size="lg" />
             </div>
           )}
-          <h2 className={`font-serif text-2xl font-semibold text-center mb-8 ${anim ? 'empty-enter-delay-2' : ''}`}>
+          <h2 className="font-serif text-2xl font-semibold text-center mb-8">
             Your journey of transformation awaits
           </h2>
           <button
             onClick={() => navigate('/practices/edit', { state: { firstSetup: true } })}
-            className={`w-full py-3.5 rounded-xl bg-primary text-white font-semibold mb-8 ${anim ? 'empty-enter-delay-3' : ''}`}
+            className="w-full py-3.5 rounded-xl bg-primary text-white font-semibold mb-8"
           >
             Add practices
           </button>
-          <p className={`text-xs font-semibold tracking-widest text-secondary uppercase mb-3 ${anim ? 'empty-enter-delay-4' : ''}`}>
+          <p className="text-xs font-semibold tracking-widest text-secondary uppercase mb-3">
             Start here
           </p>
-          {startHere.map((id, i) => {
+          {startHere.map((id) => {
             const p = getPractice(id);
             if (!p) return null;
             return (
               <div
                 key={id}
-                className={`flex items-center gap-3 py-3 border-b border-border ${anim ? `empty-enter-delay-${Math.min(5 + i, 8)}` : ''}`}
+                className="flex items-center gap-3 py-3 border-b border-border"
               >
                 <div className="w-10 h-10 rounded-full bg-amber-100" />
                 <span className="font-medium">{p.name}</span>
@@ -119,7 +109,7 @@ export function PracticeHome() {
           })}
           <button
             onClick={() => navigate('/practices/edit', { state: { firstSetup: true } })}
-            className={`w-full mt-6 p-4 rounded-xl border border-border text-left ${anim ? 'empty-enter-delay-8' : ''}`}
+            className="w-full mt-6 p-4 rounded-xl border border-border text-left"
           >
             <p className="font-semibold">Explore all practices</p>
             <p className="text-sm text-secondary">Browse the full catalogue</p>
@@ -213,7 +203,7 @@ export function PracticeHome() {
 
           {/* Practices */}
           <div className="flex items-center justify-between mt-4 mb-2">
-            <h3 className="font-bold text-lg">Practices</h3>
+            <h3 className="font-bold text-lg" {...demoEntryHandlers}>Practices</h3>
             <button
               onClick={() => navigate('/practices/edit')}
               className="flex items-center gap-1 text-primary text-sm font-semibold"
@@ -230,6 +220,7 @@ export function PracticeHome() {
               <PracticeCard
                 key={inst.id}
                 instance={inst}
+                allInstances={instances}
                 completed={isInstanceCompletedToday(logs, inst.id)}
                 completedTwice={isInstanceCompletedTwiceToday(logs, inst.id)}
                 timedMinutesToday={getTimedMinutesToday(logs, inst.id)}
@@ -332,6 +323,8 @@ export function PracticeHome() {
       </BottomSheet>
 
       {toast && <Toast message={toast} />}
+
+      <DemoModePicker open={demoPickerOpen} onClose={() => setDemoPickerOpen(false)} />
     </div>
   );
 }

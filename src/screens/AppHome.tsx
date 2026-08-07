@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ProgressRing, WeekStrip, SetupReplayPanel } from '@/components';
+import { ProgressRing, WeekStrip } from '@/components';
 import { useAppStore } from '@/stores/appStore';
 import { computeJourneyProgress } from '@/data/journey';
 import { getTotalMinutes, getTotalDaysPracticed, getPracticesCompletedToday, getWeekDays, getMinutesForDay } from '@/utils/dates';
@@ -65,8 +65,6 @@ export function AppHome() {
           </div>
         </button>
       </div>
-
-      <SetupReplayPanel />
     </div>
   );
 }

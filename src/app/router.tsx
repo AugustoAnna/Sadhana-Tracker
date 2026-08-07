@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { DemoModeIndicator } from '@/components/DemoModeIndicator';
 import {
   OnboardingName,
   OnboardingStatus,
@@ -27,6 +28,7 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <div className="h-full max-w-lg mx-auto bg-cream shadow-lg relative overflow-hidden">
+        <DemoModeIndicator />
         <Routes>
           <Route path="/" element={<LandingRedirect />} />
 

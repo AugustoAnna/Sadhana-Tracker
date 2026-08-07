@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { db } from '@/db';
+import { getDb } from '@/db';
 import type { PracticeInstance, PracticeLog, Profile, Reminder, SavedSession, SessionDraft } from '@/types';
 import { getPractice } from '@/data/catalogue';
 import { computeCurrentLevel } from '@/data/journey';
 import { generateId, todayKey } from '@/utils/dates';
 import { queueSync } from '@/services/sync';
+import { enterDemoMode as enterDemoModeService, exitDemoMode as exitDemoModeService, type DemoStateId } from '@/services/demoMode';
 
 interface AppStore {
   profile: Profile | null;
@@ -17,6 +18,7 @@ interface AppStore {
   playerSession: SessionDraft | null;
   levelCrossed: number | null;
   toast: string | null;
+  isDemoMode: boolean;
 
   hydrate: () => Promise<void>;
   setName: (name: string) => Promise<void>;
@@ -37,10 +39,8 @@ interface AppStore {
   showToast: (msg: string) => void;
   clearToast: () => void;
   markInstanceEducationShown: () => Promise<void>;
-  resetForSetupReplay: () => Promise<void>;
-  resetToEmptyStatePreview: () => Promise<void>;
-  demoAnimateEmpty: boolean;
-  setDemoAnimateEmpty: (value: boolean) => void;
+  enterDemoMode: (stateId: DemoStateId) => Promise<void>;
+  exitDemoMode: () => Promise<void>;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -54,9 +54,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   playerSession: null,
   levelCrossed: null,
   toast: null,
-  demoAnimateEmpty: false,
+  isDemoMode: false,
 
   hydrate: async () => {
+    const db = getDb();
     const [profile, instances, logs, reminders, savedSessions, meta] = await Promise.all([
       db.profile.get('profile'),
       db.practiceInstances.orderBy('order').toArray(),
@@ -76,6 +77,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   setName: async (name) => {
+    const db = getDb();
     await db.profile.update('profile', { name });
     const profile = { ...get().profile!, name };
     set({ profile });
@@ -83,6 +85,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   setMeditatorStatus: async (isMeditator) => {
+    const db = getDb();
     await db.profile.update('profile', { isMeditator });
     const profile = { ...get().profile!, isMeditator };
     set({ profile });
@@ -90,6 +93,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   completeOnboarding: async (reminderEnabled) => {
+    const db = getDb();
     await db.profile.update('profile', {
       onboardingComplete: true,
       notificationPermissionAsked: true,
@@ -108,6 +112,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   addPracticeInstance: async (practiceId) => {
+    const db = getDb();
     const { instances } = get();
     if (instances.length >= 21) return null;
 
@@ -129,6 +134,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   removePracticeInstance: async (instanceId) => {
+    const db = getDb();
     const { instances } = get();
     const filtered = instances.filter((i) => i.id !== instanceId);
     const reordered = filtered.map((inst, idx) => ({ ...inst, order: idx }));
@@ -149,6 +155,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   logPractice: async (instanceId, minutes, source) => {
+    const db = getDb();
     const instance = get().instances.find((i) => i.id === instanceId);
     if (!instance) return;
 
@@ -189,6 +196,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   setReminder: async (id, time, enabled) => {
+    const db = getDb();
     await db.reminders.update(id, { time, enabled });
     const reminders = await db.reminders.toArray();
     set({ reminders });
@@ -202,6 +210,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setPlayerSession: (draft) => set({ playerSession: draft }),
 
   saveSession: async (name, instanceIds) => {
+    const db = getDb();
     const session: SavedSession = {
       id: generateId(),
       name,
@@ -215,6 +224,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   addRecentSession: async (instanceIds) => {
+    const db = getDb();
     const key = instanceIds.join(',');
     const meta = await db.appMeta.get('meta');
     const recent = meta?.recentSessionKeys ?? [];
@@ -224,6 +234,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   clearPendingJourney: async () => {
+    const db = getDb();
     await db.appMeta.update('meta', { pendingJourneyMinutes: 0 });
     set({ pendingJourneyMinutes: 0 });
   },
@@ -231,6 +242,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setLevelCrossed: (level) => set({ levelCrossed: level }),
 
   markLevelUpShown: async () => {
+    const db = getDb();
     await db.appMeta.update('meta', { lastLevelUpDate: todayKey() });
     set({ levelCrossed: null });
   },
@@ -243,75 +255,34 @@ export const useAppStore = create<AppStore>((set, get) => ({
   clearToast: () => set({ toast: null }),
 
   markInstanceEducationShown: async () => {
+    const db = getDb();
     await db.profile.update('profile', { instanceEducationShown: true });
     set({ profile: { ...get().profile!, instanceEducationShown: true } });
   },
 
-  resetForSetupReplay: async () => {
-    await Promise.all([
-      db.practiceInstances.clear(),
-      db.practiceLogs.clear(),
-      db.savedSessions.clear(),
-      db.syncQueue.clear(),
-    ]);
-    await db.profile.update('profile', {
-      name: '',
-      isMeditator: null,
-      onboardingComplete: false,
-      instanceEducationShown: false,
-      notificationPermissionAsked: false,
-    });
-    await db.appMeta.update('meta', {
-      lastLevelUpDate: null,
-      pendingJourneyMinutes: 0,
-      recentSessionKeys: [],
-    });
-    await db.reminders.bulkPut([
-      { id: 1, time: '06:00', enabled: false },
-      { id: 2, time: '12:00', enabled: false },
-      { id: 3, time: '18:00', enabled: false },
-    ]);
-    const profile = await db.profile.get('profile');
-    const reminders = await db.reminders.toArray();
+  enterDemoMode: async (stateId) => {
+    await enterDemoModeService(stateId);
     set({
-      profile: profile!,
-      instances: [],
-      logs: [],
-      savedSessions: [],
-      reminders,
-      pendingJourneyMinutes: 0,
+      isDemoMode: true,
       sessionDraft: null,
       playerSession: null,
       levelCrossed: null,
-      demoAnimateEmpty: true,
+      toast: null,
     });
+    await get().hydrate();
   },
 
-  resetToEmptyStatePreview: async () => {
-    await Promise.all([
-      db.practiceInstances.clear(),
-      db.practiceLogs.clear(),
-      db.savedSessions.clear(),
-    ]);
-    await db.appMeta.update('meta', {
-      pendingJourneyMinutes: 0,
-      recentSessionKeys: [],
-    });
-    await db.profile.update('profile', { instanceEducationShown: false });
-    const profile = await db.profile.get('profile');
+  exitDemoMode: async () => {
+    await exitDemoModeService();
     set({
-      profile: profile!,
-      instances: [],
-      logs: [],
-      savedSessions: [],
-      pendingJourneyMinutes: 0,
+      isDemoMode: false,
       sessionDraft: null,
       playerSession: null,
-      demoAnimateEmpty: true,
+      levelCrossed: null,
+      toast: null,
     });
+    await get().hydrate();
   },
-
-  setDemoAnimateEmpty: (value) => set({ demoAnimateEmpty: value }),
 }));
 
 export function getDefaultLogMinutes(practiceId: string): number {
