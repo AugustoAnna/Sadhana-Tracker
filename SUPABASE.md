@@ -1,47 +1,20 @@
 # Supabase Setup
 
-## 1. Create a project
+**Project:** `sadhana tracker` (`eevoabfiyzsfoberzsom`)  
+**Region:** ap-southeast-2 (Sydney)  
+**URL:** https://eevoabfiyzsfoberzsom.supabase.co
 
-1. Go to [supabase.com/dashboard](https://supabase.com/dashboard) and create a new project.
-2. Wait for the database to provision.
+Schema applied via MCP on 2026-08-07. Legacy prototype tables preserved as `*_legacy`.
 
-## 2. Run the migration
+## Local config
 
-In the Supabase Dashboard → **SQL Editor**, paste and run the contents of:
-
-```
-supabase/migrations/20260807100000_initial_schema.sql
-```
-
-Or, if you have the Supabase CLI installed:
-
-```bash
-npx supabase link --project-ref YOUR_PROJECT_REF
-npx supabase db push
-```
-
-## 3. Configure environment variables
-
-Copy `.env.example` to `.env.local`:
+`.env.local` is configured with project credentials (gitignored). To recreate:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Fill in values from **Project Settings → API**:
-
-| Variable | Where to find it |
-|---|---|
-| `VITE_SUPABASE_URL` | Project URL |
-| `VITE_SUPABASE_ANON_KEY` | `anon` `public` key |
-
-## 4. Restart the dev server
-
-```bash
-npm run dev
-```
-
-The app syncs to Supabase automatically when online. Each device gets a `device_id` stored in localStorage — no user accounts required.
+Fill from **Project Settings → API** in the [Supabase dashboard](https://supabase.com/dashboard/project/eevoabfiyzsfoberzsom/settings/api).
 
 ## Tables
 
@@ -52,6 +25,16 @@ The app syncs to Supabase automatically when online. Each device gets a `device_
 | `practice_logs` | Every logged practice session |
 | `reminders` | Up to 3 reminder slots |
 | `saved_sessions` | Named session shortcuts |
+
+Legacy tables (`device_sessions_legacy`, `practice_logs_legacy`, `analytics_events_legacy`) are preserved from the earlier prototype.
+
+## Migrations
+
+Applied remotely via Supabase MCP. Local SQL mirror:
+
+```
+supabase/migrations/20260807100000_initial_schema.sql
+```
 
 ## Security note
 

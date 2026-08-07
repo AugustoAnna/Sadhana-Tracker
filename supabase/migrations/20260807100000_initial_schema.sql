@@ -1,5 +1,9 @@
--- Sadhana Tracker — initial schema
--- Device-bound participants (no auth). Each client generates a device_id stored locally.
+-- Sadhana Tracker v2 schema
+-- Renames legacy prototype tables, then creates the study schema.
+
+alter table if exists public.practice_logs rename to practice_logs_legacy;
+alter table if exists public.device_sessions rename to device_sessions_legacy;
+alter table if exists public.analytics_events rename to analytics_events_legacy;
 
 create extension if not exists "pgcrypto";
 
@@ -60,38 +64,32 @@ create index if not exists idx_practice_logs_device on practice_logs(device_id);
 create index if not exists idx_practice_logs_logged_at on practice_logs(logged_at);
 create index if not exists idx_practice_instances_participant on practice_instances(participant_id);
 
--- Study pilot: device-scoped access via anon key (no user accounts)
 alter table participants enable row level security;
 alter table practice_instances enable row level security;
 alter table practice_logs enable row level security;
 alter table reminders enable row level security;
 alter table saved_sessions enable row level security;
 
-create policy "participants_device_select" on participants
-  for select using (true);
-create policy "participants_device_insert" on participants
-  for insert with check (true);
-create policy "participants_device_update" on participants
-  for update using (true);
+create policy "participants_device_select" on participants for select using (true);
+create policy "participants_device_insert" on participants for insert with check (true);
+create policy "participants_device_update" on participants for update using (true);
+create policy "practice_instances_all" on practice_instances for all using (true) with check (true);
+create policy "practice_logs_all" on practice_logs for all using (true) with check (true);
+create policy "reminders_all" on reminders for all using (true) with check (true);
+create policy "saved_sessions_all" on saved_sessions for all using (true) with check (true);
 
-create policy "practice_instances_all" on practice_instances
-  for all using (true) with check (true);
-create policy "practice_logs_all" on practice_logs
-  for all using (true) with check (true);
-create policy "reminders_all" on reminders
-  for all using (true) with check (true);
-create policy "saved_sessions_all" on saved_sessions
-  for all using (true) with check (true);
-
--- Auto-update updated_at on participants
 create or replace function update_updated_at()
-returns trigger as $$
+returns trigger
+language plpgsql
+set search_path = public
+as $$
 begin
   new.updated_at = now();
   return new;
 end;
-$$ language plpgsql;
+$$;
 
+drop trigger if exists participants_updated_at on participants;
 create trigger participants_updated_at
   before update on participants
   for each row execute function update_updated_at();
