@@ -70,6 +70,27 @@ body {
   animation: plant-settle 0.6s ease-out;
 }
 
+/* Empty state entrance animation */
+@keyframes empty-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.empty-enter-delay-1 { animation: empty-fade-up 0.5s ease-out both; }
+.empty-enter-delay-2 { animation: empty-fade-up 0.5s ease-out 0.1s both; }
+.empty-enter-delay-3 { animation: empty-fade-up 0.5s ease-out 0.2s both; }
+.empty-enter-delay-4 { animation: empty-fade-up 0.5s ease-out 0.3s both; }
+.empty-enter-delay-5 { animation: empty-fade-up 0.5s ease-out 0.4s both; }
+.empty-enter-delay-6 { animation: empty-fade-up 0.5s ease-out 0.5s both; }
+.empty-enter-delay-7 { animation: empty-fade-up 0.5s ease-out 0.6s both; }
+.empty-enter-delay-8 { animation: empty-fade-up 0.5s ease-out 0.7s both; }
+
 /* Scrollbar hide */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

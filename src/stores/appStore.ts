@@ -37,6 +37,10 @@ interface AppStore {
   showToast: (msg: string) => void;
   clearToast: () => void;
   markInstanceEducationShown: () => Promise<void>;
+  resetForSetupReplay: () => Promise<void>;
+  resetToEmptyStatePreview: () => Promise<void>;
+  demoAnimateEmpty: boolean;
+  setDemoAnimateEmpty: (value: boolean) => void;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -50,6 +54,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   playerSession: null,
   levelCrossed: null,
   toast: null,
+  demoAnimateEmpty: false,
 
   hydrate: async () => {
     const [profile, instances, logs, reminders, savedSessions, meta] = await Promise.all([
@@ -241,6 +246,72 @@ export const useAppStore = create<AppStore>((set, get) => ({
     await db.profile.update('profile', { instanceEducationShown: true });
     set({ profile: { ...get().profile!, instanceEducationShown: true } });
   },
+
+  resetForSetupReplay: async () => {
+    await Promise.all([
+      db.practiceInstances.clear(),
+      db.practiceLogs.clear(),
+      db.savedSessions.clear(),
+      db.syncQueue.clear(),
+    ]);
+    await db.profile.update('profile', {
+      name: '',
+      isMeditator: null,
+      onboardingComplete: false,
+      instanceEducationShown: false,
+      notificationPermissionAsked: false,
+    });
+    await db.appMeta.update('meta', {
+      lastLevelUpDate: null,
+      pendingJourneyMinutes: 0,
+      recentSessionKeys: [],
+    });
+    await db.reminders.bulkPut([
+      { id: 1, time: '06:00', enabled: false },
+      { id: 2, time: '12:00', enabled: false },
+      { id: 3, time: '18:00', enabled: false },
+    ]);
+    const profile = await db.profile.get('profile');
+    const reminders = await db.reminders.toArray();
+    set({
+      profile: profile!,
+      instances: [],
+      logs: [],
+      savedSessions: [],
+      reminders,
+      pendingJourneyMinutes: 0,
+      sessionDraft: null,
+      playerSession: null,
+      levelCrossed: null,
+      demoAnimateEmpty: true,
+    });
+  },
+
+  resetToEmptyStatePreview: async () => {
+    await Promise.all([
+      db.practiceInstances.clear(),
+      db.practiceLogs.clear(),
+      db.savedSessions.clear(),
+    ]);
+    await db.appMeta.update('meta', {
+      pendingJourneyMinutes: 0,
+      recentSessionKeys: [],
+    });
+    await db.profile.update('profile', { instanceEducationShown: false });
+    const profile = await db.profile.get('profile');
+    set({
+      profile: profile!,
+      instances: [],
+      logs: [],
+      savedSessions: [],
+      pendingJourneyMinutes: 0,
+      sessionDraft: null,
+      playerSession: null,
+      demoAnimateEmpty: true,
+    });
+  },
+
+  setDemoAnimateEmpty: (value) => set({ demoAnimateEmpty: value }),
 }));
 
 export function getDefaultLogMinutes(practiceId: string): number {

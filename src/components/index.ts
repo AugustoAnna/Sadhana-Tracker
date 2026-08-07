@@ -18,3 +18,4 @@ export { PracticeIllustration } from './PracticeIllustration';
 export { PracticeCard } from './PracticeCard';
 export { HeatMap } from './HeatMap';
 export { WeekStrip } from './WeekStrip';
+export { SetupReplayPanel } from './SetupReplayPanel';
