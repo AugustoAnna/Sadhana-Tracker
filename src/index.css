@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #FDFBF5;
+  --color-primary: #0D8A7A;
+  --color-primary-dark: #0A6B5E;
+  --color-header: #1A2B2B;
+  --color-journey: #C4783A;
+  --color-border: #E5E0D5;
+  --color-muted: #9B9B9B;
+  --color-secondary: #6B6B6B;
+  --color-player: #5C4A2A;
+  --font-serif: "Fraunces", Georgia, serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-cream);
+  color: #1A1A1A;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+/* Safe area for mobile */
+.safe-bottom {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+/* Checkbox animation */
+@keyframes check-fill {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+@keyframes check-tick {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes ripple {
+  from { transform: scale(0.8); opacity: 0.6; }
+  to { transform: scale(2.5); opacity: 0; }
+}
+
+.checkbox-ripple {
+  animation: ripple 0.5s ease-out forwards;
+}
+
+/* Journey settle animation */
+@keyframes plant-settle {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+  60% { transform: translateY(2px); }
+}
+
+.plant-settle {
+  animation: plant-settle 0.6s ease-out;
+}
+
+/* Scrollbar hide */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
