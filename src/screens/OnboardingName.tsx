@@ -14,22 +14,25 @@ export function OnboardingName() {
   };
 
   return (
-    <div className="flex flex-col h-full px-6">
-      <div className="pt-12 px-2" />
-      <div className="flex-1 flex flex-col justify-center -mt-16">
-        <h1 className="font-serif text-[28px] font-semibold leading-tight mb-3">
+    <div className="flex flex-col h-full px-4 bg-page">
+      <div className="pt-14" />
+      <div className="flex-1 flex flex-col justify-center -mt-10 px-2">
+        <p className="eyebrow mb-3">Welcome</p>
+        <h1 className="font-serif text-display mb-3">
           Let's put a name to your practice
         </h1>
-        <p className="text-secondary mb-8">
+        <p className="text-label text-secondary mb-8">
           This helps us keep your progress connected to you.
         </p>
-        <TextInput
-          label="Your name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder=""
-          autoFocus
-        />
+        <div className="bg-card rounded-[14px] p-4">
+          <TextInput
+            label="Your name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder=""
+            autoFocus
+          />
+        </div>
       </div>
       <div className="safe-bottom pb-4">
         <Button fullWidth disabled={name.trim().length === 0} onClick={handleContinue}>

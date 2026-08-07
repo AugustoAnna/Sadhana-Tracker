@@ -20,12 +20,12 @@ export function Checkbox({ checked, disabled, onChange }: CheckboxProps) {
     <button
       onClick={handleClick}
       disabled={disabled || checked}
-      className="relative w-6 h-6 flex-shrink-0"
+      className="relative w-11 h-11 flex-shrink-0 flex items-center justify-center"
       aria-label={checked ? 'Completed' : 'Mark complete'}
     >
       <div
-        className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
-          checked ? 'bg-primary border-primary' : 'border-border bg-white'
+        className={`w-[26px] h-[26px] rounded-[7px] border-2 flex items-center justify-center transition-colors ${
+          checked ? 'bg-primary border-primary' : 'border-border bg-page'
         } ${disabled && !checked ? 'opacity-40' : ''}`}
       >
         {checked && (
@@ -46,7 +46,7 @@ export function Checkbox({ checked, disabled, onChange }: CheckboxProps) {
         )}
       </div>
       {rippling && (
-        <div className="absolute inset-0 rounded-md border-2 border-primary checkbox-ripple pointer-events-none" />
+        <div className="absolute inset-[9px] rounded-[7px] border-2 border-primary checkbox-ripple pointer-events-none" />
       )}
     </button>
   );

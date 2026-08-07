@@ -1,83 +1,60 @@
-# Sadhana Tracker — Design System (Draft)
+# Sadhana Tracker — Design System
 
-> Extracted from screenshot references. Awaiting Figma node IDs for final values.
+> Consumes Design System 2.0 `Semantics/*` via CSS variables in `src/index.css`.
+> Values below are **D2 fallbacks** until Figma node `10783-5275` resolves live tokens.
 
-## Colours
+## Colour (Semantics)
 
-| Token | Value | Usage |
-|---|---|---|
-| `--bg-cream` | `#FDFBF5` | Page background |
-| `--bg-white` | `#FFFFFF` | Cards, modals |
-| `--primary` | `#0D8A7A` | Buttons, toggles, links |
-| `--primary-dark` | `#0A6B5E` | Button pressed |
-| `--header-dark` | `#1A2B2B` | Practice home header |
-| `--text-primary` | `#1A1A1A` | Headings, body |
-| `--text-secondary` | `#6B6B6B` | Labels, metadata |
-| `--text-muted` | `#9B9B9B` | Disabled, placeholders |
-| `--journey-accent` | `#C4783A` | Current level, progress |
-| `--border` | `#E5E0D5` | Dividers, inputs |
-| `--error` | `#D32F2F` | Delete actions |
-| `--player-bg` | `#5C4A2A` | Practice player |
-| `--morning-gradient` | `#FFF0E0 → #FFFFFF` | Time-of-day cards |
-| `--afternoon-gradient` | `#FFF8E0 → #FFFFFF` | |
-| `--evening-gradient` | `#F5E8F0 → #FFFFFF` | |
-| `--night-gradient` | `#E8F0F8 → #FFFFFF` | |
-
-## Heat map (R5)
-
-Bands 0–12 as specified in feature spec. Empty = white + centre dot.
-
-## Typography
-
-| Role | Font | Weight | Size |
+| Token | CSS / Tailwind | Value | Use |
 |---|---|---|---|
-| Screen title (serif) | Fraunces | 600 | 28px |
-| Section title | DM Sans | 700 | 18px |
-| Body | DM Sans | 400 | 16px |
-| Label (caps) | DM Sans | 600 | 11px, letter-spacing 0.08em |
-| Stat number | DM Sans | 700 | 24px |
-| Timer | DM Sans | 500 | 32px |
+| `accent/primary` | `--color-primary` | `#0D8A7A` | Primary actions, active states |
+| `accent/primary-light` | `--color-primary-light` | `#2A9D9B` | Raised buttons on dark grounds |
+| `surface/page` | `--color-page` / `bg-page` | `#FFFFFF` | Screen background |
+| `surface/card` | `--color-card` / `bg-card` | `#F2EFE7` | Cream cards, journey row, explore |
+| `surface/sunken` | `--color-sunken` | `#E9E5DA` | App home behind Practices card |
+| `surface/placeholder` | `--color-placeholder` | `#E9E9E9` | Illustration placeholders |
+| `text/primary` | `--color-ink` | `#1C1C1C` | Titles, practice names |
+| `text/secondary` | `--color-secondary` | `#5F5F5F` | Supporting text |
+| `text/muted` | `--color-muted` | `#767676` | Meta text — do not go lighter |
+| `text/brass` | `--color-brass` / `.eyebrow` | `#7D6B42` | Eyebrow labels on cream |
+| `ground/warm` | `--color-ground` | `#8A7132` | Player & post-practice grounds |
+| `border/hairline` | `--color-hairline` | `#EEEEEE` | Row dividers |
+| `border/default` | `--color-border` | `#DCDCDC` | Control outlines |
+| `journey/accent` | `--color-journey` | `#C6530F` | Progress bar, ring, ticks |
 
-## Spacing scale
+Heat map bands (R5) are unchanged.
 
-4, 8, 12, 16, 20, 24, 32, 48, 64 (px)
+## Typography (D3)
 
-## Radii
+| Token | Class | Size | Weight | Use |
+|---|---|---|---|---|
+| display | `.text-display` | 24 | 700 | Screen titles |
+| headline | `.text-headline` | 20 | 700 | Empty state, level-up, player |
+| title | `.text-title` | 16 | 600 | Section headers |
+| body | `.text-body` | 14 | 600 | Practice names |
+| label | `.text-label` | 12.5 | 400 | Supporting lines |
+| meta | `.text-meta` | 12 | 600 | Chips, stat labels |
+| stat | `.text-stat` | 19 | 700 | Stat numbers |
 
-| Token | Value |
+Fonts: DM Sans (UI), Fraunces (serif — empty headline, level labels, player eyes-closed line).
+
+## Spacing & radius (D4)
+
+Spacing: 4, 8, 12, 16, 26. Screen padding 16. Section gap 26. Row py 12.
+
+| Radius | Value |
 |---|---|
-| `--radius-sm` | 8px |
-| `--radius-md` | 12px |
-| `--radius-lg` | 16px |
-| `--radius-xl` | 24px |
-| `--radius-full` | 9999px |
+| control | 7px |
+| thumbnail | 8px |
+| card / CTA | 12px |
+| cream card | 14px |
+| bottom sheet | 18px |
+| rings | 50% |
 
-## Component inventory
+Minimum tap target 44×44 (`min-h-11` / `w-11 h-11`). Checkbox and plus drawn at 26px inside 44px hit area.
 
-| Component | States |
-|---|---|
-| `Button` | primary, secondary, text, disabled |
-| `TextInput` | empty, focused, filled, disabled |
-| `Checkbox` | unchecked, checked (animated), disabled |
-| `PlusButton` | default, with total |
-| `PlayButton` | default, disabled |
-| `Toggle` | on, off |
-| `StickyAction` | enabled, disabled, with count |
-| `BottomSheet` | open, closed |
-| `TimePicker` | scrolling wheel |
-| `MinutePicker` | 5–180 in steps of 5 |
-| `Modal` | confirm, info |
-| `Toast` | success (edit save only) |
-| `ProgressRing` | 0–100% |
-| `ProgressBar` | journey bar |
-| `PracticeCard` | default, completed, with-instance-label |
-| `JourneyRow` | level 0–16, animating |
-| `HeatMapCell` | bands 0–12 |
-| `WeekStrip` | 7 cells |
-| `SessionCard` | 2–9+ practice grid |
-| `PlantVisual` | level 0–16 placeholder SVG |
-| `PhaseHeader` | Roots, locked phase |
+## Open items
 
-## Screens awaiting Figma
-
-All 15 screens flagged `awaiting-design` until node IDs supplied.
+1. Resolve live Semantics values from Figma node `10783-5275`.
+2. Practice illustration assets (47).
+3. Confirm serif on level labels (currently applied).

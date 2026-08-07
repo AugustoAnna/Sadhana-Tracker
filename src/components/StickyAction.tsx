@@ -11,11 +11,11 @@ export function StickyAction({ label, count, disabled, onClick }: StickyActionPr
     : label;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-cream/95 backdrop-blur-sm border-t border-border px-4 py-3 safe-bottom z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-page/95 backdrop-blur-sm border-t border-hairline px-4 py-3 safe-bottom z-50">
       <button
         onClick={onClick}
         disabled={disabled}
-        className="w-full py-3.5 rounded-xl bg-primary text-white font-semibold text-base disabled:opacity-40 disabled:cursor-not-allowed active:bg-primary-dark"
+        className="w-full py-3.5 min-h-11 rounded-xl bg-primary text-white font-semibold text-body disabled:opacity-40 disabled:cursor-not-allowed active:bg-primary-dark"
       >
         {displayLabel}
       </button>

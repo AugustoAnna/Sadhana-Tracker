@@ -8,6 +8,7 @@ export function AppHome() {
   const navigate = useNavigate();
   const logs = useAppStore((s) => s.logs);
   const instances = useAppStore((s) => s.instances);
+  const name = useAppStore((s) => s.profile?.name ?? '');
 
   if (instances.length === 0) return null;
 
@@ -22,46 +23,47 @@ export function AppHome() {
   const weekMinutes = weekDays.reduce((s, d) => s + d.minutes, 0);
 
   return (
-    <div className="h-full overflow-y-auto bg-cream">
-      {/* Static Sadhguru App home placeholder */}
-      <div className="bg-header text-white px-4 pt-12 pb-8">
+    <div className="h-full overflow-y-auto bg-sunken">
+      <div className="bg-header text-white px-4 pt-12 pb-10">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-sm opacity-70">Namaskaram</p>
-            <p className="font-serif text-xl">{useAppStore.getState().profile?.name ?? ''}</p>
+            <p className="text-label text-white/70">Namaskaram</p>
+            <p className="font-serif text-headline mt-0.5">{name}</p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-white/20" />
+          <div className="w-11 h-11 rounded-full bg-white/15 flex items-center justify-center text-meta font-semibold">
+            {name.slice(0, 1).toUpperCase() || '·'}
+          </div>
         </div>
-        <div className="w-full h-40 rounded-2xl bg-white/10 flex items-center justify-center">
-          <p className="text-white/40 text-sm">Sadhguru App Home (placeholder)</p>
+        <div className="w-full h-36 rounded-[14px] bg-gradient-to-br from-ground/40 to-white/5 flex items-end p-4">
+          <div>
+            <p className="eyebrow text-white/70">Sadhguru App</p>
+            <p className="font-serif text-title text-white/90 mt-1">Home</p>
+          </div>
         </div>
       </div>
 
-      {/* Practices card */}
-      <div className="px-4 -mt-4">
+      <div className="px-4 -mt-5 pb-8">
         <button
           onClick={() => navigate('/practice-home')}
-          className="w-full bg-white rounded-2xl p-5 shadow-sm text-left active:bg-gray-50"
+          className="w-full bg-card rounded-[14px] p-5 text-left active:opacity-95 shadow-sm"
         >
-          <p className="text-xs font-semibold tracking-widest text-journey uppercase mb-4">Practices</p>
-          <div className="flex items-center gap-4 mb-4">
+          <p className="eyebrow mb-4">Practices</p>
+          <div className="flex items-center gap-4 mb-5">
             <ProgressRing progress={journey.progressInLevel} level={journey.currentLevel} />
-            <div className="flex-1">
-              <div className="flex gap-6">
-                <div>
-                  <p className="text-2xl font-bold">{daysPracticed}</p>
-                  <p className="text-xs text-secondary">days practiced</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{completedToday}</p>
-                  <p className="text-xs text-secondary">completed today</p>
-                </div>
+            <div className="flex-1 flex gap-6">
+              <div>
+                <p className="text-stat">{daysPracticed}</p>
+                <p className="text-label text-secondary">days practiced</p>
+              </div>
+              <div>
+                <p className="text-stat">{completedToday}</p>
+                <p className="text-label text-secondary">completed today</p>
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pt-3 border-t border-hairline">
             <WeekStrip days={weekDays} />
-            <p className="text-sm font-semibold text-secondary">{weekMinutes} min</p>
+            <p className="text-meta text-secondary">{weekMinutes} min</p>
           </div>
         </button>
       </div>

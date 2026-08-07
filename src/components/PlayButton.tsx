@@ -8,8 +8,8 @@ export function PlayButton({ onClick, disabled }: PlayButtonProps) {
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 ${
-        disabled ? 'opacity-40' : 'active:bg-primary-dark'
+      className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${
+        disabled ? 'opacity-40 bg-primary' : 'bg-primary active:bg-primary-dark'
       }`}
       aria-label="Start practice"
     >

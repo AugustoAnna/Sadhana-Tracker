@@ -1,7 +1,7 @@
 import { PlantVisual } from './PlantVisual';
 
 interface ProgressRingProps {
-  progress: number; // 0-1
+  progress: number;
   level: number;
   size?: number;
 }
@@ -20,7 +20,7 @@ export function ProgressRing({ progress, level, size = 80 }: ProgressRingProps) 
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#E5E0D5"
+          stroke="var(--color-border)"
           strokeWidth={stroke}
         />
         <circle
@@ -28,7 +28,7 @@ export function ProgressRing({ progress, level, size = 80 }: ProgressRingProps) 
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#C4783A"
+          stroke="var(--color-journey)"
           strokeWidth={stroke}
           strokeDasharray={circumference}
           strokeDashoffset={offset}

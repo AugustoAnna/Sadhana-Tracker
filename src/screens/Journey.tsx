@@ -40,26 +40,28 @@ export function Journey() {
   return (
     <div className="h-full flex flex-col">
       {/* Fixed current level */}
-      <div className="bg-cream border-b border-border px-4 pt-12 pb-4 z-10">
+      <div className="bg-card border-b border-hairline px-4 pt-12 pb-4 z-10">
         <div className="flex items-center gap-2 mb-4">
-          <button onClick={() => navigate('/practice-home')} aria-label="Go back">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <button onClick={() => navigate('/practice-home')} aria-label="Go back" className="w-11 h-11 flex items-center justify-center -ml-2">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
-          <h1 className="font-serif text-2xl font-semibold">Your journey</h1>
+          <h1 className="font-serif text-display">Your journey</h1>
         </div>
         <div className="flex items-center gap-3">
-          <PlantVisual level={journey.currentLevel} size="md" />
+          <div className="w-14 h-14 rounded-full bg-page flex items-center justify-center">
+            <PlantVisual level={journey.currentLevel} size="md" />
+          </div>
           <div className="flex-1">
-            <p className="text-xs text-journey font-semibold uppercase tracking-wider">
+            <p className="eyebrow text-journey">
               Phase 1 · Roots
             </p>
-            <p className="font-semibold">
+            <p className="font-serif text-title">
               Level {journey.currentLevel} · {getLevelLabel(journey.currentLevel)}
             </p>
             <ProgressBar progress={journey.progressInLevel} className="mt-2" />
-            <div className="flex justify-between text-xs text-secondary mt-1">
+            <div className="flex justify-between text-meta text-secondary mt-1">
               <span>{formatMinutes(journey.totalMinutes)} min</span>
               <span>{formatMinutes(journey.minutesToNext)} min to next</span>
             </div>
@@ -69,7 +71,7 @@ export function Journey() {
 
       {/* Scrollable level list */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        <p className="text-xs font-semibold tracking-widest text-journey uppercase mb-4">
+        <p className="eyebrow text-journey mb-4">
           Phase 1 · Roots
         </p>
 

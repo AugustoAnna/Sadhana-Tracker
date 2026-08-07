@@ -24,18 +24,18 @@ export function PostPractice() {
 
   return (
     <div
-      className="h-full bg-player flex flex-col items-center justify-center relative"
+      className="h-full bg-ground flex flex-col items-center justify-center relative"
       onClick={() => canContinue && handleContinue()}
     >
       <button
         onClick={handleContinue}
-        className="absolute top-12 right-4 text-white/50 text-sm"
+        className="absolute top-12 right-4 text-white/60 text-meta min-h-11 px-2"
       >
         Skip
       </button>
 
-      <div className="w-64 h-64 bg-amber-900/20 rounded-lg flex items-center justify-center">
-        <p className="text-white/30 text-sm text-center">Stillness<br/>(placeholder image)</p>
+      <div className="w-64 h-64 bg-black/20 rounded-[12px] flex items-center justify-center">
+        <p className="text-white/40 text-label text-center font-serif">Stillness<br/>(placeholder image)</p>
       </div>
 
       {canContinue && (

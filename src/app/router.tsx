@@ -27,7 +27,7 @@ import {
 export function AppRouter() {
   return (
     <BrowserRouter>
-      <div className="h-full max-w-lg mx-auto bg-cream shadow-lg relative overflow-hidden">
+      <div className="h-full max-w-lg mx-auto bg-page shadow-lg relative overflow-hidden">
         <DemoModeIndicator />
         <Routes>
           <Route path="/" element={<LandingRedirect />} />

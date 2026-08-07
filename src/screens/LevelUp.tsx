@@ -21,26 +21,28 @@ export function LevelUp() {
   };
 
   return (
-    <div className="h-full bg-cream flex flex-col items-center justify-center px-6 text-center">
-      <p className="text-journey font-semibold text-sm uppercase tracking-widest mb-2">
-        Level unlocked
-      </p>
-      <h1 className="font-serif text-3xl font-semibold mb-8">
+    <div className="h-full bg-card flex flex-col items-center justify-center px-6 text-center">
+      <p className="eyebrow text-journey mb-2">Level unlocked</p>
+      <h1 className="font-serif text-display mb-8">
         Level {level}
       </h1>
 
-      <div className="flex items-center gap-8 mb-8">
-        <PlantVisual level={prevLevel} size="lg" />
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C4783A" strokeWidth="2">
+      <div className="flex items-center gap-6 mb-8">
+        <div className="w-24 h-24 rounded-full bg-page flex items-center justify-center">
+          <PlantVisual level={prevLevel} size="lg" />
+        </div>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-journey)" strokeWidth="2">
           <path d="M5 12h14M12 5l7 7-7 7" />
         </svg>
-        <PlantVisual level={level} size="lg" animating />
+        <div className="w-24 h-24 rounded-full bg-page flex items-center justify-center">
+          <PlantVisual level={level} size="lg" animating />
+        </div>
       </div>
 
-      <p className="font-semibold text-xl mb-2">{getLevelLabel(level)}</p>
-      <p className="text-secondary mb-6">{formatMinutes(totalMinutes)} minutes tracked</p>
+      <p className="font-serif text-headline mb-2">{getLevelLabel(level)}</p>
+      <p className="text-label text-secondary mb-6">{formatMinutes(totalMinutes)} minutes tracked</p>
 
-      <ProgressBar progress={journey.progressInLevel} className="w-full max-w-xs mb-8" />
+      <ProgressBar progress={journey.progressInLevel} className="w-full max-w-xs mb-10" />
 
       <Button fullWidth onClick={handleContinue}>
         Continue

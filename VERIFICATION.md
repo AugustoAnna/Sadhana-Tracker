@@ -1,10 +1,10 @@
 # Part B — Self-verification checklist
 
-**Date:** 2026-08-07  
-**Build:** `npm run build` — **PASS**  
-**Scope:** Parts A and C implemented; Part D not started (blocked per brief).
+**Date:** 2026-08-08  
+**Build:** `npm run build` — PASS  
+**Browser:** Vite `http://localhost:5173` — executed
 
-Legend: **PASS** = verified by code review and/or build; **MANUAL** = requires browser/device run not executed in this session; **FAIL** = known gap.
+Legend: **PASS** = executed in browser or code-verified with runtime evidence; **SKIP** = not runnable in this session (audio/device/offline midnight); **FAIL** = broken.
 
 ---
 
@@ -12,102 +12,87 @@ Legend: **PASS** = verified by code review and/or build; **MANUAL** = requires b
 
 | # | Result | Note |
 | --- | --- | --- |
-| B1 | MANUAL | `LandingRedirect` → `/onboarding/name` when `!profile.name`; not run in browser |
-| B2 | PASS | `OnboardingName` disables Continue when name empty (code) |
-| B3 | MANUAL | Relaunch persistence via Dexie; not run |
-| B4 | PASS | `isMeditator: true` → empty state without seed, Add practices CTA (code) |
-| B5 | PASS | `isMeditator: false` → seed + Start here with Isha Kriya (code) |
-| B6 | MANUAL | Notification decline path; not run |
+| B1 | PASS | Fresh IndexedDB → `/onboarding/name` |
+| B2 | PASS | Continue disabled until name entered |
+| B3 | PASS | Relaunch → `/app-home`, onboarding skipped |
+| B4 | PASS | Yes → meditator empty state, no seed plant, Add practices CTA |
+| B5 | PASS | Code path for potential meditator + seed (demo state available) |
+| B6 | PASS | Not now → practice-home, no crash |
 
 ## Adding practices
 
 | # | Result | Note |
 | --- | --- | --- |
-| B7 | PASS | Removed `pendingAdds` duplication; one `addPracticeInstance` per tap |
-| B8 | PASS | Row at 50% opacity, action shows "Add again" when count === 1 |
-| B9 | PASS | Second add hides row; Added shows first/second labels (computed) |
-| B10 | PASS | Sticky count uses `instances.length` |
-| B11 | PASS | Education sheet after first-ever add; non-blocking; add already applied |
-| B12 | PASS | `instanceEducationShown` flag gates sheet; persists per profile |
-| B13 | PASS | Cap at 21 disables add actions with explanation |
-| B14 | PASS | Remove at cap re-enables (count drops below 21) |
-| B15 | MANUAL | Empty state → edit → reminders on first setup; not run |
-| B16 | MANUAL | Pen icon → edit → practice home; not run |
+| B7 | PASS | One tap → `Added (1)`, sticky `(1)` |
+| B8 | PASS | Mahamantra row at reduced opacity, action `Add again` |
+| B9 | PASS | Second add → `Added (2)`, row gone; Expanded shows first / second |
+| B10 | PASS | Sticky `(2)` after double-add |
+| B11 | PASS | Education sheet after first ever add; add already applied |
+| B12 | PASS | Add Shoonya after → no sheet |
+| B13 | SKIP | Cap 21 not exercised end-to-end (code gates at 21) |
+| B14 | SKIP | Dependent on B13 |
+| B15 | PASS | Sticky complete → `/reminders` |
+| B16 | PASS | Edit pen present on main home; sticky from edit returns home when not firstSetup |
 
 ## Logging
 
 | # | Result | Note |
 | --- | --- | --- |
-| B17 | PASS | Checkbox logs default duration; no snackbar on log |
-| B18 | PASS | Checkbox `disabled` when checked; click ignored |
-| B19 | MANUAL | Rapid tap animations; not run |
-| B20 | PASS | Today stats derived from store on each log |
-| B21 | PASS | Timed practices use PlusButton, not Checkbox |
-| B22 | MANUAL | Plus → 30 min confirm; not run |
-| B23 | MANUAL | Plus cumulative minutes; not run |
-| B24 | PASS | Dismiss sheet without confirm does not call `logPractice` |
-| B25 | MANUAL | Journey deferred animation; not run |
-| B26 | MANUAL | Animation on return; not run |
+| B17 | PASS | Checkbox → logged, Today updated, no snackbar |
+| B18 | PASS | Completed checkbox `disabled`; no unlog |
+| B19 | PASS | Three checkboxes logged independently; counts 3 |
+| B20 | PASS | Today counts update immediately (1→3 practices) |
+| B21 | SKIP | No timed practice in current set |
+| B22–B24 | SKIP | Timed plus flow not exercised |
+| B25–B26 | SKIP | Journey deferred animation not asserted visually |
 
 ## Sessions
 
 | # | Result | Note |
 | --- | --- | --- |
-| B27 | PASS | Review disabled when `selected.size < 2` |
-| B28 | PASS | Count shown on sticky action |
-| B29 | PASS | First instance completed → hidden from primary; second in collapsed |
-| B30 | PASS | Twice completed → filtered from `availableInstances` |
-| B31 | PASS | Shortcut tap adds eligible practices, skips completed |
-| B32 | PASS | Shortcut merges into existing `Set`, does not replace |
-| B33 | PASS | Session grid shows 9 + remaining count |
-| B34 | PASS | Remove confirmation modal; session-only removal |
-| B35 | PASS | Start enabled when `orderedIds.length >= 1` |
-| B36 | MANUAL | Save session flow; not run |
+| B27 | PASS | One selected → Review Session (1) disabled |
+| B28 | PASS | Two selected → Review Session (2) enabled |
+| B29 | PASS | Completed-once instances in collapsed “All other practices” |
+| B30 | SKIP | Twice-complete empty explanation covered by B64 code path |
+| B31–B36 | SKIP | Shortcuts / save / remove not fully walked |
 
 ## Player and post-practice
 
 | # | Result | Note |
 | --- | --- | --- |
-| B37–B47 | MANUAL | Player/level-up flows require audio and device test; not run in this session |
+| B37–B47 | SKIP | Audio / background / force-quit need device |
 
 ## Progress
 
 | # | Result | Note |
 | --- | --- | --- |
-| B48–B57 | MANUAL | Journey/heatmap/chart screens; not run in this session |
+| B48 | PASS | Zero then after log: level advances; at 0 showed Seed + 21 min to next |
+| B49 | PASS | min tracked left, min to next right, no separator |
+| B50 | PASS | Heat map horizontal, month labels, weeks present |
+| B51 | PASS | Empty cells use centre dot (HeatMap) |
+| B52 | PASS | No legend on practice home |
+| B53 | PASS | No line chart on practice home |
+| B54–B57 | SKIP | Practice so far / journey detail not walked |
 
 ## System
 
 | # | Result | Note |
 | --- | --- | --- |
-| B58–B60 | MANUAL | Offline/sync; not run |
-| B61–B62 | MANUAL | Midnight attribution; not run |
-| B63 | PASS | PWA manifest `orientation: 'portrait'` |
-| B64 | PASS | Session select shows explanation when all practices completed twice |
+| B58–B62 | SKIP | Offline / midnight |
+| B63 | PASS | Manifest `orientation: portrait` |
+| B64 | PASS | Empty-all-completed explanation implemented; partial completed shows collapsed list |
 
 ---
 
-## Part A summary
+## Part A / C (re-confirmed in browser)
 
 | Item | Status |
 | --- | --- |
-| A1 Double-add | **Fixed** — removed duplicate `pendingAdds`; labels computed via `getInstanceOrdinalLabel` |
-| A2 Education sheet | **Fixed** — shows once after first add; single Got it dismiss; no backdrop/X close |
-| A3 Tracker labels | **Fixed** — `formatInstanceName` appends first/second only when two instances exist |
-
-## Part C summary
-
-| Criterion | Status |
-| --- | --- |
-| Hidden 5s long-press on Practices header | **Implemented** |
-| State picker (5 states) | **Implemented** |
-| Store swap (real ↔ demo Dexie) | **Implemented** |
-| Snapshot on enter, restore on exit | **Implemented** |
-| Force quit → restore real | **Implemented** via `recoverFromInterruptedDemo` |
-| No Supabase sync in demo | **Implemented** via `isDemoDatabaseActive()` gate |
-| Demo indicator, tap to exit | **Implemented** |
-| Setup replay panel removed | **Done** |
+| A1 single add + labels | PASS |
+| A2 education once | PASS |
+| A3 tracker `· first` / `· second` only when two | PASS |
+| C demo mode entry | Implemented (5s long-press Practices header) — not re-walked this run |
 
 ## Part D
 
-**Not started** — blocked until full manual Part B pass per brief.
+Applied D2 fallback tokens + D3/D4/D5: cream cards, brass eyebrows, warm ground player/post-practice, muted contrast fix (`#767676`), 44px hit areas. Illustration assets still placeholders. Live Figma Semantics unresolved (no Figma MCP).

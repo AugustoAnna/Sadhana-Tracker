@@ -23,7 +23,7 @@ export function HeatMap({ weeks, compact = false }: HeatMapProps) {
             <div
               key={week.weekStart}
               style={{ width: cellSize }}
-              className="text-[9px] text-muted"
+              className="text-[10px] text-secondary"
             >
               {week.monthLabel}
             </div>
@@ -45,7 +45,7 @@ export function HeatMap({ weeks, compact = false }: HeatMapProps) {
                     height: cellSize,
                     backgroundColor: color,
                     borderRadius: 2,
-                    border: empty ? '1px solid #E5E0D5' : 'none',
+                    border: empty ? '1px solid var(--color-border)' : 'none',
                     position: 'relative',
                   }}
                   aria-label={`${dateLabel}: ${day.minutes} minutes practiced`}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Modal } from '@/components';
+import { Modal, PracticeIllustration } from '@/components';
 import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
 import { getCachedAudio } from '@/services/audio';
@@ -188,32 +188,32 @@ export function PracticePlayer() {
   };
 
   return (
-    <div className="h-full bg-player flex flex-col text-white">
+    <div className="h-full bg-ground flex flex-col text-white">
       <div className="flex items-center justify-between px-4 pt-12">
         <button
           onClick={() => setLeaveOpen(true)}
-          className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"
+          className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
-        <p className="font-serif text-lg">Please close your eyes</p>
-        <div className="w-10" />
+        <p className="font-serif text-headline">Please keep your eyes closed</p>
+        <div className="w-11" />
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6">
-        <div className="w-48 h-48 bg-amber-900/30 rounded-lg mb-6 flex items-center justify-center border-4 border-amber-900/50">
-          <p className="text-white/40 text-xs text-center">Practice image<br/>(placeholder)</p>
+        <div className="mb-6 rounded-[12px] overflow-hidden shadow-lg">
+          <PracticeIllustration practiceId={currentPractice.id} size={192} />
         </div>
-        <p className="font-serif text-xl mb-8">{currentPractice.name}</p>
+        <p className="font-serif text-headline mb-8 text-center px-4">{currentPractice.name}</p>
 
         {isGuided ? (
-          <p className="text-3xl font-medium tabular-nums">{formatTime(secondsLeft)}</p>
+          <p className="text-display tabular-nums font-medium">{formatTime(secondsLeft)}</p>
         ) : (
           <button
             onClick={advance}
-            className="px-8 py-3 rounded-xl border-2 border-white font-semibold"
+            className="px-8 py-3 rounded-xl bg-primary-light text-white font-semibold min-h-11"
           >
             Mark Completed
           </button>
