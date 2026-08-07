@@ -6,6 +6,10 @@ import { initSyncListener, syncFullState } from '@/services/sync';
 import { ensureDatabasesReady, recoverFromInterruptedDemo } from '@/services/demoMode';
 import './index.css';
 
+import { registerSW } from 'virtual:pwa-register';
+
+registerSW({ immediate: true });
+
 function Bootstrap() {
   const [ready, setReady] = useState(false);
   const hydrate = useAppStore((s) => s.hydrate);
