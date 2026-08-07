@@ -55,7 +55,11 @@
 - [ ] Invocation audio
 - [ ] Post-practice still image
 - [ ] Level labels 8–16
-- [ ] Supabase credentials
+- [x] Supabase client + sync service wired
+- [x] SQL migration schema (`supabase/migrations/`)
+- [x] `.env.example` + `SUPABASE.md` setup guide
+- [ ] Supabase project created and migration applied (manual step)
+- [ ] `.env.local` filled with real credentials
 
 ## First draft gaps to refine
 - [ ] Player invocation open/close flow

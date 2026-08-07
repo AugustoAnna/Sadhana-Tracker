@@ -41,3 +41,29 @@ Open http://localhost:5173 on a mobile viewport (portrait).
 
 On iOS Safari: Share → Add to Home Screen
 On Android Chrome: Menu → Install app
+
+## Push to GitHub
+
+The repo is committed locally on `main`. To publish:
+
+```bash
+# 1. Create a new repo at https://github.com/new (name: sadhana-tracker)
+# 2. Then run:
+git remote add origin https://github.com/YOUR_USERNAME/sadhana-tracker.git
+git push -u origin main
+```
+
+Or with GitHub CLI (after `winget install GitHub.cli` and `gh auth login`):
+
+```bash
+gh repo create sadhana-tracker --public --source=. --push
+```
+
+## Supabase
+
+See [SUPABASE.md](./SUPABASE.md) for setup. Quick version:
+
+1. Create a Supabase project
+2. Run `supabase/migrations/20260807100000_initial_schema.sql` in the SQL Editor
+3. Copy `.env.example` → `.env.local` and add your URL + anon key
+4. Restart `npm run dev`
