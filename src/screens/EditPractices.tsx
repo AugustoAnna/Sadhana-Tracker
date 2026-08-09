@@ -215,7 +215,9 @@ function PracticeAddRow({
   atCap: boolean;
   onAdd: () => void;
 }) {
-  const hidden = instanceCount >= 2;
+  const practice = getPractice(practiceId);
+  const allowsSecond = practice?.type !== 'timed';
+  const hidden = instanceCount >= (allowsSecond ? 2 : 1);
   const addAgain = instanceCount === 1;
   const displayName = addAgain ? `${name} 2` : name;
 

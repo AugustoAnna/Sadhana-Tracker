@@ -1,13 +1,10 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DemoModeIndicator } from '@/components/DemoModeIndicator';
+import { isFeatureEnabled } from '@/features';
+import { FeatureGate } from './FeatureGate';
 import {
-  OnboardingName,
-  OnboardingStatus,
-  OnboardingReminder,
-  OnboardingTrackerIntro,
-  OnboardingType,
-  OnboardingDuration,
-  AppHome,
+  Welcome,
+  WelcomeName,
   PracticeHome,
   EditPractices,
   Reminders,
@@ -21,56 +18,48 @@ import {
 } from '@/screens';
 import {
   LandingRedirect,
-  OnboardingGuard,
-  NameGuard,
+  WelcomeGuard,
   PostOnboardingGuard,
-  MeditatorSetupGuard,
+  SetupGuard,
 } from './guards';
 
 export function AppRouter() {
   return (
     <BrowserRouter>
       <div className="h-full max-w-lg mx-auto bg-page shadow-lg relative overflow-hidden">
-        <DemoModeIndicator />
+        {isFeatureEnabled('mandala') && <DemoModeIndicator />}
         <Routes>
           <Route path="/" element={<LandingRedirect />} />
 
-          <Route path="/onboarding/name" element={
-            <NameGuard><OnboardingName /></NameGuard>
+          <Route path="/welcome" element={
+            <WelcomeGuard><Welcome /></WelcomeGuard>
           } />
-          <Route path="/onboarding/reminder" element={
-            <OnboardingGuard><OnboardingReminder /></OnboardingGuard>
-          } />
-          <Route path="/onboarding/status" element={
-            <OnboardingGuard><OnboardingStatus /></OnboardingGuard>
-          } />
-          <Route path="/onboarding/tracker-intro" element={
-            <OnboardingGuard><OnboardingTrackerIntro /></OnboardingGuard>
-          } />
-          <Route path="/onboarding/type" element={
-            <OnboardingGuard><OnboardingType /></OnboardingGuard>
-          } />
-          <Route path="/onboarding/duration" element={
-            <OnboardingGuard><OnboardingDuration /></OnboardingGuard>
+          <Route path="/welcome/name" element={
+            <WelcomeGuard><WelcomeName /></WelcomeGuard>
           } />
 
-          <Route path="/app-home" element={
-            <PostOnboardingGuard><AppHome /></PostOnboardingGuard>
-          } />
           <Route path="/practice-home" element={
             <PostOnboardingGuard><PracticeHome /></PostOnboardingGuard>
           } />
           <Route path="/practices/edit" element={
-            <MeditatorSetupGuard><EditPractices /></MeditatorSetupGuard>
+            <SetupGuard><EditPractices /></SetupGuard>
           } />
           <Route path="/reminders" element={
-            <MeditatorSetupGuard><Reminders /></MeditatorSetupGuard>
+            <SetupGuard><Reminders /></SetupGuard>
           } />
+          <Route path="/practice-so-far" element={
+            <PostOnboardingGuard><PracticeSoFar /></PostOnboardingGuard>
+          } />
+
           <Route path="/session/select" element={
-            <PostOnboardingGuard><SessionSelect /></PostOnboardingGuard>
+            <FeatureGate feature="sessions">
+              <PostOnboardingGuard><SessionSelect /></PostOnboardingGuard>
+            </FeatureGate>
           } />
           <Route path="/session/review" element={
-            <PostOnboardingGuard><SessionReview /></PostOnboardingGuard>
+            <FeatureGate feature="sessions">
+              <PostOnboardingGuard><SessionReview /></PostOnboardingGuard>
+            </FeatureGate>
           } />
           <Route path="/player" element={
             <PostOnboardingGuard><PracticePlayer /></PostOnboardingGuard>
@@ -79,14 +68,18 @@ export function AppRouter() {
             <PostOnboardingGuard><PostPractice /></PostOnboardingGuard>
           } />
           <Route path="/level-up" element={
-            <PostOnboardingGuard><LevelUp /></PostOnboardingGuard>
+            <FeatureGate feature="journey">
+              <PostOnboardingGuard><LevelUp /></PostOnboardingGuard>
+            </FeatureGate>
           } />
           <Route path="/journey" element={
-            <PostOnboardingGuard><Journey /></PostOnboardingGuard>
+            <FeatureGate feature="journey">
+              <PostOnboardingGuard><Journey /></PostOnboardingGuard>
+            </FeatureGate>
           } />
-          <Route path="/practice-so-far" element={
-            <PostOnboardingGuard><PracticeSoFar /></PostOnboardingGuard>
-          } />
+
+          <Route path="/app-home" element={<Navigate to="/practice-home" replace />} />
+          <Route path="/onboarding/*" element={<Navigate to="/welcome" replace />} />
         </Routes>
       </div>
     </BrowserRouter>

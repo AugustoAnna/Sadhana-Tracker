@@ -14,7 +14,7 @@ export function parseDateKey(key: string): Date {
 }
 
 export function getLogsForDay(logs: PracticeLog[], dateKey: string): PracticeLog[] {
-  return logs.filter((log) => formatDateKey(new Date(log.timestamp)) === dateKey);
+  return logs.filter((log) => (log.localDate ?? formatDateKey(new Date(log.timestamp))) === dateKey);
 }
 
 export function getMinutesForDay(logs: PracticeLog[], dateKey: string): number {
@@ -28,7 +28,7 @@ export function getTotalMinutes(logs: PracticeLog[]): number {
 export function getDaysWithPractice(logs: PracticeLog[]): Set<string> {
   const days = new Set<string>();
   for (const log of logs) {
-    days.add(formatDateKey(new Date(log.timestamp)));
+    days.add(log.localDate ?? formatDateKey(new Date(log.timestamp)));
   }
   return days;
 }

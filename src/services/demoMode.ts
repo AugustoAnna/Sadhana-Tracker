@@ -13,7 +13,7 @@ import {
   wasDemoActiveOnLastSession,
 } from '@/db';
 import type { PracticeInstance, PracticeLog, Profile } from '@/types';
-import { generateId } from '@/utils/dates';
+import { generateId, formatDateKey } from '@/utils/dates';
 
 export type DemoStateId =
   | 'empty-meditator'
@@ -100,7 +100,8 @@ async function seedDemoState(stateId: DemoStateId) {
         instanceId: generateId(),
         minutes: 21,
         timestamp: Date.now(),
-        source: 'manual',
+        localDate: formatDateKey(new Date()),
+        source: 'checkbox',
       };
       await demoDb.practiceLogs.add(log);
       break;

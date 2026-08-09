@@ -1,6 +1,6 @@
 export type PracticeType = 'guided' | 'unguided' | 'timed';
 
-export type LogSource = 'manual' | 'player';
+export type LogSource = 'checkbox' | 'minutes' | 'player';
 
 export type DrawnToType = 'physical-yoga' | 'pranayama' | 'meditation' | 'chants';
 
@@ -28,6 +28,7 @@ export interface PracticeLog {
   instanceId: string;
   minutes: number;
   timestamp: number;
+  localDate: string;
   source: LogSource;
 }
 

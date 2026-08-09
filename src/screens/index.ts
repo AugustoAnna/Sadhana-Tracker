@@ -1,10 +1,6 @@
 export { OnboardingName } from './OnboardingName';
-export { OnboardingStatus } from './OnboardingStatus';
-export { OnboardingReminder } from './OnboardingReminder';
-export { OnboardingTrackerIntro } from './OnboardingTrackerIntro';
-export { OnboardingType } from './OnboardingType';
-export { OnboardingDuration } from './OnboardingDuration';
-export { AppHome } from './AppHome';
+export { Welcome } from './Welcome';
+export { WelcomeName } from './WelcomeName';
 export { PracticeHome } from './PracticeHome';
 export { EditPractices } from './EditPractices';
 export { Reminders } from './Reminders';

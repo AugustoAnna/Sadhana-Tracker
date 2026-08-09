@@ -1,9 +1,10 @@
 import { create } from 'zustand';
+import { isFeatureEnabled } from '@/features';
 import { getDb } from '@/db';
 import type { PracticeInstance, PracticeLog, Profile, Reminder, SavedSession, SessionDraft, DrawnToType, DurationPreference } from '@/types';
 import { getPractice } from '@/data/catalogue';
 import { computeCurrentLevel } from '@/data/journey';
-import { generateId, todayKey } from '@/utils/dates';
+import { generateId, todayKey, formatDateKey } from '@/utils/dates';
 import { queueSync } from '@/services/sync';
 import { enterDemoMode as enterDemoModeService, exitDemoMode as exitDemoModeService, type DemoStateId } from '@/services/demoMode';
 
@@ -32,7 +33,7 @@ interface AppStore {
   addPracticeInstance: (practiceId: string) => Promise<PracticeInstance | null>;
   removePracticeInstance: (instanceId: string) => Promise<void>;
   confirmPracticeInstances: (fromFirstSetup: boolean) => Promise<void>;
-  logPractice: (instanceId: string, minutes: number, source: 'manual' | 'player') => Promise<void>;
+  logPractice: (instanceId: string, minutes: number, source: 'checkbox' | 'minutes' | 'player') => Promise<void>;
   setReminder: (id: 1 | 2 | 3, time: string, enabled: boolean) => Promise<void>;
   setSessionDraft: (draft: SessionDraft | null) => void;
   setPlayerSession: (draft: SessionDraft | null) => void;
@@ -75,7 +76,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({
       profile: profile ?? null,
       instances,
-      logs,
+      logs: logs.map((l) => ({
+        ...l,
+        localDate: l.localDate ?? formatDateKey(new Date(l.timestamp)),
+      })),
       reminders,
       savedSessions,
       pendingJourneyMinutes: meta?.pendingJourneyMinutes ?? 0,
@@ -158,7 +162,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const { instances } = get();
     if (instances.length >= 21) return null;
 
+    const practice = getPractice(practiceId);
     const existing = instances.filter((i) => i.practiceId === practiceId);
+    if (practice?.type === 'timed' && existing.length >= 1) return null;
     const instanceNumber = (existing.length >= 1 ? 2 : 1) as 1 | 2;
     if (existing.length >= 2) return null;
 
@@ -207,6 +213,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       instanceId,
       minutes,
       timestamp: Date.now(),
+      localDate: todayKey(),
       source,
     };
 
@@ -215,26 +222,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const prevTotal = get().logs.reduce((s, l) => s + l.minutes, 0);
     const newTotal = prevTotal + minutes;
-    const prevLevel = computeCurrentLevel(prevTotal);
-    const newLevel = computeCurrentLevel(newTotal);
 
-    const meta = await db.appMeta.get('meta');
-    const pending = (meta?.pendingJourneyMinutes ?? 0) + minutes;
-    await db.appMeta.update('meta', { pendingJourneyMinutes: pending });
+    if (isFeatureEnabled('journey')) {
+      const prevLevel = computeCurrentLevel(prevTotal);
+      const newLevel = computeCurrentLevel(newTotal);
+      const meta = await db.appMeta.get('meta');
+      const pending = (meta?.pendingJourneyMinutes ?? 0) + minutes;
+      await db.appMeta.update('meta', { pendingJourneyMinutes: pending });
 
-    let levelCrossed = get().levelCrossed;
-    if (newLevel > prevLevel) {
-      const today = todayKey();
-      if (meta?.lastLevelUpDate !== today) {
-        levelCrossed = newLevel;
+      let levelCrossed = get().levelCrossed;
+      if (newLevel > prevLevel) {
+        const today = todayKey();
+        if (meta?.lastLevelUpDate !== today) {
+          levelCrossed = newLevel;
+        }
       }
-    }
 
-    set({
-      logs: [...get().logs, log],
-      pendingJourneyMinutes: pending,
-      levelCrossed,
-    });
+      set({
+        logs: [...get().logs, log],
+        pendingJourneyMinutes: pending,
+        levelCrossed,
+      });
+    } else {
+      set({ logs: [...get().logs, log] });
+    }
   },
 
   setReminder: async (id, time, enabled) => {

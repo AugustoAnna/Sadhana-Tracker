@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components';
-import { useAppStore } from '@/stores/appStore';
 import { POST_PRACTICE_MIN_DURATION_MS } from '@/data/constants';
 
 export function PostPractice() {
   const navigate = useNavigate();
-  const levelCrossed = useAppStore((s) => s.levelCrossed);
   const [canContinue, setCanContinue] = useState(false);
 
   useEffect(() => {
@@ -15,11 +13,7 @@ export function PostPractice() {
   }, []);
 
   const handleContinue = () => {
-    if (levelCrossed) {
-      navigate('/level-up', { replace: true });
-    } else {
-      navigate('/practice-home', { replace: true });
-    }
+    navigate('/practice-home', { replace: true });
   };
 
   return (
@@ -35,7 +29,7 @@ export function PostPractice() {
       </button>
 
       <div className="w-64 h-64 bg-black/20 rounded-[12px] flex items-center justify-center">
-        <p className="text-white/40 text-label text-center font-serif">Stillness<br/>(placeholder image)</p>
+        <p className="text-white/40 text-label text-center font-serif">Stillness<br />(TBD — placeholder image)</p>
       </div>
 
       {canContinue && (
