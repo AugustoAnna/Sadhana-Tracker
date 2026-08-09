@@ -4,7 +4,7 @@ import { useAppStore } from '@/stores/appStore';
 import { computeJourneyProgress, getLevelLabel } from '@/data/journey';
 import { getTotalMinutes, formatMinutes } from '@/utils/dates';
 
-export function LevelUp() {
+export function LevelUp({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const levelCrossed = useAppStore((s) => s.levelCrossed);
   const logs = useAppStore((s) => s.logs);
@@ -17,11 +17,11 @@ export function LevelUp() {
 
   const handleContinue = async () => {
     await markLevelUpShown();
-    navigate('/practice-home', { replace: true });
+    if (!embedded) navigate('/practice-home', { replace: true });
   };
 
   return (
-    <div className="h-full bg-card flex flex-col items-center justify-center px-6 text-center">
+    <div className={`${embedded ? '' : 'h-full'} bg-card flex flex-col items-center justify-center px-6 text-center`}>
       <p className="eyebrow text-journey mb-2">Level unlocked</p>
       <h1 className="font-serif text-display mb-8">
         Level {level}

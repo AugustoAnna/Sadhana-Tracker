@@ -57,9 +57,13 @@ async function seedDemoState(stateId: DemoStateId) {
     id: 'profile',
     name: 'Demo User',
     isMeditator: true,
+    drawnToType: null,
+    durationPreference: null,
     onboardingComplete: true,
     instanceEducationShown: true,
     notificationPermissionAsked: true,
+    trackerIntroSeen: true,
+    featureDiscoveryStep: 3,
   };
 
   await demoDb.profile.put(baseProfile);
@@ -81,7 +85,12 @@ async function seedDemoState(stateId: DemoStateId) {
       break;
 
     case 'empty-potential':
-      await demoDb.profile.update('profile', { isMeditator: false, onboardingComplete: true });
+      await demoDb.profile.update('profile', {
+        isMeditator: false,
+        drawnToType: 'meditation',
+        durationPreference: '5-10',
+        onboardingComplete: true,
+      });
       break;
 
     case 'practiced-not-added': {
@@ -123,9 +132,13 @@ async function seedDemoState(stateId: DemoStateId) {
         id: 'profile',
         name: '',
         isMeditator: null,
+        drawnToType: null,
+        durationPreference: null,
         onboardingComplete: false,
         instanceEducationShown: false,
         notificationPermissionAsked: false,
+        trackerIntroSeen: false,
+        featureDiscoveryStep: 0,
       });
       break;
   }

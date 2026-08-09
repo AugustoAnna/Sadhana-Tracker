@@ -27,6 +27,7 @@ export function SessionReview() {
   const setSessionDraft = useAppStore((s) => s.setSessionDraft);
   const setPlayerSession = useAppStore((s) => s.setPlayerSession);
   const saveSession = useAppStore((s) => s.saveSession);
+  const showToast = useAppStore((s) => s.showToast);
   const instances = useAppStore((s) => s.instances);
 
   const [orderedIds, setOrderedIds] = useState<string[]>(
@@ -80,6 +81,7 @@ export function SessionReview() {
   const confirmSave = async () => {
     await saveSession(sessionName || generateSessionName(orderedIds), orderedIds);
     setSaveOpen(false);
+    showToast('Session saved');
   };
 
   const availableToAdd = instances.filter((i) => !orderedIds.includes(i.id));
@@ -88,12 +90,12 @@ export function SessionReview() {
     <div className="h-full flex flex-col">
       <div className="flex-1 overflow-y-auto pb-32">
         <BackHeader title="Review session" />
-        <p className="px-4 text-sm text-secondary mb-4">
-          Practices are listed in the ideal sequence
+        <p className="px-4 text-label text-secondary mb-4">
+          Reorder your practices, or add and remove them.
         </p>
 
         <div className="px-4 flex items-center justify-between py-3 border-b border-border">
-          <span className="font-medium">Include invocation</span>
+          <span className="text-body">Start and end the session with invocation</span>
           <Toggle checked={includeInvocation} onChange={setIncludeInvocation} />
         </div>
 
@@ -144,7 +146,7 @@ export function SessionReview() {
           disabled={orderedIds.length === 0}
           className="w-full py-3.5 min-h-11 rounded-xl bg-primary text-white font-semibold disabled:opacity-40"
         >
-          Start Session
+          Start session
         </button>
       </div>
 

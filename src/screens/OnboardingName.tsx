@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, TextInput } from '@/components';
+import { OnboardingLayout } from '@/components/OnboardingLayout';
 import { useAppStore } from '@/stores/appStore';
 
 export function OnboardingName() {
@@ -8,23 +9,44 @@ export function OnboardingName() {
   const setNameStore = useAppStore((s) => s.setName);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const root = document.documentElement;
+    const update = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      root.style.setProperty('--keyboard-inset', `${inset}px`);
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    update();
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+      root.style.removeProperty('--keyboard-inset');
+    };
+  }, []);
+
   const handleContinue = async () => {
     await setNameStore(name.trim());
-    navigate('/onboarding/status');
+    navigate('/onboarding/reminder');
   };
 
   return (
-    <div className="flex flex-col h-full px-4 bg-page">
-      <div className="pt-14" />
-      <div className="flex-1 flex flex-col justify-center -mt-10 px-2">
-        <p className="eyebrow mb-3">Welcome</p>
+    <OnboardingLayout
+      footer={
+        <div style={{ paddingBottom: 'var(--keyboard-inset, 0px)' }}>
+          <Button fullWidth disabled={name.trim().length === 0} onClick={handleContinue}>
+            Continue
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col justify-center min-h-[50vh] px-2">
         <h1 className="font-serif text-display mb-3">
-          Let's put a name to your practice
+          What should we call you?
         </h1>
-        <p className="text-label text-secondary mb-8">
-          This helps us keep your progress connected to you.
-        </p>
-        <div className="bg-card rounded-[14px] p-4">
+        <div className="bg-card rounded-[14px] p-4 mt-6">
           <TextInput
             label="Your name"
             value={name}
@@ -34,11 +56,6 @@ export function OnboardingName() {
           />
         </div>
       </div>
-      <div className="safe-bottom pb-4">
-        <Button fullWidth disabled={name.trim().length === 0} onClick={handleContinue}>
-          Continue
-        </Button>
-      </div>
-    </div>
+    </OnboardingLayout>
   );
 }

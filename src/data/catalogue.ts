@@ -67,8 +67,29 @@ export const MAX_PRACTICE_INSTANCES = 21;
 export const INVOCATION_PRACTICE_ID = '__invocation__';
 
 export function getPractice(id: string): Practice | undefined {
-  return PRACTICES.find((p) => p.id === id);
+  const p = PRACTICES.find((x) => x.id === id);
+  if (!p) return undefined;
+  return { ...p, category: PRACTICE_CATEGORY_MAP[id] ?? 'other' };
 }
+
+const PRACTICE_CATEGORY_MAP: Record<string, Practice['category']> = {
+  'angamardana': 'physical-yoga', 'directional-movements': 'physical-yoga', 'eye-care': 'physical-yoga',
+  'knee-rotations': 'physical-yoga', 'neck-practices': 'physical-yoga', 'shiva-namaskar': 'physical-yoga',
+  'squatting': 'physical-yoga', 'surya-kriya': 'physical-yoga', 'surya-shakti': 'physical-yoga',
+  'yoga-namaskar': 'physical-yoga', 'yogasanas': 'physical-yoga', 'namaskar-process': 'physical-yoga',
+  'bhastrika-kriya': 'pranayama', 'nadi-shuddhi': 'pranayama', 'shambhavi-mudra': 'pranayama',
+  'shanmuki-mudra': 'pranayama', 'simha-kriya': 'pranayama', 'sukha-kriya': 'pranayama',
+  'breath-watching': 'meditation', 'chit-shakti-health': 'meditation', 'chit-shakti-love': 'meditation',
+  'chit-shakti-peace': 'meditation', 'chit-shakti-success': 'meditation', 'infinity-meditation': 'meditation',
+  'isha-kriya': 'meditation', 'living-soil': 'meditation', 'samyama': 'meditation', 'shoonya': 'meditation',
+  'ardhasiddhasana': 'meditation',
+  'aum-chanting': 'chants', 'bhakti-sadhana': 'chants', 'devi-sadhana': 'chants', 'guru-mahima': 'chants',
+  'guru-pooja': 'chants', 'linga-bhairavi-arati': 'chants', 'mahamantra': 'chants',
+  'margazhi-mantra': 'chants', 'nada-yoga': 'chants', 'rudraksha-diksha': 'chants',
+  'sadhguru-presence': 'chants', 'ie-crash-course': 'chants',
+  'achala-arpanam': 'other', 'bhuta-shuddhi': 'other', 'jala-neti': 'other',
+  'shakti-chalana': 'other', 'shambhavi': 'other', 'thoppukarnam': 'other',
+};
 
 export function getPracticeMap(): Map<string, Practice> {
   return new Map(PRACTICES.map((p) => [p.id, p]));

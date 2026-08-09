@@ -145,6 +145,12 @@ body {
   animation: ripple 0.5s ease-out forwards;
 }
 
+@keyframes scale-bump {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
 @keyframes plant-settle {
   0%, 100% { transform: translateY(0); }
   30% { transform: translateY(-4px); }

@@ -4,10 +4,12 @@ import {
   OnboardingName,
   OnboardingStatus,
   OnboardingReminder,
+  OnboardingTrackerIntro,
+  OnboardingType,
+  OnboardingDuration,
   AppHome,
   PracticeHome,
   EditPractices,
-  Settings,
   Reminders,
   SessionSelect,
   SessionReview,
@@ -22,6 +24,7 @@ import {
   OnboardingGuard,
   NameGuard,
   PostOnboardingGuard,
+  MeditatorSetupGuard,
 } from './guards';
 
 export function AppRouter() {
@@ -35,11 +38,20 @@ export function AppRouter() {
           <Route path="/onboarding/name" element={
             <NameGuard><OnboardingName /></NameGuard>
           } />
+          <Route path="/onboarding/reminder" element={
+            <OnboardingGuard><OnboardingReminder /></OnboardingGuard>
+          } />
           <Route path="/onboarding/status" element={
             <OnboardingGuard><OnboardingStatus /></OnboardingGuard>
           } />
-          <Route path="/onboarding/reminder" element={
-            <OnboardingGuard><OnboardingReminder /></OnboardingGuard>
+          <Route path="/onboarding/tracker-intro" element={
+            <OnboardingGuard><OnboardingTrackerIntro /></OnboardingGuard>
+          } />
+          <Route path="/onboarding/type" element={
+            <OnboardingGuard><OnboardingType /></OnboardingGuard>
+          } />
+          <Route path="/onboarding/duration" element={
+            <OnboardingGuard><OnboardingDuration /></OnboardingGuard>
           } />
 
           <Route path="/app-home" element={
@@ -49,13 +61,10 @@ export function AppRouter() {
             <PostOnboardingGuard><PracticeHome /></PostOnboardingGuard>
           } />
           <Route path="/practices/edit" element={
-            <PostOnboardingGuard><EditPractices /></PostOnboardingGuard>
-          } />
-          <Route path="/settings" element={
-            <PostOnboardingGuard><Settings /></PostOnboardingGuard>
+            <MeditatorSetupGuard><EditPractices /></MeditatorSetupGuard>
           } />
           <Route path="/reminders" element={
-            <PostOnboardingGuard><Reminders /></PostOnboardingGuard>
+            <MeditatorSetupGuard><Reminders /></MeditatorSetupGuard>
           } />
           <Route path="/session/select" element={
             <PostOnboardingGuard><SessionSelect /></PostOnboardingGuard>

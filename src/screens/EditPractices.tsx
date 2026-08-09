@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BackHeader, StickyAction, BottomSheet, PracticeIllustration } from '@/components';
+import { BackHeader, BottomSheet, PracticeIllustration, ConfirmFooter } from '@/components';
 import { useAppStore } from '@/stores/appStore';
 import {
   PRACTICES, COMMONLY_PRACTICED_IDS, MAX_PRACTICE_INSTANCES, getPractice,
 } from '@/data/catalogue';
-import { getInstanceOrdinalLabel } from '@/utils/instances';
+import { getInstanceSuffix } from '@/utils/instances';
 
 export function EditPractices() {
   const navigate = useNavigate();
@@ -17,7 +17,6 @@ export function EditPractices() {
   const removePracticeInstance = useAppStore((s) => s.removePracticeInstance);
   const profile = useAppStore((s) => s.profile);
   const markEducationShown = useAppStore((s) => s.markInstanceEducationShown);
-  const showToast = useAppStore((s) => s.showToast);
 
   const [addedOpen, setAddedOpen] = useState(true);
   const [otherOpen, setOtherOpen] = useState(false);
@@ -53,14 +52,14 @@ export function EditPractices() {
     if (firstSetup) {
       navigate('/reminders', { state: { firstSetup: true } });
     } else {
-      showToast('Changes saved');
       navigate('/practice-home');
     }
   };
 
-  const commonlyPracticed = COMMONLY_PRACTICED_IDS
+  const commonlyPracticed = [...COMMONLY_PRACTICED_IDS]
     .map((id) => getPractice(id))
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a, b) => a!.name.localeCompare(b!.name));
 
   const otherPractices = PRACTICES
     .filter((p) => !COMMONLY_PRACTICED_IDS.includes(p.id))
@@ -68,7 +67,7 @@ export function EditPractices() {
 
   return (
     <div className="h-full flex flex-col bg-page">
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className="flex-1 overflow-y-auto pb-28">
         <BackHeader title="Add practices" />
         <p className="px-4 text-label text-secondary mb-5">
           Select the practices you have learnt and are currently practicing.
@@ -86,22 +85,21 @@ export function EditPractices() {
               >
                 <path d="M9 18l6-6-6-6" />
               </svg>
-              Added ({instances.length})
+              Added
             </button>
             {addedOpen && (
               <div className="bg-card rounded-[14px] px-3 mt-1">
                 {instances.map((inst) => {
                   const p = getPractice(inst.practiceId);
                   if (!p) return null;
-                  const label = getInstanceOrdinalLabel(inst, instances);
+                  const suffix = getInstanceSuffix(inst, instances);
                   return (
                     <div key={inst.id} className="flex items-center gap-3 py-3 border-b border-hairline last:border-0">
                       <PracticeIllustration practiceId={p.id} size={40} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-body truncate">{p.name}</p>
-                        {label && (
-                          <p className="text-label text-secondary capitalize">{label}</p>
-                        )}
+                        <p className="text-body truncate">
+                          {p.name}{suffix ? ` ${suffix}` : ''}
+                        </p>
                       </div>
                       <button
                         onClick={() => removePracticeInstance(inst.id)}
@@ -147,7 +145,7 @@ export function EditPractices() {
             >
               <path d="M9 18l6-6-6-6" />
             </svg>
-            All other practices (A–Z)
+            All other practices
           </button>
           {otherOpen && (
             <div className="bg-card rounded-[14px] px-3 mt-1">
@@ -172,8 +170,7 @@ export function EditPractices() {
         )}
       </div>
 
-      <StickyAction
-        label="Add practices"
+      <ConfirmFooter
         count={instances.length}
         disabled={instances.length === 0}
         onClick={handleDone}
@@ -182,14 +179,17 @@ export function EditPractices() {
       <BottomSheet
         open={educationOpen}
         onClose={handleDismissEducation}
-        title="Practice twice a day?"
+        title="Practicing twice a day?"
         hideCloseButton
         dismissOnBackdrop={false}
       >
-        <p className="text-label text-secondary mb-6">
-          You can add the same practice twice if you do it morning and evening.
-          The option to add again sits in the same place you just tapped.
+        <p className="text-label text-secondary mb-4">
+          Some practices are done morning and evening. Add a practice a second time and it appears twice in your list, so you can mark each one.
         </p>
+        <div className="bg-card rounded-[14px] px-3 mb-6">
+          <div className="py-3 border-b border-hairline text-body">Isha Kriya 1</div>
+          <div className="py-3 text-body">Isha Kriya 2</div>
+        </div>
         <button
           type="button"
           onClick={handleDismissEducation}
@@ -216,28 +216,28 @@ function PracticeAddRow({
   onAdd: () => void;
 }) {
   const hidden = instanceCount >= 2;
-  const opacity = instanceCount === 1 ? 'opacity-50' : '';
   const addAgain = instanceCount === 1;
+  const displayName = addAgain ? `${name} 2` : name;
 
   if (hidden) return null;
 
   return (
-    <div className={`flex items-center gap-3 py-3 border-b border-hairline last:border-0 ${opacity}`}>
+    <div className="flex items-center gap-3 py-3 border-b border-hairline last:border-0">
       <PracticeIllustration practiceId={practiceId} size={40} />
       <div className="flex-1 min-w-0">
-        <p className="text-body truncate">{name}</p>
+        <p className="text-body truncate">{displayName}</p>
       </div>
       <button
         onClick={onAdd}
         disabled={atCap}
-        className={`flex items-center justify-center text-primary disabled:opacity-30 min-h-11 ${
+        className={`px-3 py-1.5 rounded-[7px] text-meta font-semibold min-h-11 disabled:opacity-30 ${
           addAgain
-            ? 'px-3 text-meta'
-            : 'w-11 h-11 rounded-[7px] border-2 border-primary font-bold text-lg'
+            ? 'border-2 border-primary text-primary'
+            : 'bg-primary text-white'
         }`}
         aria-label={addAgain ? `Add ${name} again` : `Add ${name}`}
       >
-        {addAgain ? 'Add again' : '+'}
+        {addAgain ? 'Add again' : 'Add'}
       </button>
     </div>
   );

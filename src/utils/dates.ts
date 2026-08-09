@@ -87,6 +87,23 @@ export function getTimedMinutesToday(
     .reduce((sum, l) => sum + l.minutes, 0);
 }
 
+export function getCurrentWeekDays(): string[] {
+  const now = new Date();
+  const day = now.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + mondayOffset);
+  monday.setHours(0, 0, 0, 0);
+  const days: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push(formatDateKey(d));
+  }
+  return days;
+}
+
+/** @deprecated Use getCurrentWeekDays for Mon–Sun week */
 export function getWeekDays(): string[] {
   const days: string[] = [];
   const today = startOfDay(new Date());

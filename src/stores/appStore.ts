@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { getDb } from '@/db';
-import type { PracticeInstance, PracticeLog, Profile, Reminder, SavedSession, SessionDraft } from '@/types';
+import type { PracticeInstance, PracticeLog, Profile, Reminder, SavedSession, SessionDraft, DrawnToType, DurationPreference } from '@/types';
 import { getPractice } from '@/data/catalogue';
 import { computeCurrentLevel } from '@/data/journey';
 import { generateId, todayKey } from '@/utils/dates';
@@ -23,7 +23,12 @@ interface AppStore {
   hydrate: () => Promise<void>;
   setName: (name: string) => Promise<void>;
   setMeditatorStatus: (isMeditator: boolean) => Promise<void>;
-  completeOnboarding: (reminderEnabled: boolean) => Promise<void>;
+  setDrawnToType: (type: DrawnToType) => Promise<void>;
+  setDurationPreference: (duration: DurationPreference) => Promise<void>;
+  markTrackerIntroSeen: () => Promise<void>;
+  markNotificationPermissionAsked: () => Promise<void>;
+  completeOnboarding: (reminderEnabled?: boolean) => Promise<void>;
+  completePotentialOnboarding: () => Promise<void>;
   addPracticeInstance: (practiceId: string) => Promise<PracticeInstance | null>;
   removePracticeInstance: (instanceId: string) => Promise<void>;
   confirmPracticeInstances: (fromFirstSetup: boolean) => Promise<void>;
@@ -39,6 +44,7 @@ interface AppStore {
   showToast: (msg: string) => void;
   clearToast: () => void;
   markInstanceEducationShown: () => Promise<void>;
+  setFeatureDiscoveryStep: (step: number) => Promise<void>;
   enterDemoMode: (stateId: DemoStateId) => Promise<void>;
   exitDemoMode: () => Promise<void>;
 }
@@ -92,7 +98,35 @@ export const useAppStore = create<AppStore>((set, get) => ({
     await queueSync({ table: 'participants', operation: 'update', payload: profile });
   },
 
-  completeOnboarding: async (reminderEnabled) => {
+  setDrawnToType: async (drawnToType) => {
+    const db = getDb();
+    await db.profile.update('profile', { drawnToType });
+    const profile = { ...get().profile!, drawnToType };
+    set({ profile });
+    await queueSync({ table: 'participants', operation: 'update', payload: profile });
+  },
+
+  setDurationPreference: async (durationPreference) => {
+    const db = getDb();
+    await db.profile.update('profile', { durationPreference });
+    const profile = { ...get().profile!, durationPreference };
+    set({ profile });
+    await queueSync({ table: 'participants', operation: 'update', payload: profile });
+  },
+
+  markTrackerIntroSeen: async () => {
+    const db = getDb();
+    await db.profile.update('profile', { trackerIntroSeen: true });
+    set({ profile: { ...get().profile!, trackerIntroSeen: true } });
+  },
+
+  markNotificationPermissionAsked: async () => {
+    const db = getDb();
+    await db.profile.update('profile', { notificationPermissionAsked: true });
+    set({ profile: { ...get().profile!, notificationPermissionAsked: true } });
+  },
+
+  completeOnboarding: async (reminderEnabled = false) => {
     const db = getDb();
     await db.profile.update('profile', {
       onboardingComplete: true,
@@ -109,6 +143,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const r = reminders.find((x) => x.id === 1);
       if (r) await queueSync({ table: 'reminders', operation: 'insert', payload: r });
     }
+  },
+
+  completePotentialOnboarding: async () => {
+    const db = getDb();
+    await db.profile.update('profile', { onboardingComplete: true });
+    const profile = await db.profile.get('profile');
+    set({ profile: profile! });
+    await queueSync({ table: 'participants', operation: 'update', payload: profile });
   },
 
   addPracticeInstance: async (practiceId) => {
@@ -258,6 +300,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const db = getDb();
     await db.profile.update('profile', { instanceEducationShown: true });
     set({ profile: { ...get().profile!, instanceEducationShown: true } });
+  },
+
+  setFeatureDiscoveryStep: async (step) => {
+    const db = getDb();
+    await db.profile.update('profile', { featureDiscoveryStep: step });
+    set({ profile: { ...get().profile!, featureDiscoveryStep: step } });
   },
 
   enterDemoMode: async (stateId) => {

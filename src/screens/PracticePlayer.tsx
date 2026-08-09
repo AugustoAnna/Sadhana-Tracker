@@ -111,6 +111,7 @@ export function PracticePlayer() {
             setSecondsLeft((s) => {
               if (s <= 1) {
                 clearTimer();
+                setTimeout(() => advance(), 0);
                 return 0;
               }
               return s - 1;
@@ -203,21 +204,39 @@ export function PracticePlayer() {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6">
-        <div className="mb-6 rounded-[12px] overflow-hidden shadow-lg">
-          <PracticeIllustration practiceId={currentPractice.id} size={192} />
-        </div>
-        <p className="font-serif text-headline mb-8 text-center px-4">{currentPractice.name}</p>
-
         {isGuided ? (
-          <p className="text-display tabular-nums font-medium">{formatTime(secondsLeft)}</p>
+          <p className="text-display tabular-nums font-medium mb-6">{formatTime(secondsLeft)}</p>
         ) : (
           <button
             onClick={advance}
-            className="px-8 py-3 rounded-xl bg-primary-light text-white font-semibold min-h-11"
+            className="px-8 py-3 rounded-xl bg-primary-light text-white font-semibold min-h-11 mb-6"
           >
-            Mark Completed
+            Mark completed
           </button>
         )}
+
+        <div className="flex items-center gap-4 w-full max-w-sm">
+          <div className="rounded-[12px] overflow-hidden shadow-lg flex-1">
+            <PracticeIllustration practiceId={currentPractice.id} size={160} />
+          </div>
+          {currentIndex < instanceIds.length - 1 && (() => {
+            const nextInst = instances.find((i) => i.id === instanceIds[currentIndex + 1]);
+            const nextP = nextInst ? getPractice(nextInst.practiceId) : null;
+            if (!nextP) return null;
+            return (
+              <PracticeIllustration practiceId={nextP.id} size={64} />
+            );
+          })()}
+        </div>
+
+        <p className="font-serif text-headline mt-6 text-center px-4">{currentPractice.name}</p>
+
+        {currentIndex < instanceIds.length - 1 && (() => {
+          const nextInst = instances.find((i) => i.id === instanceIds[currentIndex + 1]);
+          const nextP = nextInst ? getPractice(nextInst.practiceId) : null;
+          if (!nextP) return null;
+          return <SkipHoldButton label={nextP.name} onComplete={advance} />;
+        })()}
 
         {paused && isGuided && (
           <button
@@ -243,12 +262,53 @@ export function PracticePlayer() {
 
       <Modal
         open={leaveOpen}
-        title="Leave session?"
-        message="Your completed practices will be saved. The current practice will not be logged."
-        confirmLabel="Leave"
+        title="Leave this session?"
+        message="This practice won't be counted. Everything you've already completed is saved."
+        confirmLabel="Leave session"
+        cancelLabel="Stay"
         onConfirm={handleLeave}
         onCancel={() => setLeaveOpen(false)}
       />
     </div>
+  );
+}
+
+function SkipHoldButton({ label, onComplete }: { label: string; onComplete: () => void }) {
+  const [progress, setProgress] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const start = () => {
+    setProgress(0);
+    const startTime = Date.now();
+    timerRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const p = Math.min(elapsed / 2000, 1);
+      setProgress(p);
+      if (p >= 1) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        onComplete();
+      }
+    }, 50);
+  };
+
+  const stop = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setProgress(0);
+  };
+
+  return (
+    <button
+      type="button"
+      className="mt-6 relative px-4 py-2 rounded-xl border border-white/30 text-sm text-white/90 overflow-hidden"
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+    >
+      <span
+        className="absolute inset-0 bg-white/20 origin-left"
+        style={{ transform: `scaleX(${progress})` }}
+      />
+      <span className="relative">Skip to {label}</span>
+    </button>
   );
 }

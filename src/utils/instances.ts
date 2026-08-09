@@ -17,16 +17,16 @@ export function countForPractice(
   return instancesForPractice(practiceId, instances).length;
 }
 
-/** Returns 'first' | 'second' only when two instances exist; otherwise null. */
-export function getInstanceOrdinalLabel(
+/** Returns 1 | 2 only when two instances exist; otherwise null. */
+export function getInstanceSuffix(
   instance: PracticeInstance,
   instances: PracticeInstance[],
-): 'first' | 'second' | null {
+): 1 | 2 | null {
   const same = instancesForPractice(instance.practiceId, instances);
   if (same.length < 2) return null;
   const index = same.findIndex((i) => i.id === instance.id);
-  if (index === 0) return 'first';
-  if (index === 1) return 'second';
+  if (index === 0) return 1;
+  if (index === 1) return 2;
   return null;
 }
 
@@ -35,7 +35,16 @@ export function formatInstanceName(
   instance: PracticeInstance,
   instances: PracticeInstance[],
 ): string {
-  const label = getInstanceOrdinalLabel(instance, instances);
-  if (!label) return practiceName;
-  return `${practiceName} · ${label}`;
+  const suffix = getInstanceSuffix(instance, instances);
+  if (!suffix) return practiceName;
+  return `${practiceName} ${suffix}`;
+}
+
+export function formatPracticeNameWithSuffix(
+  practiceName: string,
+  instanceNumber: 1 | 2,
+  totalForPractice: number,
+): string {
+  if (totalForPractice < 2) return practiceName;
+  return `${practiceName} ${instanceNumber}`;
 }

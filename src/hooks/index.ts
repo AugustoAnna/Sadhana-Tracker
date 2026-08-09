@@ -4,7 +4,14 @@ import { useAppStore } from '@/stores/appStore';
 export function useInViewport<T extends HTMLElement>(onEnter?: () => void) {
   const ref = useRef<T>(null);
   const [inView, setInView] = useState(false);
-  const calledRef = useRef(false);
+  const pendingRef = useRef(false);
+
+  const flush = useCallback(() => {
+    if (onEnter && pendingRef.current) {
+      pendingRef.current = false;
+      onEnter();
+    }
+  }, [onEnter]);
 
   useEffect(() => {
     const el = ref.current;
@@ -13,9 +20,15 @@ export function useInViewport<T extends HTMLElement>(onEnter?: () => void) {
     const observer = new IntersectionObserver(
       ([entry]) => {
         setInView(entry.isIntersecting);
-        if (entry.isIntersecting && onEnter && !calledRef.current) {
-          calledRef.current = true;
-          onEnter();
+        if (entry.isIntersecting) {
+          if (onEnter) {
+            const pending = useAppStore.getState().pendingJourneyMinutes;
+            if (pending > 0) {
+              flush();
+            } else {
+              pendingRef.current = true;
+            }
+          }
         }
       },
       { threshold: 0.5 },
@@ -23,7 +36,25 @@ export function useInViewport<T extends HTMLElement>(onEnter?: () => void) {
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [onEnter]);
+  }, [onEnter, flush]);
+
+  useEffect(() => {
+    const pending = useAppStore.getState().pendingJourneyMinutes;
+    if (pending > 0 && inView) {
+      flush();
+    }
+  }, [inView, flush]);
+
+  useEffect(() => {
+    const unsub = useAppStore.subscribe((state, prev) => {
+      if (state.pendingJourneyMinutes > 0 && state.pendingJourneyMinutes !== prev.pendingJourneyMinutes && inView) {
+        flush();
+      } else if (state.pendingJourneyMinutes > 0) {
+        pendingRef.current = true;
+      }
+    });
+    return unsub;
+  }, [inView, flush]);
 
   return { ref, inView };
 }
@@ -32,19 +63,17 @@ export function useJourneyAnimation() {
   const pendingJourneyMinutes = useAppStore((s) => s.pendingJourneyMinutes);
   const clearPendingJourney = useAppStore((s) => s.clearPendingJourney);
   const [animating, setAnimating] = useState(false);
-  const [displayMinutes, setDisplayMinutes] = useState(0);
 
   const triggerAnimation = useCallback(() => {
     if (pendingJourneyMinutes <= 0) return;
     setAnimating(true);
-    setDisplayMinutes(pendingJourneyMinutes);
     setTimeout(() => {
       setAnimating(false);
       clearPendingJourney();
     }, 800);
   }, [pendingJourneyMinutes, clearPendingJourney]);
 
-  return { animating, displayMinutes, pendingJourneyMinutes, triggerAnimation };
+  return { animating, pendingJourneyMinutes, triggerAnimation };
 }
 
 export function useHaptic() {

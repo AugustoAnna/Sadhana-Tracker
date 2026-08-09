@@ -29,6 +29,25 @@ export class SadhanaDB extends Dexie {
       syncQueue: 'id, createdAt',
       appMeta: 'id',
     });
+    this.version(2).stores({
+      profile: 'id',
+      practiceInstances: 'id, practiceId, order',
+      practiceLogs: 'id, practiceId, instanceId, timestamp',
+      reminders: 'id',
+      savedSessions: 'id, lastUsedAt',
+      syncQueue: 'id, createdAt',
+      appMeta: 'id',
+    }).upgrade(async (tx) => {
+      const profile = await tx.table('profile').get('profile');
+      if (profile) {
+        await tx.table('profile').update('profile', {
+          drawnToType: profile.drawnToType ?? null,
+          durationPreference: profile.durationPreference ?? null,
+          trackerIntroSeen: profile.trackerIntroSeen ?? false,
+          featureDiscoveryStep: profile.featureDiscoveryStep ?? 0,
+        });
+      }
+    });
   }
 }
 
@@ -126,9 +145,13 @@ export async function initDB(database: SadhanaDB = getDb()) {
       id: 'profile',
       name: '',
       isMeditator: null,
+      drawnToType: null,
+      durationPreference: null,
       onboardingComplete: false,
       instanceEducationShown: false,
       notificationPermissionAsked: false,
+      trackerIntroSeen: false,
+      featureDiscoveryStep: 0,
     });
   }
 
@@ -145,7 +168,7 @@ export async function initDB(database: SadhanaDB = getDb()) {
   const reminders = await database.reminders.count();
   if (reminders === 0) {
     await database.reminders.bulkAdd([
-      { id: 1, time: '06:00', enabled: false },
+      { id: 1, time: '06:00', enabled: true },
       { id: 2, time: '12:00', enabled: false },
       { id: 3, time: '18:00', enabled: false },
     ]);

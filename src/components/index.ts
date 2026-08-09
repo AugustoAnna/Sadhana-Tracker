@@ -17,6 +17,8 @@ export { ProgressRing } from './ProgressRing';
 export { PracticeIllustration } from './PracticeIllustration';
 export { PracticeCard } from './PracticeCard';
 export { HeatMap } from './HeatMap';
+export { MonthHeatMap } from './MonthHeatMap';
+export { ConfirmFooter } from './ConfirmFooter';
 export { WeekStrip } from './WeekStrip';
 export { DemoModePicker, useDemoModeEntry } from './DemoMode';
 export { DemoModeIndicator } from './DemoModeIndicator';

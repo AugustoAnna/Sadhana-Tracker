@@ -2,11 +2,16 @@ export type PracticeType = 'guided' | 'unguided' | 'timed';
 
 export type LogSource = 'manual' | 'player';
 
+export type DrawnToType = 'physical-yoga' | 'pranayama' | 'meditation' | 'chants';
+
+export type DurationPreference = 'under-5' | '5-10' | '10-20' | 'over-20';
+
 export interface Practice {
   id: string;
   name: string;
   minutes: number | null;
   type: PracticeType;
+  category?: 'physical-yoga' | 'pranayama' | 'meditation' | 'chants' | 'other';
 }
 
 export interface PracticeInstance {
@@ -30,9 +35,13 @@ export interface Profile {
   id: 'profile';
   name: string;
   isMeditator: boolean | null;
+  drawnToType: DrawnToType | null;
+  durationPreference: DurationPreference | null;
   onboardingComplete: boolean;
   instanceEducationShown: boolean;
   notificationPermissionAsked: boolean;
+  trackerIntroSeen: boolean;
+  featureDiscoveryStep: number;
 }
 
 export interface Reminder {

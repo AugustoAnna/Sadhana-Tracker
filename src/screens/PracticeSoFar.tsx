@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { BackHeader, HeatMap } from '@/components';
 import { useAppStore } from '@/stores/appStore';
 import { getTotalMinutes, getTotalDaysPracticed, getCurrentStreak, formatMinutes } from '@/utils/dates';
-import { getWeeksData, getHeatMapWeeks } from '@/utils/stats';
+import { getWeeksWithData } from '@/utils/heatmap';
 import { HEAT_MAP_COLORS } from '@/data/constants';
 
 export function PracticeSoFar() {
@@ -12,8 +12,12 @@ export function PracticeSoFar() {
   const totalMinutes = getTotalMinutes(logs);
   const daysPracticed = getTotalDaysPracticed(logs);
   const streak = getCurrentStreak(logs);
-  const weeks = getWeeksData(logs);
-  const heatMapWeeks = getHeatMapWeeks(logs);
+  const weeks = getWeeksWithData(logs);
+  const heatMapWeeks = weeks.map((w) => ({
+    weekStart: w.weekStart,
+    monthLabel: w.label,
+    days: w.days.map((d, i) => ({ ...d, dayOfWeek: i })),
+  }));
 
   const maxMinutes = Math.max(...weeks.map((w) => w.totalMinutes), 1);
 
