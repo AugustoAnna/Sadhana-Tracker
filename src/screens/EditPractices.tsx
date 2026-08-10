@@ -18,7 +18,7 @@ export function EditPractices() {
   const profile = useAppStore((s) => s.profile);
   const markEducationShown = useAppStore((s) => s.markInstanceEducationShown);
 
-  const [addedOpen, setAddedOpen] = useState(true);
+  const [addedOpen, setAddedOpen] = useState(false);
   const [otherOpen, setOtherOpen] = useState(false);
   const [educationOpen, setEducationOpen] = useState(false);
 
@@ -48,7 +48,7 @@ export function EditPractices() {
     markEducationShown();
   };
 
-  const handleDone = () => {
+  const handleDone = async () => {
     if (firstSetup) {
       navigate('/reminders', { state: { firstSetup: true } });
     } else {
@@ -85,7 +85,7 @@ export function EditPractices() {
               >
                 <path d="M9 18l6-6-6-6" />
               </svg>
-              Added
+              My practices
             </button>
             {addedOpen && (
               <div className="bg-card rounded-[14px] px-3 mt-1">
@@ -165,7 +165,7 @@ export function EditPractices() {
 
         {atCap && (
           <p className="px-4 text-label text-secondary text-center">
-            Maximum of {MAX_PRACTICE_INSTANCES} practices reached. Remove a practice to add another.
+            You can add up to 21 practices.
           </p>
         )}
       </div>
@@ -184,7 +184,7 @@ export function EditPractices() {
         dismissOnBackdrop={false}
       >
         <p className="text-label text-secondary mb-4">
-          Some practices are done morning and evening. Add a practice a second time and it appears twice in your list, so you can mark each one.
+          Add a practice again so it appears in your list twice and you can mark each one.
         </p>
         <div className="bg-card rounded-[14px] px-3 mb-6">
           <div className="py-3 border-b border-hairline text-body">Isha Kriya 1</div>

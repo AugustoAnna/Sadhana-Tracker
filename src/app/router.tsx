@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DemoModeIndicator } from '@/components/DemoModeIndicator';
+import { APP_ENV } from '@/config/environment';
 import { isFeatureEnabled } from '@/features';
-import { FeatureGate } from './FeatureGate';
+import { NotFound } from './NotFound';
 import {
   Welcome,
   WelcomeName,
@@ -14,8 +15,8 @@ import {
   PostPractice,
   LevelUp,
   Journey,
-  PracticeSoFar,
 } from '@/screens';
+import { InstrumentationPage } from '@/screens/InstrumentationPage';
 import {
   LandingRedirect,
   WelcomeGuard,
@@ -47,39 +48,45 @@ export function AppRouter() {
           <Route path="/reminders" element={
             <SetupGuard><Reminders /></SetupGuard>
           } />
-          <Route path="/practice-so-far" element={
-            <PostOnboardingGuard><PracticeSoFar /></PostOnboardingGuard>
-          } />
 
-          <Route path="/session/select" element={
-            <FeatureGate feature="sessions">
-              <PostOnboardingGuard><SessionSelect /></PostOnboardingGuard>
-            </FeatureGate>
-          } />
-          <Route path="/session/review" element={
-            <FeatureGate feature="sessions">
-              <PostOnboardingGuard><SessionReview /></PostOnboardingGuard>
-            </FeatureGate>
-          } />
+          {isFeatureEnabled('sessions') && (
+            <>
+              <Route path="/session/select" element={
+                <PostOnboardingGuard><SessionSelect /></PostOnboardingGuard>
+              } />
+              <Route path="/session/review" element={
+                <PostOnboardingGuard><SessionReview /></PostOnboardingGuard>
+              } />
+            </>
+          )}
+
           <Route path="/player" element={
             <PostOnboardingGuard><PracticePlayer /></PostOnboardingGuard>
           } />
           <Route path="/post-practice" element={
             <PostOnboardingGuard><PostPractice /></PostOnboardingGuard>
           } />
-          <Route path="/level-up" element={
-            <FeatureGate feature="journey">
-              <PostOnboardingGuard><LevelUp /></PostOnboardingGuard>
-            </FeatureGate>
-          } />
-          <Route path="/journey" element={
-            <FeatureGate feature="journey">
-              <PostOnboardingGuard><Journey /></PostOnboardingGuard>
-            </FeatureGate>
-          } />
+
+          {isFeatureEnabled('journey') && (
+            <>
+              <Route path="/level-up" element={
+                <PostOnboardingGuard><LevelUp /></PostOnboardingGuard>
+              } />
+              <Route path="/journey" element={
+                <PostOnboardingGuard><Journey /></PostOnboardingGuard>
+              } />
+            </>
+          )}
+
+          {APP_ENV === 'lab' && (
+            <Route path="/instrumentation" element={<InstrumentationPage />} />
+          )}
 
           <Route path="/app-home" element={<Navigate to="/practice-home" replace />} />
           <Route path="/onboarding/*" element={<Navigate to="/welcome" replace />} />
+          <Route path="/practice-so-far" element={<NotFound />} />
+          <Route path="/settings" element={<NotFound />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
     </BrowserRouter>

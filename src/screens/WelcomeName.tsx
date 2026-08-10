@@ -34,7 +34,8 @@ export function WelcomeName() {
   return (
     <div className="flex flex-col h-full bg-page">
       <div className="flex-1 overflow-y-auto px-4 pt-14">
-        <h1 className="font-serif text-display mb-6">What should we call you?</h1>
+        <h1 className="font-serif text-display mb-6">Put a name to your practice</h1>
+        <p className="text-label text-secondary mb-6">This helps keep your progress connected to you.</p>
         <TextInput
           label="Your name"
           value={name}

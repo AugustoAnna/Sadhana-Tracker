@@ -168,9 +168,9 @@ export async function initDB(database: SadhanaDB = getDb()) {
   const reminders = await database.reminders.count();
   if (reminders === 0) {
     await database.reminders.bulkAdd([
-      { id: 1, time: '06:00', enabled: true },
-      { id: 2, time: '12:00', enabled: false },
-      { id: 3, time: '18:00', enabled: false },
+      { id: 1, kind: 'generic', slot: 1, time: '06:00', enabled: true },
+      { id: 2, kind: 'generic', slot: 2, time: '12:00', enabled: false },
+      { id: 3, kind: 'generic', slot: 3, time: '18:00', enabled: false },
     ]);
   }
 }

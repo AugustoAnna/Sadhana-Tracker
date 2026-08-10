@@ -18,7 +18,7 @@ export function DemoModePicker({ open, onClose }: DemoModePickerProps) {
     onClose();
 
     if (stateId === 'setup-from-start') {
-      navigate('/onboarding/name', { replace: true });
+      navigate('/welcome', { replace: true });
     } else {
       navigate('/practice-home', { replace: true });
     }

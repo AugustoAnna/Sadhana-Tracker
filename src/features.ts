@@ -1,17 +1,7 @@
 import { APP_ENV } from '@/config/environment';
 
-const LAB_FEATURES = {
-  sessions: true,
-  invocation: true,
-  journey: true,
-  postPracticeContent: true,
-  potentialMeditatorPath: true,
-  denominator: true,
-  mandala: true,
-  detailLogging: true,
-} as const;
-
-const STUDY_FEATURES = {
+/** Study build flags — §6.2 */
+export const STUDY_FEATURES = {
   sessions: false,
   invocation: false,
   journey: false,
@@ -20,6 +10,17 @@ const STUDY_FEATURES = {
   denominator: false,
   mandala: false,
   detailLogging: false,
+} as const;
+
+export const LAB_FEATURES = {
+  sessions: true,
+  invocation: true,
+  journey: true,
+  postPracticeContent: true,
+  potentialMeditatorPath: true,
+  denominator: true,
+  mandala: true,
+  detailLogging: true,
 } as const;
 
 export const FEATURES = APP_ENV === 'lab' ? LAB_FEATURES : STUDY_FEATURES;

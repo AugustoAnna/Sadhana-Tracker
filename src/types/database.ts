@@ -4,165 +4,173 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[]
+  | Json[];
 
 export type Database = {
   public: {
     Tables: {
       participants: {
         Row: {
-          created_at: string
-          device_id: string
-          id: string
-          instance_education_shown: boolean
-          is_meditator: boolean | null
-          name: string
-          onboarding_complete: boolean
-          updated_at: string
-        }
+          id: string;
+          auth_user_id: string;
+          name: string;
+          platform: string | null;
+          installed_standalone: boolean;
+          notification_permission: string | null;
+          segment: string | null;
+          environment: string;
+          created_at: string;
+        };
         Insert: {
-          created_at?: string
-          device_id: string
-          id?: string
-          instance_education_shown?: boolean
-          is_meditator?: boolean | null
-          name: string
-          onboarding_complete?: boolean
-          updated_at?: string
-        }
+          id?: string;
+          auth_user_id: string;
+          name: string;
+          platform?: string | null;
+          installed_standalone?: boolean;
+          notification_permission?: string | null;
+          segment?: string | null;
+          environment: string;
+          created_at?: string;
+        };
         Update: {
-          created_at?: string
-          device_id?: string
-          id?: string
-          instance_education_shown?: boolean
-          is_meditator?: boolean | null
-          name?: string
-          onboarding_complete?: boolean
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      practice_instances: {
+          id?: string;
+          auth_user_id?: string;
+          name?: string;
+          platform?: string | null;
+          installed_standalone?: boolean;
+          notification_permission?: string | null;
+          segment?: string | null;
+          environment?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      practices: {
         Row: {
-          added_at: string
-          device_id: string
-          id: string
-          instance_number: number
-          order_index: number
-          participant_id: string
-          practice_id: string
-        }
+          id: string;
+          name: string;
+          kind: string;
+          default_minutes: number | null;
+          illustration: string;
+          audio_path: string | null;
+          allows_second_instance: boolean;
+          sort_order: number;
+        };
         Insert: {
-          added_at?: string
-          device_id: string
-          id: string
-          instance_number: number
-          order_index?: number
-          participant_id: string
-          practice_id: string
-        }
-        Update: {
-          added_at?: string
-          device_id?: string
-          id?: string
-          instance_number?: number
-          order_index?: number
-          participant_id?: string
-          practice_id?: string
-        }
-        Relationships: []
-      }
-      practice_logs: {
+          id: string;
+          name: string;
+          kind: string;
+          default_minutes?: number | null;
+          illustration: string;
+          audio_path?: string | null;
+          allows_second_instance?: boolean;
+          sort_order: number;
+        };
+        Update: Partial<Database['public']['Tables']['practices']['Insert']>;
+        Relationships: [];
+      };
+      participant_practices: {
         Row: {
-          created_at: string
-          device_id: string
-          id: string
-          instance_id: string
-          logged_at: string
-          minutes: number
-          participant_id: string
-          practice_id: string
-          source: string
-        }
+          id: string;
+          participant_id: string;
+          practice_id: string;
+          instance: number;
+          environment: string;
+          created_at: string;
+        };
         Insert: {
-          created_at?: string
-          device_id: string
-          id: string
-          instance_id: string
-          logged_at: string
-          minutes: number
-          participant_id: string
-          practice_id: string
-          source: string
-        }
-        Update: {
-          created_at?: string
-          device_id?: string
-          id?: string
-          instance_id?: string
-          logged_at?: string
-          minutes?: number
-          participant_id?: string
-          practice_id?: string
-          source?: string
-        }
-        Relationships: []
-      }
+          id?: string;
+          participant_id: string;
+          practice_id: string;
+          instance?: number;
+          environment: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['participant_practices']['Insert']>;
+        Relationships: [];
+      };
+      practice_completed: {
+        Row: {
+          id: string;
+          participant_id: string;
+          practice_id: string;
+          instance: number;
+          minutes: number;
+          mode: string;
+          was_offline: boolean;
+          local_date: string;
+          occurred_at: string;
+          environment: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          participant_id: string;
+          practice_id: string;
+          instance?: number;
+          minutes: number;
+          mode: string;
+          was_offline?: boolean;
+          local_date: string;
+          occurred_at?: string;
+          environment: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['practice_completed']['Insert']>;
+        Relationships: [];
+      };
       reminders: {
         Row: {
-          device_id: string
-          enabled: boolean
-          id: number
-          participant_id: string
-          time: string
-        }
+          id: string;
+          participant_id: string;
+          kind: string;
+          slot: number | null;
+          practice_id: string | null;
+          time_local: string;
+          enabled: boolean;
+          environment: string;
+        };
         Insert: {
-          device_id: string
-          enabled?: boolean
-          id: number
-          participant_id: string
-          time: string
-        }
-        Update: {
-          device_id?: string
-          enabled?: boolean
-          id?: number
-          participant_id?: string
-          time?: string
-        }
-        Relationships: []
-      }
-      saved_sessions: {
+          id?: string;
+          participant_id: string;
+          kind: string;
+          slot?: number | null;
+          practice_id?: string | null;
+          time_local: string;
+          enabled?: boolean;
+          environment: string;
+        };
+        Update: Partial<Database['public']['Tables']['reminders']['Insert']>;
+        Relationships: [];
+      };
+      events: {
         Row: {
-          device_id: string
-          id: string
-          last_used_at: string
-          name: string
-          participant_id: string
-          practice_instance_ids: string[]
-        }
+          id: string;
+          participant_id: string;
+          name: string;
+          properties: Json;
+          occurred_at: string;
+          local_date: string;
+          environment: string;
+          created_at: string;
+        };
         Insert: {
-          device_id: string
-          id: string
-          last_used_at?: string
-          name: string
-          participant_id: string
-          practice_instance_ids?: string[]
-        }
-        Update: {
-          device_id?: string
-          id?: string
-          last_used_at?: string
-          name?: string
-          participant_id?: string
-          practice_instance_ids?: string[]
-        }
-        Relationships: []
-      }
-    }
-    Views: Record<string, never>
-    Functions: Record<string, never>
-    Enums: Record<string, never>
-    CompositeTypes: Record<string, never>
-  }
-}
+          id?: string;
+          participant_id: string;
+          name: string;
+          properties?: Json;
+          occurred_at?: string;
+          local_date: string;
+          environment: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['events']['Insert']>;
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};

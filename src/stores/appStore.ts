@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { isFeatureEnabled } from '@/features';
 import { getDb } from '@/db';
-import type { PracticeInstance, PracticeLog, Profile, Reminder, SavedSession, SessionDraft, DrawnToType, DurationPreference } from '@/types';
+import type { PracticeInstance, PracticeLog, Profile, Reminder, ReminderKey, SavedSession, SessionDraft, DrawnToType, DurationPreference } from '@/types';
 import { getPractice } from '@/data/catalogue';
 import { computeCurrentLevel } from '@/data/journey';
 import { generateId, todayKey, formatDateKey } from '@/utils/dates';
@@ -34,7 +34,8 @@ interface AppStore {
   removePracticeInstance: (instanceId: string) => Promise<void>;
   confirmPracticeInstances: (fromFirstSetup: boolean) => Promise<void>;
   logPractice: (instanceId: string, minutes: number, source: 'checkbox' | 'minutes' | 'player') => Promise<void>;
-  setReminder: (id: 1 | 2 | 3, time: string, enabled: boolean) => Promise<void>;
+  setReminder: (id: ReminderKey, time: string, enabled: boolean) => Promise<void>;
+  ensureSadhguruPresenceReminder: () => Promise<void>;
   setSessionDraft: (draft: SessionDraft | null) => void;
   setPlayerSession: (draft: SessionDraft | null) => void;
   saveSession: (name: string, instanceIds: string[]) => Promise<void>;
@@ -177,7 +178,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     };
     await db.practiceInstances.add(instance);
     set({ instances: [...instances, instance] });
-    await queueSync({ table: 'practice_instances', operation: 'insert', payload: instance });
+    await queueSync({ table: 'participant_practices', operation: 'insert', payload: instance });
+    if (practiceId === 'sadhguru-presence') {
+      await get().ensureSadhguruPresenceReminder();
+    }
     return instance;
   },
 
@@ -192,7 +196,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
     set({ instances: reordered });
     await queueSync({
-      table: 'practice_instances',
+      table: 'participant_practices',
       operation: 'delete',
       payload: { id: instanceId } as PracticeInstance,
     });
@@ -215,10 +219,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       timestamp: Date.now(),
       localDate: todayKey(),
       source,
+      wasOffline: !navigator.onLine,
     };
 
     await db.practiceLogs.add(log);
-    await queueSync({ table: 'practice_logs', operation: 'insert', payload: log });
+    await queueSync({ table: 'practice_completed', operation: 'insert', payload: log });
 
     const prevTotal = get().logs.reduce((s, l) => s + l.minutes, 0);
     const newTotal = prevTotal + minutes;
@@ -250,19 +255,49 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setReminder: async (id, time, enabled) => {
     const db = getDb();
-    await db.reminders.update(id, { time, enabled });
+    const existing = (await db.reminders.get(id)) ?? {
+      id,
+      kind: id === 'sadhguru-presence' ? 'practice' as const : 'generic' as const,
+      slot: typeof id === 'number' ? id : undefined,
+      practiceId: id === 'sadhguru-presence' ? 'sadhguru-presence' : undefined,
+      time,
+      enabled: false,
+    };
+    const reminder: Reminder = {
+      ...existing,
+      time,
+      enabled,
+      remoteId: existing.remoteId ?? crypto.randomUUID(),
+    };
+    await db.reminders.put(reminder);
     const reminders = await db.reminders.toArray();
     set({ reminders });
-    const reminder = reminders.find((r) => r.id === id);
-    if (reminder) {
-      await queueSync({ table: 'reminders', operation: 'insert', payload: reminder });
-    }
+    await queueSync({ table: 'reminders', operation: 'insert', payload: reminder });
+  },
+
+  ensureSadhguruPresenceReminder: async () => {
+    const db = getDb();
+    const existing = await db.reminders.get('sadhguru-presence');
+    if (existing) return;
+    const reminder: Reminder = {
+      id: 'sadhguru-presence',
+      kind: 'practice',
+      practiceId: 'sadhguru-presence',
+      time: '18:20',
+      enabled: true,
+      remoteId: crypto.randomUUID(),
+    };
+    await db.reminders.put(reminder);
+    const reminders = await db.reminders.toArray();
+    set({ reminders });
+    await queueSync({ table: 'reminders', operation: 'insert', payload: reminder });
   },
 
   setSessionDraft: (draft) => set({ sessionDraft: draft }),
   setPlayerSession: (draft) => set({ playerSession: draft }),
 
   saveSession: async (name, instanceIds) => {
+    if (!isFeatureEnabled('sessions')) return;
     const db = getDb();
     const session: SavedSession = {
       id: generateId(),
@@ -277,6 +312,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   addRecentSession: async (instanceIds) => {
+    if (!isFeatureEnabled('sessions')) return;
     const db = getDb();
     const key = instanceIds.join(',');
     const meta = await db.appMeta.get('meta');

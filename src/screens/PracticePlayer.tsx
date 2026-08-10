@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, PracticeIllustration } from '@/components';
+import { isFeatureEnabled } from '@/features';
 import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
 import { getCachedAudio } from '@/services/audio';
+import { track } from '@/services/instrumentation';
 
-type PlayerPhase = 'invocation-open' | 'practice' | 'transition' | 'invocation-close' | 'done';
+type PlayerPhase = 'practice' | 'transition' | 'done';
 
 export function PracticePlayer() {
   const navigate = useNavigate();
@@ -15,9 +17,13 @@ export function PracticePlayer() {
   const addRecentSession = useAppStore((s) => s.addRecentSession);
   const instances = useAppStore((s) => s.instances);
 
+  const sessionsEnabled = isFeatureEnabled('sessions');
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [phase, setPhase] = useState<PlayerPhase>('practice');
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [totalSeconds, setTotalSeconds] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [paused, setPaused] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [isGuided, setIsGuided] = useState(true);
@@ -25,10 +31,10 @@ export function PracticePlayer() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const instanceIds = playerSession?.practiceInstanceIds ?? [];
-  const includeInvocation = playerSession?.includeInvocation ?? false;
   const currentInstanceId = instanceIds[currentIndex];
   const currentInstance = instances.find((i) => i.id === currentInstanceId);
   const currentPractice = currentInstance ? getPractice(currentInstance.practiceId) : null;
+  const hasNextPractice = sessionsEnabled && currentIndex < instanceIds.length - 1;
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -46,30 +52,22 @@ export function PracticePlayer() {
 
   const logCurrentPractice = useCallback(async () => {
     if (!currentInstance) return;
-    const minutes = currentPractice?.type === 'timed'
-      ? getDefaultLogMinutes(currentInstance.practiceId)
-      : getDefaultLogMinutes(currentInstance.practiceId);
-    await logPractice(currentInstance.id, minutes, 'player');
-  }, [currentInstance, currentPractice, logPractice]);
+    await logPractice(
+      currentInstance.id,
+      getDefaultLogMinutes(currentInstance.practiceId),
+      'player',
+    );
+  }, [currentInstance, logPractice]);
 
   const advance = useCallback(async () => {
     clearTimer();
     stopAudio();
 
-    if (phase === 'invocation-open') {
-      setPhase('practice');
-      return;
-    }
-
     if (phase === 'practice') {
       await logCurrentPractice();
-      if (currentIndex < instanceIds.length - 1) {
+      if (hasNextPractice) {
         setPhase('transition');
         setSecondsLeft(5);
-        return;
-      }
-      if (includeInvocation) {
-        setPhase('invocation-close');
         return;
       }
       setPhase('done');
@@ -79,16 +77,9 @@ export function PracticePlayer() {
     if (phase === 'transition') {
       setCurrentIndex((i) => i + 1);
       setPhase('practice');
-      return;
     }
+  }, [phase, hasNextPractice, logCurrentPractice, clearTimer, stopAudio]);
 
-    if (phase === 'invocation-close') {
-      setPhase('done');
-      return;
-    }
-  }, [phase, currentIndex, instanceIds.length, includeInvocation, logCurrentPractice, clearTimer, stopAudio]);
-
-  // Start practice
   useEffect(() => {
     if (!currentPractice || !currentInstance) return;
 
@@ -98,6 +89,8 @@ export function PracticePlayer() {
         const audioUrl = await getCachedAudio(currentInstance.practiceId);
         const duration = (currentPractice.minutes ?? 10) * 60;
         setSecondsLeft(duration);
+        setTotalSeconds(duration);
+        setElapsedSeconds(0);
 
         if (audioUrl) {
           const audio = new Audio(audioUrl);
@@ -109,6 +102,7 @@ export function PracticePlayer() {
         if (!paused) {
           timerRef.current = setInterval(() => {
             setSecondsLeft((s) => {
+              setElapsedSeconds((e) => e + 1);
               if (s <= 1) {
                 clearTimer();
                 setTimeout(() => advance(), 0);
@@ -124,9 +118,6 @@ export function PracticePlayer() {
     };
 
     if (phase === 'practice') {
-      if (currentIndex === 0 && includeInvocation && phase === 'practice') {
-        // Check if we need opening invocation - only on first load
-      }
       startPractice();
     }
 
@@ -134,9 +125,8 @@ export function PracticePlayer() {
       clearTimer();
       stopAudio();
     };
-  }, [currentIndex, phase, currentPractice?.id]);
+  }, [currentIndex, phase, currentPractice?.id, currentInstance?.id, paused, advance, clearTimer, stopAudio]);
 
-  // Transition countdown
   useEffect(() => {
     if (phase !== 'transition') return;
     timerRef.current = setInterval(() => {
@@ -149,18 +139,15 @@ export function PracticePlayer() {
       });
     }, 1000);
     return clearTimer;
-  }, [phase]);
+  }, [phase, advance, clearTimer]);
 
-  // Done
   useEffect(() => {
-    if (phase === 'done') {
-      addRecentSession(instanceIds);
-      setPlayerSession(null);
-      navigate('/post-practice', { replace: true });
-    }
-  }, [phase]);
+    if (phase !== 'done') return;
+    addRecentSession(instanceIds);
+    setPlayerSession(null);
+    navigate('/post-practice', { replace: true });
+  }, [phase, instanceIds, addRecentSession, setPlayerSession, navigate]);
 
-  // Pause on background
   useEffect(() => {
     const handleVisibility = () => {
       if (document.hidden) {
@@ -171,7 +158,7 @@ export function PracticePlayer() {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
+  }, [clearTimer, stopAudio]);
 
   if (!playerSession || !currentPractice) {
     return null;
@@ -184,6 +171,14 @@ export function PracticePlayer() {
   };
 
   const handleLeave = () => {
+    if (currentInstance && currentPractice) {
+      track('practice_quit', {
+        practice_id: currentInstance.practiceId,
+        instance: currentInstance.instanceNumber,
+        elapsed_seconds: elapsedSeconds,
+        total_seconds: totalSeconds || (currentPractice.minutes ?? 10) * 60,
+      });
+    }
     setPlayerSession(null);
     navigate('/practice-home', { replace: true });
   };
@@ -219,7 +214,7 @@ export function PracticePlayer() {
           <div className="rounded-[12px] overflow-hidden shadow-lg flex-1">
             <PracticeIllustration practiceId={currentPractice.id} size={160} />
           </div>
-          {currentIndex < instanceIds.length - 1 && (() => {
+          {hasNextPractice && (() => {
             const nextInst = instances.find((i) => i.id === instanceIds[currentIndex + 1]);
             const nextP = nextInst ? getPractice(nextInst.practiceId) : null;
             if (!nextP) return null;
@@ -231,7 +226,7 @@ export function PracticePlayer() {
 
         <p className="font-serif text-headline mt-6 text-center px-4">{currentPractice.name}</p>
 
-        {currentIndex < instanceIds.length - 1 && (() => {
+        {hasNextPractice && (() => {
           const nextInst = instances.find((i) => i.id === instanceIds[currentIndex + 1]);
           const nextP = nextInst ? getPractice(nextInst.practiceId) : null;
           if (!nextP) return null;
@@ -248,24 +243,25 @@ export function PracticePlayer() {
         )}
       </div>
 
-      {/* Session progress indicator */}
-      <div className="flex justify-center gap-2 pb-8 safe-bottom">
-        {instanceIds.map((id, i) => (
-          <div
-            key={id}
-            className={`w-2 h-2 rounded-full ${
-              i < currentIndex ? 'bg-white' : i === currentIndex ? 'bg-white/80 ring-2 ring-white' : 'bg-white/30'
-            }`}
-          />
-        ))}
-      </div>
+      {sessionsEnabled && instanceIds.length > 1 && (
+        <div className="flex justify-center gap-2 pb-8 safe-bottom">
+          {instanceIds.map((id, i) => (
+            <div
+              key={id}
+              className={`w-2 h-2 rounded-full ${
+                i < currentIndex ? 'bg-white' : i === currentIndex ? 'bg-white/80 ring-2 ring-white' : 'bg-white/30'
+              }`}
+            />
+          ))}
+        </div>
+      )}
 
       <Modal
         open={leaveOpen}
-        title="Leave this session?"
-        message="This practice won't be counted. Everything you've already completed is saved."
+        title="Leave session"
+        message="Nothing counts until the practice is complete."
         confirmLabel="Leave session"
-        cancelLabel="Stay"
+        cancelLabel="Keep going"
         onConfirm={handleLeave}
         onCancel={() => setLeaveOpen(false)}
       />

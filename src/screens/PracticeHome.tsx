@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BackHeader, PracticeCard, BottomSheet, MinutePicker, Button,
-  WeekProgressGrid, ProgressStatBoxes,
+  PracticeCalendar, ProgressStatBoxes,
 } from '@/components';
 import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
@@ -11,6 +11,7 @@ import {
   isInstanceCompletedToday, isInstanceCompletedTwiceToday, getTimedMinutesToday,
 } from '@/utils/dates';
 import { useHaptic } from '@/hooks';
+import { track } from '@/services/instrumentation';
 
 export function PracticeHome() {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export function PracticeHome() {
   const [minuteSheet, setMinuteSheet] = useState<string | null>(null);
   const [minuteMode, setMinuteMode] = useState<'log' | 'play'>('log');
   const [selectedMinutes, setSelectedMinutes] = useState(10);
+  const [minuteDefault, setMinuteDefault] = useState(10);
 
   const today = todayKey();
   const todayMinutes = getMinutesForDay(logs, today);
@@ -40,7 +42,9 @@ export function PracticeHome() {
   const openMinuteSheet = (instanceId: string, mode: 'log' | 'play') => {
     const inst = instances.find((i) => i.id === instanceId);
     const practice = inst ? getPractice(inst.practiceId) : null;
-    setSelectedMinutes(practice?.minutes ?? 10);
+    const defaultMin = practice?.minutes ?? 10;
+    setMinuteDefault(defaultMin);
+    setSelectedMinutes(defaultMin);
     setMinuteMode(mode);
     setMinuteSheet(instanceId);
   };
@@ -57,6 +61,13 @@ export function PracticeHome() {
     haptic();
     await logPractice(minuteSheet, selectedMinutes, 'minutes');
     if (minuteMode === 'play') {
+      const inst = instances.find((i) => i.id === minuteSheet);
+      const practice = inst ? getPractice(inst.practiceId) : null;
+      track('practice_started', {
+        practice_id: inst?.practiceId,
+        instance: inst?.instanceNumber,
+        kind: practice?.type,
+      });
       setPlayerSession({ practiceInstanceIds: [minuteSheet], includeInvocation: false });
       navigate('/player');
     }
@@ -64,17 +75,24 @@ export function PracticeHome() {
   };
 
   const handlePlayGuided = (instanceId: string) => {
+    const inst = instances.find((i) => i.id === instanceId);
+    const practice = inst ? getPractice(inst.practiceId) : null;
+    track('practice_started', {
+      practice_id: inst?.practiceId,
+      instance: inst?.instanceNumber,
+      kind: practice?.type,
+    });
     setPlayerSession({ practiceInstanceIds: [instanceId], includeInvocation: false });
     navigate('/player');
   };
 
   return (
     <div className="h-full overflow-y-auto pb-8 bg-page">
-      <BackHeader dark title="Practices" rightAction={bellAction} />
+      <BackHeader dark title="Practices" hideBack rightAction={bellAction} />
 
       <div className="px-4">
-        <section className="mt-2">
-          <p className="section-header mb-3">Today</p>
+        <section className="mt-1">
+          <p className="section-header mb-2">Today</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-card rounded-[14px] p-4 border border-hairline">
               <p className="text-stat text-ink">{completedToday}</p>
@@ -87,12 +105,12 @@ export function PracticeHome() {
           </div>
         </section>
 
-        <section className="mt-[26px]">
-          <div className="flex items-center justify-between mb-3">
-            <p className="section-header">Practices</p>
+        <section className="mt-5">
+          <div className="flex items-center justify-between mb-2">
+            <p className="section-header">My practices</p>
             <button
               onClick={() => navigate('/practices/edit')}
-              className="w-11 h-11 flex items-center justify-center text-ink"
+              className="w-11 h-11 flex items-center justify-center text-primary"
               aria-label="Edit practices"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -132,27 +150,18 @@ export function PracticeHome() {
           )}
         </section>
 
-        <section className="mt-[26px]">
-          <button
-            type="button"
-            onClick={() => navigate('/practice-so-far')}
-            className="w-full text-left"
-          >
-            <p className="section-header mb-3">My Practice Progress</p>
-            <div className="bg-card rounded-[14px] p-4 border border-hairline">
-              <ProgressStatBoxes logs={logs} />
-              <WeekProgressGrid logs={logs} maxRows={5} compact />
-            </div>
-          </button>
+        <section className="mt-5">
+          <p className="section-header mb-2">My practice progress</p>
+          <div className="bg-card rounded-[14px] p-4 border border-hairline">
+            <ProgressStatBoxes logs={logs} />
+            <PracticeCalendar logs={logs} />
+          </div>
         </section>
       </div>
 
-      <BottomSheet open={!!minuteSheet} onClose={() => setMinuteSheet(null)} title="Add minutes">
-        <p className="text-label text-secondary mb-4">
-          This value applies to one session of this practice.
-        </p>
-        <MinutePicker value={selectedMinutes} onChange={setSelectedMinutes} defaultValue={selectedMinutes} />
-        <Button fullWidth className="mt-4" onClick={handleConfirmMinutes}>Confirm</Button>
+      <BottomSheet open={!!minuteSheet} onClose={() => setMinuteSheet(null)} title="How long did you practice?">
+        <MinutePicker value={selectedMinutes} onChange={setSelectedMinutes} defaultValue={minuteDefault} />
+        <Button fullWidth className="mt-4" onClick={handleConfirmMinutes}>Add</Button>
       </BottomSheet>
     </div>
   );

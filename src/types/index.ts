@@ -30,6 +30,7 @@ export interface PracticeLog {
   timestamp: number;
   localDate: string;
   source: LogSource;
+  wasOffline?: boolean;
 }
 
 export interface Profile {
@@ -45,10 +46,17 @@ export interface Profile {
   featureDiscoveryStep: number;
 }
 
+export type ReminderSlot = 1 | 2 | 3;
+export type ReminderKey = ReminderSlot | 'sadhguru-presence';
+
 export interface Reminder {
-  id: 1 | 2 | 3;
-  time: string; // HH:mm
+  id: ReminderKey;
+  kind: 'generic' | 'practice';
+  slot?: ReminderSlot;
+  practiceId?: string;
+  time: string;
   enabled: boolean;
+  remoteId?: string;
 }
 
 export interface SavedSession {

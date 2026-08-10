@@ -5,7 +5,7 @@ interface ConfirmFooterProps {
   onClick: () => void;
 }
 
-export function ConfirmFooter({ count, label = 'Confirm', disabled, onClick }: ConfirmFooterProps) {
+export function ConfirmFooter({ count, label = 'Save', disabled, onClick }: ConfirmFooterProps) {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-page/95 backdrop-blur-sm border-t border-hairline px-4 py-3 safe-bottom z-50">
       <p

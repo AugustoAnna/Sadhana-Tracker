@@ -40,18 +40,14 @@ export function PracticeCard({
 
   const metadataLine = (() => {
     if (practice.type === 'timed') {
-      if (timedMinutesToday > 0) return `${timedMinutesToday} min practiced today`;
+      if (timedMinutesToday > 0) return `${timedMinutesToday} minutes practiced so far`;
       return null;
     }
     return formatDuration(practice.minutes);
   })();
 
   return (
-    <div
-      className={`flex items-center gap-3 py-3 px-3 ${
-        completed && practice.type !== 'timed' ? 'opacity-55' : ''
-      }`}
-    >
+    <div className="flex items-center gap-3 py-3 px-3">
       {showAdd ? (
         <button
           onClick={onAdd}
@@ -65,8 +61,8 @@ export function PracticeCard({
           className="w-11 h-11 flex items-center justify-center flex-shrink-0"
           aria-label="Log minutes"
         >
-          <span className="w-[26px] h-[26px] rounded-[7px] border-2 border-border flex items-center justify-center">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-ink" strokeWidth="2.5">
+          <span className="w-[26px] h-[26px] rounded-[7px] border-2 border-primary flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5">
               <path d="M12 5v14M5 12h14" />
             </svg>
           </span>
@@ -83,7 +79,7 @@ export function PracticeCard({
           className="w-11 h-11 flex items-center justify-center flex-shrink-0"
           aria-label="Mark complete"
         >
-          <span className="w-[26px] h-[26px] rounded-[7px] border-2 border-border" />
+          <span className="w-[26px] h-[26px] rounded-[7px] border-2 border-primary" />
         </button>
       )}
 

@@ -22,6 +22,3 @@ export function getHeatMapColor(minutes: number): { color: string; empty: boolea
 }
 
 export const POST_PRACTICE_MIN_DURATION_MS = 5000;
-
-export const START_HERE_MEDITATOR = ['shambhavi', 'mahamantra', 'shoonya'];
-export const START_HERE_POTENTIAL = ['isha-kriya', 'ie-crash-course', 'mahamantra'];
