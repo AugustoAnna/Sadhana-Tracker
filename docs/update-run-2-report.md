@@ -77,7 +77,7 @@ Kind = resolved from master sheet + program JSON; Shambhavi forced **unguided**.
 
 ### Guided practices with missing audio (do not degrade — report only)
 
-21 practices: achala-arpanam, chit-shakti-health, chit-shakti-love, chit-shakti-peace, chit-shakti-success, devi-sadhana, directional-movements, guru-pooja, ie-crash-course, infinity-meditation, isha-kriya, linga-bhairavi-arati, living-soil, mahamantra, margazhi-mantra, nada-yoga, nadi-shuddhi, namaskar-process, neck-practices, rudraksha-diksha, sadhguru-presence, shambhavi-mudra, yoga-namaskar
+22 practices: achala-arpanam, chit-shakti-health, chit-shakti-love, chit-shakti-peace, chit-shakti-success, devi-sadhana, directional-movements, guru-pooja, ie-crash-course, infinity-meditation, isha-kriya, linga-bhairavi-arati, living-soil, mahamantra, margazhi-mantra, nada-yoga, nadi-shuddhi, namaskar-process, neck-practices, rudraksha-diksha, sadhguru-presence, shambhavi-mudra, yoga-namaskar
 
 ---
 
