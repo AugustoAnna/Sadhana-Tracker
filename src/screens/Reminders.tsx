@@ -59,8 +59,11 @@ export function Reminders() {
   const firstSetup = (location.state as { firstSetup?: boolean })?.firstSetup ?? false;
   const reminders = useAppStore((s) => s.reminders);
   const instances = useAppStore((s) => s.instances);
+  const profile = useAppStore((s) => s.profile);
   const setReminder = useAppStore((s) => s.setReminder);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+
+  const inSetup = firstSetup || !profile?.onboardingComplete;
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingId, setEditingId] = useState<ReminderKey>(1);
@@ -170,7 +173,13 @@ export function Reminders() {
     <div className="h-full flex flex-col bg-page">
       <BackHeader
         title="Practice reminders"
-        onBack={() => navigate(firstSetup ? '/practices/edit' : '/practice-home')}
+        onBack={() => {
+          if (inSetup) {
+            navigate('/practices/edit', { state: { firstSetup: true } });
+          } else {
+            navigate('/practice-home');
+          }
+        }}
       />
       <div className="px-4 flex-1">
         <p className="text-label text-secondary mb-6">
@@ -251,7 +260,7 @@ export function Reminders() {
         })}
       </div>
 
-      {firstSetup && (
+      {inSetup && (
         <div className="px-4 safe-bottom pb-4">
           <Button fullWidth onClick={handleFinishSetup}>
             Done

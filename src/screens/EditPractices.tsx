@@ -58,6 +58,8 @@ export function EditPractices() {
   const profile = useAppStore((s) => s.profile);
   const markEducationShown = useAppStore((s) => s.markInstanceEducationShown);
 
+  const inSetup = firstSetup || !profile?.onboardingComplete;
+
   const [addedOpen, setAddedOpen] = useState(false);
   const [commonOpen, setCommonOpen] = useState(true);
   const [otherOpen, setOtherOpen] = useState(false);
@@ -91,8 +93,16 @@ export function EditPractices() {
   };
 
   const handleDone = () => {
-    if (firstSetup) {
+    if (inSetup) {
       navigate('/reminders', { state: { firstSetup: true } });
+    } else {
+      navigate('/practice-home');
+    }
+  };
+
+  const handleBack = () => {
+    if (inSetup) {
+      navigate('/welcome/name');
     } else {
       navigate('/practice-home');
     }
@@ -113,7 +123,7 @@ export function EditPractices() {
   return (
     <div className="h-full flex flex-col bg-page">
       <div className="flex-1 overflow-y-auto pb-28">
-        <BackHeader title="My practices" />
+        <BackHeader title="My practices" onBack={handleBack} />
         <p className="px-4 text-label text-secondary mb-5">
           Select the practices you have learnt and are currently practicing.
         </p>

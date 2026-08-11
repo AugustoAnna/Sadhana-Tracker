@@ -26,7 +26,7 @@ export function PracticeCard({
   instance,
   allInstances,
   completed,
-  completedTwice,
+  completedTwice: _completedTwice,
   timedMinutesToday = 0,
   onCheckbox,
   onPlus,
