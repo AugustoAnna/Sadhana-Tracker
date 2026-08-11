@@ -1,4 +1,5 @@
 import { getPractice } from '@/data/catalogue';
+import { getResolvedKind } from '@/data/practiceAssets';
 import type { PracticeInstance } from '@/types';
 import { PracticeIllustration } from './PracticeIllustration';
 import { PracticeName } from './PracticeName';
@@ -36,8 +37,10 @@ export function PracticeCard({
   const practice = getPractice(instance.practiceId);
   if (!practice) return null;
 
+  const kind = getResolvedKind(practice.id);
+
   const metadataLine = (() => {
-    if (practice.type === 'timed') {
+    if (kind === 'timed') {
       if (timedMinutesToday > 0) return `${timedMinutesToday} min practiced so far`;
       return null;
     }
@@ -53,7 +56,7 @@ export function PracticeCard({
         >
           Add
         </button>
-      ) : practice.type === 'timed' ? (
+      ) : kind === 'timed' ? (
         <button
           onClick={onPlus}
           className="w-11 h-11 flex items-center justify-center flex-shrink-0"
@@ -92,7 +95,7 @@ export function PracticeCard({
         )}
       </div>
 
-      {(practice.type === 'guided' || practice.type === 'timed') && onPlay && (
+      {(kind === 'guided' || kind === 'timed') && onPlay && (
         <button
           onClick={onPlay}
           disabled={completedTwice}

@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  BackHeader, BottomSheet, PracticeIllustration, ConfirmFooter, PracticeName,
+  BackHeader, BottomSheet, PracticeIllustration, ConfirmFooter, PracticeName, PracticeCard,
 } from '@/components';
 import { useAppStore } from '@/stores/appStore';
 import {
   PRACTICES, COMMONLY_PRACTICED_IDS, MAX_PRACTICE_INSTANCES, getPractice,
 } from '@/data/catalogue';
+import { getResolvedKind } from '@/data/practiceAssets';
 import { sortAlphabetically } from '@/utils/sortInstances';
+import type { PracticeInstance } from '@/types';
 
 function SectionHeader({
   title,
@@ -31,14 +33,19 @@ function SectionHeader({
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
-        className={`transition-transform ${open ? 'rotate-90' : ''}`}
+        className={`transition-transform ${open ? 'rotate-180' : ''}`}
       >
-        <path d="M9 18l6-6-6-6" />
+        <path d="M6 9l6 6 6-6" />
       </svg>
       {title}
     </button>
   );
 }
+
+const SHOONYA_EXAMPLE_INSTANCES: PracticeInstance[] = [
+  { id: 'example-1', practiceId: 'shoonya', instanceNumber: 1, order: 0, addedAt: 0 },
+  { id: 'example-2', practiceId: 'shoonya', instanceNumber: 2, order: 1, addedAt: 0 },
+];
 
 export function EditPractices() {
   const navigate = useNavigate();
@@ -52,7 +59,7 @@ export function EditPractices() {
   const markEducationShown = useAppStore((s) => s.markInstanceEducationShown);
 
   const [addedOpen, setAddedOpen] = useState(instances.length > 0);
-  const [commonOpen, setCommonOpen] = useState(false);
+  const [commonOpen, setCommonOpen] = useState(true);
   const [otherOpen, setOtherOpen] = useState(false);
   const [educationOpen, setEducationOpen] = useState(false);
 
@@ -97,7 +104,6 @@ export function EditPractices() {
   };
 
   const getName = (id: string) => getPractice(id)?.name ?? id;
-
   const sortedAdded = sortAlphabetically(instances, getName);
 
   const commonlyPracticed = [...COMMONLY_PRACTICED_IDS]
@@ -117,14 +123,12 @@ export function EditPractices() {
           Select the practices you have learnt and are currently practicing.
         </p>
 
-        <div className="px-4 mb-5">
-          <SectionHeader title="Added" open={addedOpen} onToggle={() => setAddedOpen(!addedOpen)} />
-          {addedOpen && (
-            <div className="bg-card rounded-[14px] mt-1">
-              {sortedAdded.length === 0 ? (
-                <p className="text-label text-secondary p-3">No practices added yet.</p>
-              ) : (
-                sortedAdded.map((inst) => {
+        {instances.length > 0 && (
+          <div className="px-4 mb-5">
+            <SectionHeader title="Added" open={addedOpen} onToggle={() => setAddedOpen(!addedOpen)} />
+            {addedOpen && (
+              <div className="bg-card rounded-[14px] mt-1">
+                {sortedAdded.map((inst) => {
                   const p = getPractice(inst.practiceId);
                   if (!p) return null;
                   return (
@@ -147,11 +151,11 @@ export function EditPractices() {
                       </button>
                     </div>
                   );
-                })
-              )}
-            </div>
-          )}
-        </div>
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="px-4 mb-5">
           <SectionHeader
@@ -217,14 +221,23 @@ export function EditPractices() {
         hideCloseButton
         dismissOnBackdrop={false}
       >
-        <div className="bg-card rounded-[14px] px-4 py-3 mb-4">
-          <p className="text-body">
-            <span className="font-semibold">Example:</span> Shoonya 1st · Shoonya 2nd
-          </p>
-        </div>
-        <p className="text-label text-secondary mb-6">
+        <p className="text-label text-secondary mb-4">
           Add a practice again so it appears in your list twice and you can mark each one.
         </p>
+
+        <p className="text-meta text-secondary mb-2">Example</p>
+        <div className="bg-card rounded-[14px] mb-6 divide-y divide-hairline">
+          {SHOONYA_EXAMPLE_INSTANCES.map((inst) => (
+            <PracticeCard
+              key={inst.id}
+              instance={inst}
+              allInstances={SHOONYA_EXAMPLE_INSTANCES}
+              completed={false}
+              completedTwice={false}
+            />
+          ))}
+        </div>
+
         <button
           type="button"
           onClick={handleDismissEducation}
@@ -250,8 +263,8 @@ function PracticeAddRow({
   atCap: boolean;
   onAdd: () => void;
 }) {
-  const practice = getPractice(practiceId);
-  const allowsSecond = practice?.type !== 'timed';
+  const kind = getResolvedKind(practiceId);
+  const allowsSecond = kind !== 'timed';
   const hidden = instanceCount >= (allowsSecond ? 2 : 1);
   const addAgain = instanceCount === 1;
 

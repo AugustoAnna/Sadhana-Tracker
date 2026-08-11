@@ -7,6 +7,10 @@ import { computeCurrentLevel } from '@/data/journey';
 import { generateId, todayKey, formatDateKey } from '@/utils/dates';
 import { queueSync } from '@/services/sync';
 import { enterDemoMode as enterDemoModeService, exitDemoMode as exitDemoModeService, type DemoStateId } from '@/services/demoMode';
+import { syncPracticeReminders } from '@/utils/practiceReminders';
+import { precachePracticeAudio } from '@/services/audio';
+import { scheduleReminders } from '@/services/notifications';
+import { getResolvedKind } from '@/data/practiceAssets';
 
 interface AppStore {
   profile: Profile | null;
@@ -66,7 +70,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   hydrate: async () => {
     const db = getDb();
-    const [profile, instances, logs, reminders, savedSessions, meta] = await Promise.all([
+    const [profile, instances, logs, , savedSessions, meta] = await Promise.all([
       db.profile.get('profile'),
       db.practiceInstances.orderBy('order').toArray(),
       db.practiceLogs.toArray(),
@@ -74,6 +78,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       db.savedSessions.orderBy('lastUsedAt').reverse().toArray(),
       db.appMeta.get('meta'),
     ]);
+    const reminders = await syncPracticeReminders(db);
     set({
       profile: profile ?? null,
       instances,
@@ -163,9 +168,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const { instances } = get();
     if (instances.length >= 21) return null;
 
-    const practice = getPractice(practiceId);
+    const kind = getResolvedKind(practiceId);
     const existing = instances.filter((i) => i.practiceId === practiceId);
-    if (practice?.type === 'timed' && existing.length >= 1) return null;
+    if (kind === 'timed' && existing.length >= 1) return null;
     const instanceNumber = (existing.length >= 1 ? 2 : 1) as 1 | 2;
     if (existing.length >= 2) return null;
 
@@ -177,10 +182,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       addedAt: Date.now(),
     };
     await db.practiceInstances.add(instance);
-    set({ instances: [...instances, instance] });
+    const updatedInstances = [...instances, instance];
+    const reminders = await syncPracticeReminders(db);
+    set({ instances: updatedInstances, reminders });
     await queueSync({ table: 'participant_practices', operation: 'insert', payload: instance });
-    if (practiceId === 'sadhguru-presence') {
-      await get().ensureSadhguruPresenceReminder();
+    if (kind === 'guided') {
+      void precachePracticeAudio(practiceId);
+    }
+    const presenceReminder = reminders.find((r) => r.id === 'sadhguru-presence');
+    if (presenceReminder?.enabled) {
+      void scheduleReminders();
     }
     return instance;
   },
@@ -194,7 +205,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     for (const inst of reordered) {
       await db.practiceInstances.update(inst.id, { order: inst.order });
     }
-    set({ instances: reordered });
+    const reminders = await syncPracticeReminders(db);
+    set({ instances: reordered, reminders });
     await queueSync({
       table: 'participant_practices',
       operation: 'delete',

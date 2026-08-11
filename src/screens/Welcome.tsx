@@ -45,7 +45,7 @@ export function Welcome() {
           Your sadhana, in one place.
         </h1>
         <p className="text-label text-secondary text-center mb-8">
-          Track what you practice.
+          Track what you practice. See it build.
         </p>
       </div>
 

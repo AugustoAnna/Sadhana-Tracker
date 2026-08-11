@@ -1,8 +1,6 @@
-import { useState } from 'react';import {
-  getIllustrationFallbackUrl,
-  getIllustrationUrl,
-  PRACTICES_WITHOUT_ILLUSTRATION,
-} from '@/data/illustrationMap';
+import { useState } from 'react';
+import { resolveIllustrationUrl } from '@/data/practiceAssets';
+import { PRACTICES_WITHOUT_ILLUSTRATION, getIllustrationFallbackUrl } from '@/data/illustrationMap';
 
 interface PracticeIllustrationProps {
   practiceId?: string;
@@ -15,7 +13,7 @@ export function PracticeIllustration({
   size = 40,
   className = '',
 }: PracticeIllustrationProps) {
-  const [src, setSrc] = useState(() => getIllustrationUrl(practiceId));
+  const [src, setSrc] = useState(() => resolveIllustrationUrl(practiceId));
   const [failed, setFailed] = useState(false);
   const missing = PRACTICES_WITHOUT_ILLUSTRATION.has(practiceId) || !src || failed;
 

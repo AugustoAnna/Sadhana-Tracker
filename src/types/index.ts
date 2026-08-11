@@ -107,6 +107,8 @@ export interface DayStats {
 export interface SessionDraft {
   practiceInstanceIds: string[];
   includeInvocation: boolean;
+  /** Duration in minutes for timed player sessions. */
+  timedMinutes?: number;
 }
 
 export type ParticipantType = 'meditator' | 'potential';

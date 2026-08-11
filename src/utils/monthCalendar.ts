@@ -5,9 +5,9 @@ import type { PracticeLog } from '@/types';
 import { getHeatMapColor } from '@/data/constants';
 import { formatDateKey, todayKey } from './dates';
 
-export const CALENDAR_CELL_PX = 40;
-export const CALENDAR_GAP_PX = 8;
-export const CALENDAR_GUTTER_PX = 26;
+export const CALENDAR_CELL_PX = 26;
+export const CALENDAR_GAP_PX = 5;
+export const CALENDAR_GUTTER_PX = 18;
 export const CALENDAR_MONTH_GAP_PX = 40;
 
 export const COLOR_NOT_YET = '#EEE9DE';

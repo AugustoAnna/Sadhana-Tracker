@@ -1,40 +1,34 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, PracticeIllustration } from '@/components';
-import { isFeatureEnabled } from '@/features';
 import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
-import { getCachedAudio } from '@/services/audio';
+import { getResolvedKind } from '@/data/practiceAssets';
+import { getPracticeAudio } from '@/services/audio';
 import { track } from '@/services/instrumentation';
-
-type PlayerPhase = 'practice' | 'transition' | 'done';
 
 export function PracticePlayer() {
   const navigate = useNavigate();
   const playerSession = useAppStore((s) => s.playerSession);
   const setPlayerSession = useAppStore((s) => s.setPlayerSession);
   const logPractice = useAppStore((s) => s.logPractice);
-  const addRecentSession = useAppStore((s) => s.addRecentSession);
   const instances = useAppStore((s) => s.instances);
 
-  const sessionsEnabled = isFeatureEnabled('sessions');
+  const instanceIds = playerSession?.practiceInstanceIds ?? [];
+  const currentInstanceId = instanceIds[0];
+  const currentInstance = instances.find((i) => i.id === currentInstanceId);
+  const currentPractice = currentInstance ? getPractice(currentInstance.practiceId) : null;
+  const resolvedKind = currentPractice ? getResolvedKind(currentPractice.id) : null;
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [phase, setPhase] = useState<PlayerPhase>('practice');
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const [isGuided, setIsGuided] = useState(true);
   const [audioMissing, setAudioMissing] = useState(false);
+  const [ready, setReady] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const instanceIds = playerSession?.practiceInstanceIds ?? [];
-  const currentInstanceId = instanceIds[currentIndex];
-  const currentInstance = instances.find((i) => i.id === currentInstanceId);
-  const currentPractice = currentInstance ? getPractice(currentInstance.practiceId) : null;
+  const completedRef = useRef(false);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -50,92 +44,94 @@ export function PracticePlayer() {
     }
   }, []);
 
-  const logCurrentPractice = useCallback(async () => {
-    if (!currentInstance) return;
-    await logPractice(
-      currentInstance.id,
-      getDefaultLogMinutes(currentInstance.practiceId),
-      'player',
-    );
-  }, [currentInstance, logPractice]);
-
-  const advance = useCallback(async () => {
+  const finishAndReturn = useCallback(async () => {
+    if (completedRef.current || !currentInstance || !currentPractice) return;
+    completedRef.current = true;
     clearTimer();
     stopAudio();
 
-    if (phase === 'practice') {
-      await logCurrentPractice();
-      if (sessionsEnabled && currentIndex < instanceIds.length - 1) {
-        setPhase('transition');
-        setSecondsLeft(5);
-        return;
-      }
-      setPhase('done');
-      return;
-    }
+    const minutes = resolvedKind === 'timed'
+      ? (playerSession?.timedMinutes ?? currentPractice.minutes ?? 10)
+      : getDefaultLogMinutes(currentInstance.practiceId);
 
-    if (phase === 'transition') {
-      setCurrentIndex((i) => i + 1);
-      setPhase('practice');
-    }
-  }, [phase, sessionsEnabled, currentIndex, instanceIds.length, logCurrentPractice, clearTimer, stopAudio]);
+    await logPractice(currentInstance.id, minutes, 'player');
+    setPlayerSession(null);
+    navigate('/practice-home', { replace: true });
+  }, [
+    currentInstance, currentPractice, resolvedKind, playerSession?.timedMinutes,
+    logPractice, setPlayerSession, navigate, clearTimer, stopAudio,
+  ]);
+
+  const startCountdown = useCallback((durationSec: number) => {
+    setSecondsLeft(durationSec);
+    setTotalSeconds(durationSec);
+    setElapsedSeconds(0);
+    setReady(true);
+
+    timerRef.current = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          clearTimer();
+          void finishAndReturn();
+          return 0;
+        }
+        setElapsedSeconds((e) => e + 1);
+        return s - 1;
+      });
+    }, 1000);
+  }, [clearTimer, finishAndReturn]);
 
   useEffect(() => {
-    if (!currentPractice || !currentInstance) return;
+    if (!currentPractice || !currentInstance || !resolvedKind) return;
+    completedRef.current = false;
 
-    const startPractice = async () => {
-      if (currentPractice.type === 'guided') {
-        setIsGuided(true);
-        const audioUrl = await getCachedAudio(currentInstance.practiceId);
-        const duration = (currentPractice.minutes ?? 10) * 60;
-        setSecondsLeft(duration);
-        setTotalSeconds(duration);
-        setElapsedSeconds(0);
-        setAudioMissing(!audioUrl);
-
-        if (audioUrl) {
-          const audio = new Audio(audioUrl);
-          audioRef.current = audio;
-          audio.play().catch(() => {});
-          audio.onended = () => advance();
+    const init = async () => {
+      if (resolvedKind === 'guided') {
+        const audioUrl = await getPracticeAudio(currentInstance.practiceId);
+        if (!audioUrl) {
+          setAudioMissing(true);
+          setReady(true);
+          return;
         }
 
-        if (!paused && audioUrl) {
-          timerRef.current = setInterval(() => {
-            setSecondsLeft((s) => {
-              setElapsedSeconds((e) => e + 1);
-              if (s <= 1) {
-                clearTimer();
-                setTimeout(() => advance(), 0);
-                return 0;
-              }
-              return s - 1;
-            });
-          }, 1000);
-        }
+        setAudioMissing(false);
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+
+        await new Promise<void>((resolve) => {
+          audio.addEventListener('loadedmetadata', () => resolve(), { once: true });
+          audio.addEventListener('error', () => resolve(), { once: true });
+          audio.load();
+        });
+
+        const duration = Number.isFinite(audio.duration) && audio.duration > 0
+          ? Math.ceil(audio.duration)
+          : (currentPractice.minutes ?? 10) * 60;
+
+        audio.play().catch(() => {});
+        audio.onended = () => void finishAndReturn();
+        startCountdown(duration);
+      } else if (resolvedKind === 'timed') {
+        const duration = (playerSession?.timedMinutes ?? currentPractice.minutes ?? 10) * 60;
+        startCountdown(duration);
       } else {
-        setIsGuided(false);
+        setReady(true);
+        setAudioMissing(true);
       }
     };
 
-    if (phase === 'practice') {
-      startPractice();
-    }
+    void init();
 
     return () => {
       clearTimer();
       stopAudio();
     };
-  }, [currentIndex, phase, currentPractice?.id, currentInstance?.id, paused, advance, clearTimer, stopAudio]);
+  }, [
+    currentPractice?.id, currentInstance?.id, resolvedKind,
+    playerSession?.timedMinutes, startCountdown, finishAndReturn, clearTimer, stopAudio,
+  ]);
 
-  useEffect(() => {
-    if (phase !== 'done') return;
-    addRecentSession(instanceIds);
-    setPlayerSession(null);
-    navigate('/post-practice', { replace: true });
-  }, [phase, instanceIds, addRecentSession, setPlayerSession, navigate]);
-
-  if (!playerSession || !currentPractice) {
+  if (!playerSession || !currentPractice || !currentInstance) {
     return null;
   }
 
@@ -146,17 +142,25 @@ export function PracticePlayer() {
   };
 
   const handleLeave = () => {
-    if (currentInstance && currentPractice) {
-      track('practice_quit', {
-        practice_id: currentInstance.practiceId,
-        instance: currentInstance.instanceNumber,
-        elapsed_seconds: elapsedSeconds,
-        total_seconds: totalSeconds || (currentPractice.minutes ?? 10) * 60,
-      });
-    }
+    track('practice_quit', {
+      practice_id: currentInstance.practiceId,
+      instance: currentInstance.instanceNumber,
+      elapsed_seconds: elapsedSeconds,
+      total_seconds: totalSeconds || (currentPractice.minutes ?? 10) * 60,
+    });
     setPlayerSession(null);
     navigate('/practice-home', { replace: true });
   };
+
+  const showCountdown = ready && (
+    (resolvedKind === 'guided' && !audioMissing) ||
+    resolvedKind === 'timed'
+  );
+
+  const showMarkCompleted = ready && (
+    (resolvedKind === 'guided' && audioMissing) ||
+    resolvedKind === 'unguided'
+  );
 
   return (
     <div
@@ -165,7 +169,7 @@ export function PracticePlayer() {
         background: 'radial-gradient(ellipse at center, #A88B34 0%, #7D6528 100%)',
       }}
     >
-      <div className="flex items-center justify-between px-4 pt-10">
+      <div className="flex items-center justify-between px-4 pt-8 pb-2">
         <button
           onClick={() => setLeaveOpen(true)}
           className="w-11 h-11 rounded-full bg-white/25 flex items-center justify-center"
@@ -179,37 +183,28 @@ export function PracticePlayer() {
         <div className="w-11" />
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-8">
-        <div
-          className="rounded-[4px] p-3 mb-8"
-          style={{ backgroundColor: '#7A4A2A', width: 'min(55vw, 220px)' }}
-        >
+      <div className="flex-1 flex flex-col items-center px-6 pt-6 pb-10">
+        <div className="flex-1 flex items-center justify-center w-full max-w-[240px]">
           <PracticeIllustration
             practiceId={currentPractice.id}
             size={200}
-            className="w-full !h-auto aspect-square !rounded-[2px]"
+            className="!w-full !h-auto max-w-[200px] aspect-square"
           />
         </div>
 
-        {isGuided && !audioMissing ? (
-          <p className="text-[28px] tabular-nums font-medium">{formatTime(secondsLeft)}</p>
-        ) : (
-          <button
-            onClick={advance}
-            className="px-8 py-3 rounded-xl bg-white/20 font-semibold min-h-11 text-lg"
-          >
-            Mark completed
-          </button>
-        )}
-
-        {paused && isGuided && !audioMissing && (
-          <button
-            onClick={() => setPaused(false)}
-            className="mt-4 px-6 py-2 rounded-xl bg-white/20 font-medium"
-          >
-            Resume
-          </button>
-        )}
+        <div className="shrink-0 w-full flex flex-col items-center">
+          {showCountdown && (
+            <p className="text-[28px] tabular-nums font-medium">{formatTime(secondsLeft)}</p>
+          )}
+          {showMarkCompleted && (
+            <button
+              onClick={() => void finishAndReturn()}
+              className="px-8 py-3 rounded-xl bg-white/20 font-semibold min-h-11 text-lg"
+            >
+              Mark completed
+            </button>
+          )}
+        </div>
       </div>
 
       <Modal

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BackHeader, Toggle, BottomSheet, TimePicker, Button } from '@/components';
 import { useAppStore } from '@/stores/appStore';
@@ -13,6 +13,45 @@ import { track } from '@/services/instrumentation';
 import { updateParticipantFields } from '@/services/sync';
 import type { ReminderKey } from '@/types';
 import { getPractice } from '@/data/catalogue';
+import {
+  PRACTICE_REMINDER_CONFIG,
+  getPracticeReminderIds,
+} from '@/utils/practiceReminders';
+
+const SESSION_PROMPT_KEY = 'notification_prompt_raised';
+
+const DENIED_INSTRUCTIONS_PLACEHOLDER =
+  'TBD-PM: Open your browser settings, find this site under Notifications, and allow notifications. ' +
+  'On iPhone: Settings → Safari → [site] → Notifications. On Android Chrome: site lock icon → Permissions → Notifications.';
+
+function applyPermissionResult(
+  result: NotificationPermission,
+  setPermission: (p: NotificationPermission | 'unsupported') => void,
+  setShowConfirmation: (v: boolean) => void,
+) {
+  setPermission(result);
+  void updateParticipantFields({ notification_permission: result });
+  if (result === 'granted') {
+    setShowConfirmation(true);
+    void scheduleReminders();
+    setTimeout(() => setShowConfirmation(false), 2500);
+  }
+}
+
+function requestPermissionFromGesture(
+  setPermission: (p: NotificationPermission | 'unsupported') => void,
+  setShowConfirmation: (v: boolean) => void,
+) {
+  if (!('Notification' in window)) return;
+  const result = Notification.requestPermission();
+  if (typeof result === 'object' && result !== null && 'then' in result) {
+    void (result as Promise<NotificationPermission>).then((r) =>
+      applyPermissionResult(r, setPermission, setShowConfirmation),
+    );
+  } else {
+    applyPermissionResult(result as NotificationPermission, setPermission, setShowConfirmation);
+  }
+}
 
 export function Reminders() {
   const navigate = useNavigate();
@@ -30,8 +69,11 @@ export function Reminders() {
   const [permission, setPermission] = useState(getNotificationPermission());
 
   const genericReminders = reminders.filter((r) => r.kind === 'generic');
-  const presenceReminder = reminders.find((r) => r.id === 'sadhguru-presence');
-  const hasPresencePractice = instances.some((i) => i.practiceId === 'sadhguru-presence');
+
+  const practiceReminderIds = useMemo(
+    () => getPracticeReminderIds(instances),
+    [instances],
+  );
 
   useEffect(() => {
     const check = () => setPermission(getNotificationPermission());
@@ -40,16 +82,40 @@ export function Reminders() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'default') return;
+    if (sessionStorage.getItem(SESSION_PROMPT_KEY)) return;
+    sessionStorage.setItem(SESSION_PROMPT_KEY, '1');
+    requestPermissionFromGesture(setPermission, setShowConfirmation);
+  }, []);
+
   const needsPermission = permission !== 'granted';
+  const permissionDenied = permission === 'denied';
 
   const openTimeSheet = (id: ReminderKey) => {
     const existing = reminders.find((r) => r.id === id);
     setEditingId(id);
-    setSelectedTime(existing?.time ?? (id === 'sadhguru-presence' ? '18:20' : '06:00'));
+    setSelectedTime(existing?.time ?? '06:00');
     setSheetOpen(true);
   };
 
   const handleToggle = async (id: ReminderKey, enabled: boolean) => {
+    const config = typeof id === 'string' ? PRACTICE_REMINDER_CONFIG[id] : undefined;
+
+    if (config?.lockedTime) {
+      await setReminder(id, config.time, enabled);
+      track(enabled ? 'reminder_set' : 'reminder_disabled', {
+        slot: null,
+        kind: 'practice',
+        practice_id: id,
+        time_local: config.time,
+        was_enabled_before: !enabled,
+      });
+      await scheduleReminders();
+      return;
+    }
+
     const existing = reminders.find((r) => r.id === id);
     if (enabled) {
       openTimeSheet(id);
@@ -57,7 +123,7 @@ export function Reminders() {
       await setReminder(id, existing?.time ?? '06:00', false);
       track('reminder_disabled', {
         slot: typeof id === 'number' ? id : null,
-        kind: id === 'sadhguru-presence' ? 'practice' : 'generic',
+        kind: 'generic',
         time_local: existing?.time,
       });
       await scheduleReminders();
@@ -87,24 +153,8 @@ export function Reminders() {
   };
 
   const handleEnableNotifications = () => {
-    if (!('Notification' in window)) return;
-
-    const applyResult = async (result: NotificationPermission) => {
-      setPermission(result);
-      await updateParticipantFields({ notification_permission: result });
-      if (result === 'granted') {
-        setShowConfirmation(true);
-        await scheduleReminders();
-        setTimeout(() => setShowConfirmation(false), 2500);
-      }
-    };
-
-    const result = Notification.requestPermission();
-    if (typeof result === 'object' && result !== null && 'then' in result) {
-      void (result as Promise<NotificationPermission>).then(applyResult);
-    } else {
-      void applyResult(result as NotificationPermission);
-    }
+    if (permissionDenied) return;
+    requestPermissionFromGesture(setPermission, setShowConfirmation);
   };
 
   const handleFinishSetup = async () => {
@@ -115,8 +165,6 @@ export function Reminders() {
     }
     navigate('/practice-home', { replace: true });
   };
-
-  const presenceName = getPractice('sadhguru-presence')?.name ?? "Sadhguru's Presence";
 
   return (
     <div className="h-full flex flex-col bg-page">
@@ -131,12 +179,21 @@ export function Reminders() {
 
         {needsPermission && !showConfirmation && (
           <div className="bg-card rounded-[14px] p-4 mb-6">
-            <p className="text-body mb-3">
-              Turn on notifications to receive your reminders
-            </p>
-            <Button variant="secondary" fullWidth onClick={handleEnableNotifications}>
-              Allow
-            </Button>
+            {permissionDenied ? (
+              <>
+                <p className="text-body mb-3">Notifications are blocked in your browser.</p>
+                <p className="text-label text-secondary">{DENIED_INSTRUCTIONS_PLACEHOLDER}</p>
+              </>
+            ) : (
+              <>
+                <p className="text-body mb-3">
+                  Turn on notifications to receive your reminders
+                </p>
+                <Button variant="secondary" fullWidth onClick={handleEnableNotifications}>
+                  Allow
+                </Button>
+              </>
+            )}
           </div>
         )}
 
@@ -168,26 +225,30 @@ export function Reminders() {
           </button>
         ))}
 
-        {hasPresencePractice && presenceReminder && (
-          <button
-            type="button"
-            onClick={() => openTimeSheet('sadhguru-presence')}
-            className="flex items-center justify-between w-full py-4 border-b border-hairline text-left"
-          >
-            <div>
-              <p className="text-body">{presenceName}</p>
-              <p className="text-label text-secondary mt-0.5">
-                {presenceReminder.enabled ? formatTimeDisplay(presenceReminder.time) : 'Off'}
-              </p>
-            </div>
-            <div onClick={(e) => e.stopPropagation()}>
+        {practiceReminderIds.map((practiceId) => {
+          const reminder = reminders.find((r) => r.id === practiceId);
+          const config = PRACTICE_REMINDER_CONFIG[practiceId];
+          const name = getPractice(practiceId)?.name ?? practiceId;
+          if (!reminder || !config) return null;
+
+          return (
+            <div
+              key={practiceId}
+              className="flex items-center justify-between w-full py-4 border-b border-hairline"
+            >
+              <div>
+                <p className="text-body">{name}</p>
+                <p className="text-label text-secondary mt-0.5">
+                  {reminder.enabled ? formatTimeDisplay(config.time) : 'Off'}
+                </p>
+              </div>
               <Toggle
-                checked={presenceReminder.enabled}
-                onChange={(enabled) => handleToggle('sadhguru-presence', enabled)}
+                checked={reminder.enabled}
+                onChange={(enabled) => handleToggle(practiceId as ReminderKey, enabled)}
               />
             </div>
-          </button>
-        )}
+          );
+        })}
       </div>
 
       {firstSetup && (

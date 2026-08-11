@@ -14,7 +14,7 @@ export function BackHeader({ title, onBack, rightAction, dark = false, hideBack 
 
   return (
     <header
-      className={`flex items-center gap-2 px-4 ${dark ? 'pt-8 pb-2' : 'pt-10 pb-3'} ${
+      className={`flex items-center gap-2 px-4 ${dark ? 'pt-6 pb-2' : 'pt-10 pb-3'} ${
         dark
           ? 'bg-header text-white'
           : 'bg-page text-ink'

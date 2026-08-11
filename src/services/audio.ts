@@ -1,3 +1,5 @@
+import { resolveAudioUrl } from '@/data/practiceAssets';
+
 const AUDIO_CACHE = 'practice-audio-v1';
 
 export async function cacheAudio(practiceId: string, url: string): Promise<void> {
@@ -24,16 +26,39 @@ export async function isAudioCached(practiceId: string): Promise<boolean> {
   return !!response;
 }
 
-export function getPlaceholderAudioUrl(_practiceId: string): string {
-  // Placeholder — replace with real audio URLs when available
-  return `/audio/placeholder.mp3`;
+/** Load audio from cache or public URL; cache on success. */
+export async function getPracticeAudio(practiceId: string): Promise<string | null> {
+  const cached = await getCachedAudio(practiceId);
+  if (cached) return cached;
+
+  const url = resolveAudioUrl(practiceId);
+  if (!url) return null;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    await cacheAudio(practiceId, url);
+    return URL.createObjectURL(await response.blob());
+  } catch {
+    return null;
+  }
+}
+
+export async function precachePracticeAudio(practiceId: string): Promise<boolean> {
+  const url = resolveAudioUrl(practiceId);
+  if (!url) return false;
+  try {
+    await cacheAudio(practiceId, url);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function precacheInvocation(): Promise<void> {
-  // Placeholder — invocation audio cached during onboarding
   try {
     await cacheAudio('invocation', '/audio/invocation.mp3');
   } catch {
-    // offline or missing file — acceptable for first draft
+    // optional lab asset
   }
 }

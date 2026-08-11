@@ -12,7 +12,6 @@ import {
   SessionSelect,
   SessionReview,
   PracticePlayer,
-  PostPractice,
   LevelUp,
   Journey,
 } from '@/screens';
@@ -64,7 +63,7 @@ export function AppRouter() {
             <PostOnboardingGuard><PracticePlayer /></PostOnboardingGuard>
           } />
           <Route path="/post-practice" element={
-            <PostOnboardingGuard><PostPractice /></PostOnboardingGuard>
+            <PostOnboardingGuard><Navigate to="/practice-home" replace /></PostOnboardingGuard>
           } />
 
           {isFeatureEnabled('journey') && (

@@ -6,6 +6,7 @@ import {
 } from '@/components';
 import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
+import { getResolvedKind } from '@/data/practiceAssets';
 import {
   getPracticesCompletedToday, getMinutesForDay, todayKey,
   isInstanceCompletedToday, isInstanceCompletedTwiceToday, getTimedMinutesToday,
@@ -62,29 +63,40 @@ export function PracticeHome() {
   const handleConfirmMinutes = async () => {
     if (!minuteSheet) return;
     haptic();
-    await logPractice(minuteSheet, selectedMinutes, 'minutes');
     if (minuteMode === 'play') {
       const inst = instances.find((i) => i.id === minuteSheet);
       const practice = inst ? getPractice(inst.practiceId) : null;
       track('practice_started', {
         practice_id: inst?.practiceId,
         instance: inst?.instanceNumber,
-        kind: practice?.type,
+        kind: practice ? getResolvedKind(practice.id) : undefined,
       });
-      setPlayerSession({ practiceInstanceIds: [minuteSheet], includeInvocation: false });
+      setPlayerSession({
+        practiceInstanceIds: [minuteSheet],
+        includeInvocation: false,
+        timedMinutes: selectedMinutes,
+      });
       navigate('/player');
+    } else {
+      await logPractice(minuteSheet, selectedMinutes, 'minutes');
     }
     setMinuteSheet(null);
   };
 
-  const handlePlayGuided = (instanceId: string) => {
+  const handlePlay = (instanceId: string) => {
     const inst = instances.find((i) => i.id === instanceId);
     const practice = inst ? getPractice(inst.practiceId) : null;
+    if (!practice) return;
+    const kind = getResolvedKind(practice.id);
     track('practice_started', {
       practice_id: inst?.practiceId,
       instance: inst?.instanceNumber,
-      kind: practice?.type,
+      kind,
     });
+    if (kind === 'timed') {
+      openMinuteSheet(instanceId, 'play');
+      return;
+    }
     setPlayerSession({ practiceInstanceIds: [instanceId], includeInvocation: false });
     navigate('/player');
   };
@@ -142,11 +154,7 @@ export function PracticeHome() {
                   timedMinutesToday={getTimedMinutesToday(logs, inst.id)}
                   onCheckbox={() => handleCheckbox(inst.id)}
                   onPlus={() => openMinuteSheet(inst.id, 'log')}
-                  onPlay={() => {
-                    const p = getPractice(inst.practiceId);
-                    if (p?.type === 'timed') openMinuteSheet(inst.id, 'play');
-                    else handlePlayGuided(inst.id);
-                  }}
+                  onPlay={() => handlePlay(inst.id)}
                 />
               ))}
             </div>
