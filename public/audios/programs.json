@@ -1,0 +1,97 @@
+{
+    "yoga": {
+        "meditations": {
+            "isha_kriya_meditation_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/isha-kriya-meditation_en.mp3"
+            },
+            "infinity_meditation_video": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/infinity-meditation_en.mp4"
+            },
+            "chit_shakti_health_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/yoga-chit-shakti-health_en.mp3"
+            },
+             "chit_shakti_love_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/yoga-chit-shakti-love_en.mp3"
+            },
+             "chit_shakti_peace_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/yoga-chit-shakti-peace_en.mp3"
+            },
+            "chit_shakti_success_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/yoga-chit-shakti-success_en.mp3"
+            },
+            "sadhguru_presence_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/common/media/brahmananda-swarupa.mp3"
+            },
+            "margazhi_mantra_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/static-exclusive/assets/en/media/margazhi_mantra_en.mp3"
+            },
+            "soil_meditation_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/soil-meditation_en.mp3"
+            },
+            "ieo_crash_course_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/static-exclusive/assets/en/media/ie-rules-audio_en.m4a"
+            },
+            "rudraksha_diksha_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/static-exclusive/assets/common/media/rd-yoga-yoga-yogeshwaraya.mp3"
+            },
+            "guru_pooja_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/guru-pooja-audio_en.mp3"
+            },
+            "achala_arpanam_audio": {
+                "en": "https://images-sgex-prod.sadhguru.org/static-exclusive/assets/en/media/achala-arpanam-practice.mp3"
+            }
+
+        },
+        "practices": {
+            "health": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_directional-movement-guided_en.mp3"
+            },
+            "success": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_neck-practices-guided_en.mp3"
+            },
+            "peace": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_nadi-shuddhi-guided_en.mp3"
+            },
+            "love": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_namaskar-process-guided_en.mp3"
+            },
+            "joy": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_nada-yoga-guided_en.mp3"
+            },
+            "innerExploration": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_shambhavi-mudra-guided_en.mp3"
+            },
+            "wellbeing": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_yoga-namaskar-guided_en.mp3"
+            },
+            "simhaKriya": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/simha-kriya-guided_en.mp3"
+            },
+            "sashtanga": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/soil-meditation_en.mp3"
+            },
+            "magarzimantra": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/margazhi_mantra_en.mp3"
+            },
+            "devi": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/achala-arpanam-practice.mp3"
+            },
+            "shivaNamaskar": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/sadhguru_app/siva_nam_Chant_Audio_new.mp3"
+            },
+            "guru": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/guru-pooja-audio_en.mp3"
+            },
+            "rudraksha": {
+                "en": "https://images-sgex-prod.sadhguru.org/static-exclusive/assets/common/media/rd-yoga-yoga-yogeshwaraya.mp3"
+            },
+            "mahamantra": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/sadhguru_app/chants/high/Mahamantra/mahamantra.mp3"
+            },
+            "presence": {
+                "en": "https://images-sgex-prod.sadhguru.org/sgapp/assets/common/media/brahmananda-swarupa.mp3"
+            }
+
+        }
+    }
+}
