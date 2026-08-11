@@ -199,25 +199,6 @@ export function PracticePlayer() {
     navigate('/practice-home', { replace: true });
   };
 
-  const handleStopTimer = () => {
-    track('practice_quit', {
-      practice_id: currentInstance.practiceId,
-      instance: currentInstance.instanceNumber,
-      elapsed_seconds: elapsedSeconds,
-      total_seconds: totalSeconds,
-      reason: 'stopped',
-    });
-    completedRef.current = true;
-    clearTimer();
-    stopAudio();
-
-    const minutes = Math.max(1, Math.ceil(elapsedSeconds / 60) || 1);
-    void logPractice(currentInstance.id, minutes, 'player').then(() => {
-      setPlayerSession(null);
-      navigate('/practice-home', { replace: true });
-    });
-  };
-
   return (
     <div
       className="h-full flex flex-col text-white"
@@ -248,17 +229,9 @@ export function PracticePlayer() {
           />
         </div>
 
-        <div className="shrink-0 w-full flex flex-col items-center gap-3 min-h-[44px]">
+        <div className="shrink-0 w-full flex flex-col items-center min-h-[44px]">
           {mode === 'countdown' && (
-            <>
-              <p className="text-[28px] tabular-nums font-medium">{formatTime(secondsLeft)}</p>
-              <button
-                onClick={handleStopTimer}
-                className="px-6 py-2.5 rounded-xl bg-white/20 font-semibold min-h-11 text-base"
-              >
-                Stop timer
-              </button>
-            </>
+            <p className="text-[28px] tabular-nums font-medium">{formatTime(secondsLeft)}</p>
           )}
           {mode === 'manual' && (
             <button

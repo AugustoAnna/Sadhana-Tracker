@@ -98,7 +98,7 @@ export function PracticeCard({
       {(kind === 'guided' || kind === 'timed') && onPlay && (
         <button
           onClick={onPlay}
-          disabled={completedTwice}
+          disabled={completed}
           className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 disabled:opacity-30"
           aria-label="Play"
         >
