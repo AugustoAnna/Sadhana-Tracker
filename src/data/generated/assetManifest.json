@@ -1,9 +1,251 @@
 {
-  "generatedAt": "2026-08-11T10:51:55.933Z",
-  "illustrations": {},
+  "generatedAt": "2026-08-11T11:19:23.703Z",
+  "illustrations": {
+    "achala-arpanam": [
+      "/illustrations/Achala-arpanam_illustration.webp"
+    ],
+    "angamardana": [
+      "/illustrations/Angamardana_illustration.webp"
+    ],
+    "ardhasiddhasana": [
+      "/illustrations/Ardha-siddhasana_illustration.webp"
+    ],
+    "aum-chanting": [
+      "/illustrations/Aum-chanting_illustration.webp"
+    ],
+    "bhakti-sadhana": [
+      "/illustrations/Bhakti-sadhana_illustration.webp"
+    ],
+    "bhastrika-kriya": [
+      "/illustrations/Bhastrika-kriya_illustration.webp"
+    ],
+    "bhuta-shuddhi": [
+      "/illustrations/Bhuta-shuddhi_illustration.webp"
+    ],
+    "breath-watching": [
+      "/illustrations/Breath-watching_illustration.webp"
+    ],
+    "chit-shakti-love": [
+      "/illustrations/Cs-for-love_illustration.webp"
+    ],
+    "chit-shakti-peace": [
+      "/illustrations/Cs-for-peace_illustration.webp"
+    ],
+    "chit-shakti-success": [
+      "/illustrations/Cs-for-success_illustration.webp"
+    ],
+    "devi-sadhana": [
+      "/illustrations/Devi-sadhana_illustration.webp"
+    ],
+    "directional-movements": [
+      "/illustrations/Directional-movements_illustration.webp"
+    ],
+    "eye-care": [
+      "/illustrations/Eye-practices_illustration.webp"
+    ],
+    "guru-mahima": [
+      "/illustrations/Guru-mahima_illustration.webp"
+    ],
+    "guru-pooja": [
+      "/illustrations/Guru-pooja_illustration.webp"
+    ],
+    "infinity-meditation": [
+      "/illustrations/Infinity-meditation_illustration.webp"
+    ],
+    "ie-crash-course": [
+      "/illustrations/Inner-engineering-crash-course_illustration.webp"
+    ],
+    "isha-kriya": [
+      "/illustrations/Isha-kriya_illustration.webp"
+    ],
+    "jala-neti": [
+      "/illustrations/Jala-neti_illustration.webp"
+    ],
+    "knee-rotations": [
+      "/illustrations/Knee-rotations_illustration.webp"
+    ],
+    "linga-bhairavi-arati": [
+      "/illustrations/Linga-bhairavi-arati_illustration.webp"
+    ],
+    "living-soil": [
+      "/illustrations/Living-soil-meditation_illustration.webp"
+    ],
+    "mahamantra": [
+      "/illustrations/Mahamantra_illustration.webp"
+    ],
+    "margazhi-mantra": [
+      "/illustrations/Margazhi-mantra_illustration.webp"
+    ],
+    "nada-yoga": [
+      "/illustrations/Nada-yoga_illustration.webp"
+    ],
+    "nadi-shuddhi": [
+      "/illustrations/Nadi-shuddhi_illustration.webp"
+    ],
+    "namaskar-process": [
+      "/illustrations/Namaskar-process_illustration.webp"
+    ],
+    "neck-practices": [
+      "/illustrations/Neck-practices_illustration.webp"
+    ],
+    "rudraksha-diksha": [
+      "/illustrations/Rudraksha-diksha_illustration.webp"
+    ],
+    "sadhguru-presence": [
+      "/illustrations/Sadhguru-presence_illustration.webp"
+    ],
+    "samyama": [
+      "/illustrations/Samyama_illustration.webp"
+    ],
+    "shakti-chalana": [
+      "/illustrations/Shakti-chalana-kriya_illustration.webp"
+    ],
+    "shambhavi": [
+      "/illustrations/Shambhavi-mahamudra-kriya_illustration.webp"
+    ],
+    "shambhavi-mudra": [
+      "/illustrations/Shambhavi-mudra_illustration.webp"
+    ],
+    "shanmuki-mudra": [
+      "/illustrations/Shanmukhi-mudra_illustration.webp"
+    ],
+    "shiva-namaskar": [
+      "/illustrations/Shiva-namaskar_illustration.webp"
+    ],
+    "shoonya": [
+      "/illustrations/Shoonya_illustration.webp"
+    ],
+    "simha-kriya": [
+      "/illustrations/Simha-kriya_illustration.webp"
+    ],
+    "squatting": [
+      "/illustrations/Squatting_illustration.webp",
+      "/illustrations/Squat_illustration.webp"
+    ],
+    "sukha-kriya": [
+      "/illustrations/Sukha-kriya_illustration.webp"
+    ],
+    "surya-kriya": [
+      "/illustrations/Surya-kriya_illustration.webp"
+    ],
+    "surya-shakti": [
+      "/illustrations/Surya-shakti_illustration.webp"
+    ],
+    "yoga-namaskar": [
+      "/illustrations/Yoga-namaskar_illustration.webp"
+    ],
+    "yogasanas": [
+      "/illustrations/Yogasanas_illustration.webp"
+    ]
+  },
   "audio": {},
-  "programs": {},
-  "illustrationFileCount": 0,
+  "programs": {
+    "isha-kriya": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/isha-kriya-meditation_en.mp3",
+      "source": "meditations.isha_kriya_meditation_audio"
+    },
+    "infinity-meditation": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/infinity-meditation_en.mp4",
+      "source": "meditations.infinity_meditation_video"
+    },
+    "chit-shakti-health": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/yoga-chit-shakti-health_en.mp3",
+      "source": "meditations.chit_shakti_health_audio"
+    },
+    "chit-shakti-love": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/yoga-chit-shakti-love_en.mp3",
+      "source": "meditations.chit_shakti_love_audio"
+    },
+    "chit-shakti-peace": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/yoga-chit-shakti-peace_en.mp3",
+      "source": "meditations.chit_shakti_peace_audio"
+    },
+    "chit-shakti-success": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/yoga-chit-shakti-success_en.mp3",
+      "source": "meditations.chit_shakti_success_audio"
+    },
+    "sadhguru-presence": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/common/media/brahmananda-swarupa.mp3",
+      "source": "meditations.sadhguru_presence_audio"
+    },
+    "margazhi-mantra": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/static-exclusive/assets/en/media/margazhi_mantra_en.mp3",
+      "source": "meditations.margazhi_mantra_audio"
+    },
+    "living-soil": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/soil-meditation_en.mp3",
+      "source": "meditations.soil_meditation_audio"
+    },
+    "ie-crash-course": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/static-exclusive/assets/en/media/ie-rules-audio_en.m4a",
+      "source": "meditations.ieo_crash_course_audio"
+    },
+    "rudraksha-diksha": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/static-exclusive/assets/common/media/rd-yoga-yoga-yogeshwaraya.mp3",
+      "source": "meditations.rudraksha_diksha_audio"
+    },
+    "guru-pooja": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/guru-pooja-audio_en.mp3",
+      "source": "meditations.guru_pooja_audio"
+    },
+    "achala-arpanam": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/static-exclusive/assets/en/media/achala-arpanam-practice.mp3",
+      "source": "meditations.achala_arpanam_audio"
+    },
+    "directional-movements": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_directional-movement-guided_en.mp3",
+      "source": "practices.health"
+    },
+    "neck-practices": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_neck-practices-guided_en.mp3",
+      "source": "practices.success"
+    },
+    "nadi-shuddhi": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_nadi-shuddhi-guided_en.mp3",
+      "source": "practices.peace"
+    },
+    "namaskar-process": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_namaskar-process-guided_en.mp3",
+      "source": "practices.love"
+    },
+    "nada-yoga": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_nada-yoga-guided_en.mp3",
+      "source": "practices.joy"
+    },
+    "shambhavi-mudra": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_shambhavi-mudra-guided_en.mp3",
+      "source": "practices.innerExploration"
+    },
+    "yoga-namaskar": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/v3_yoga-namaskar-guided_en.mp3",
+      "source": "practices.wellbeing"
+    },
+    "simha-kriya": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/simha-kriya-guided_en.mp3",
+      "source": "practices.simhaKriya"
+    },
+    "devi-sadhana": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/assets/en/media/achala-arpanam-practice.mp3",
+      "source": "practices.devi"
+    },
+    "shiva-namaskar": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/sadhguru_app/siva_nam_Chant_Audio_new.mp3",
+      "source": "practices.shivaNamaskar"
+    },
+    "mahamantra": {
+      "audioPath": "https://images-sgex-prod.sadhguru.org/sgapp/sadhguru_app/chants/high/Mahamantra/mahamantra.mp3",
+      "source": "practices.mahamantra"
+    }
+  },
+  "practicesWithoutIllustration": [
+    "chit-shakti-health",
+    "thoppukarnam"
+  ],
+  "unmatchedIllustrations": [
+    "Invocation_illustration.webp",
+    "Sashtanga_illustration.webp"
+  ],
+  "illustrationFileCount": 48,
   "audioFileCount": 0,
-  "programFileCount": 0
+  "programFileCount": 24
 }

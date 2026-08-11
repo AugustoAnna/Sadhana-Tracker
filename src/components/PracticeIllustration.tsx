@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { resolveIllustrationUrl } from '@/data/practiceAssets';
-import { PRACTICES_WITHOUT_ILLUSTRATION, getIllustrationFallbackUrl } from '@/data/illustrationMap';
 
 interface PracticeIllustrationProps {
   practiceId?: string;
@@ -13,9 +12,9 @@ export function PracticeIllustration({
   size = 40,
   className = '',
 }: PracticeIllustrationProps) {
-  const [src, setSrc] = useState(() => resolveIllustrationUrl(practiceId));
+  const src = resolveIllustrationUrl(practiceId);
   const [failed, setFailed] = useState(false);
-  const missing = PRACTICES_WITHOUT_ILLUSTRATION.has(practiceId) || !src || failed;
+  const missing = !src || failed;
 
   if (missing) {
     return (
@@ -33,14 +32,7 @@ export function PracticeIllustration({
       alt=""
       className={`rounded-[8px] object-cover flex-shrink-0 ${className}`}
       style={{ width: size, height: size }}
-      onError={() => {
-        const fallback = getIllustrationFallbackUrl(practiceId);
-        if (fallback && src !== fallback) {
-          setSrc(fallback);
-        } else {
-          setFailed(true);
-        }
-      }}
+      onError={() => setFailed(true)}
     />
   );
 }

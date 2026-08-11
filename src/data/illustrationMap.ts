@@ -1,18 +1,9 @@
 /**
- * Maps practice slugs to illustration filenames in /public/illustrations/.
- * Runtime resolution prefers build manifest (see practiceAssets.ts).
+ * Illustration exclusions are generated at build time into assetManifest.json.
+ * This set is a fallback when manifest is stale.
  */
+export const PRACTICES_WITHOUT_ILLUSTRATION = new Set<string>();
 
-/** Practices with no supplied illustration — neutral placeholder only. */
-export const PRACTICES_WITHOUT_ILLUSTRATION = new Set([
-  'ardhasiddhasana',
-  'bhakti-sadhana',
-  'jala-neti',
-  'knee-rotations',
-  'thoppukarnam',
-]);
-
-export function getIllustrationFallbackUrl(practiceId: string): string | null {
-  if (PRACTICES_WITHOUT_ILLUSTRATION.has(practiceId)) return null;
-  return `/illustrations/${practiceId}.webp`;
+export function getIllustrationFallbackUrl(_practiceId: string): string | null {
+  return null;
 }

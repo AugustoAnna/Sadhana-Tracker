@@ -2,13 +2,14 @@ import manifest from './generated/assetManifest.json';
 import type { PracticeType } from '@/types';
 import { PRACTICES } from './catalogue';
 import { getMasterKind } from './masterKinds';
-import { PRACTICES_WITHOUT_ILLUSTRATION } from './illustrationMap';
 
 export interface AssetManifest {
   generatedAt: string;
   illustrations: Record<string, string[]>;
   audio: Record<string, string[]>;
   programs: Record<string, ProgramJson>;
+  practicesWithoutIllustration?: string[];
+  unmatchedIllustrations?: string[];
   illustrationFileCount: number;
   audioFileCount: number;
   programFileCount: number;
@@ -37,7 +38,7 @@ function programAudioPath(id: string): string | null {
 }
 
 export function resolveIllustrationUrl(practiceId: string): string | null {
-  if (PRACTICES_WITHOUT_ILLUSTRATION.has(practiceId)) return null;
+  if (M.practicesWithoutIllustration?.includes(practiceId)) return null;
   return firstPath(M.illustrations, practiceId);
 }
 
