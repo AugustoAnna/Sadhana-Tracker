@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   BackHeader, BottomSheet, PracticeIllustration, ConfirmFooter, PracticeName, PracticeCard,
@@ -58,14 +58,10 @@ export function EditPractices() {
   const profile = useAppStore((s) => s.profile);
   const markEducationShown = useAppStore((s) => s.markInstanceEducationShown);
 
-  const [addedOpen, setAddedOpen] = useState(instances.length > 0);
+  const [addedOpen, setAddedOpen] = useState(false);
   const [commonOpen, setCommonOpen] = useState(true);
   const [otherOpen, setOtherOpen] = useState(false);
   const [educationOpen, setEducationOpen] = useState(false);
-
-  useEffect(() => {
-    if (instances.length > 0) setAddedOpen(true);
-  }, [instances.length]);
 
   const atCap = instances.length >= MAX_PRACTICE_INSTANCES;
 
@@ -77,13 +73,12 @@ export function EditPractices() {
     const count = getInstanceCount(practiceId);
     if (count >= 2) return;
 
-    const wasFirstEver = instances.length === 0;
-    const shouldShowEducation = wasFirstEver && !profile?.instanceEducationShown;
+    const kind = getResolvedKind(practiceId);
+    const allowsSecondInstance = kind !== 'timed';
+    const shouldShowEducation = allowsSecondInstance && !profile?.instanceEducationShown;
 
     const instance = await addPracticeInstance(practiceId);
     if (!instance) return;
-
-    setAddedOpen(true);
 
     if (shouldShowEducation) {
       setEducationOpen(true);
@@ -218,8 +213,6 @@ export function EditPractices() {
         open={educationOpen}
         onClose={handleDismissEducation}
         title="Practicing twice a day?"
-        hideCloseButton
-        dismissOnBackdrop={false}
       >
         <p className="text-label text-secondary mb-4">
           Add a practice again so it appears in your list twice and you can mark each one.

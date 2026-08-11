@@ -170,9 +170,16 @@ export function PracticeHome() {
         </section>
       </div>
 
-      <BottomSheet open={!!minuteSheet} onClose={() => setMinuteSheet(null)} title="How long did you practice?" key={minuteSheet ?? 'closed'}>
+      <BottomSheet
+        open={!!minuteSheet}
+        onClose={() => setMinuteSheet(null)}
+        title={minuteMode === 'play' ? 'How long will you practice?' : 'How long did you practice?'}
+        key={minuteSheet ?? 'closed'}
+      >
         <MinutePicker initialValue={minuteDefault} onChange={setSelectedMinutes} />
-        <Button fullWidth className="mt-4" onClick={handleConfirmMinutes}>Add</Button>
+        <Button fullWidth className="mt-4" onClick={handleConfirmMinutes}>
+          {minuteMode === 'play' ? 'Start practice' : 'Add'}
+        </Button>
       </BottomSheet>
     </div>
   );

@@ -110,7 +110,7 @@ export function ProgressStatBoxes({ logs }: { logs: PracticeLog[] }) {
     <div className="grid grid-cols-3 gap-2">
       <div className="bg-card rounded-[14px] p-3 border border-hairline">
         <p className="text-stat text-ink">{totalDays}</p>
-        <p className="text-label text-secondary mt-1 whitespace-nowrap">Total days</p>
+        <p className="text-label text-secondary mt-1 whitespace-nowrap">total days</p>
       </div>
       <div className="bg-card rounded-[14px] p-3 border border-hairline">
         <p className="text-stat text-ink">{streak}</p>
@@ -118,7 +118,7 @@ export function ProgressStatBoxes({ logs }: { logs: PracticeLog[] }) {
       </div>
       <div className="bg-card rounded-[14px] p-3 border border-hairline">
         <p className="text-stat text-ink">{totalMinutes}</p>
-        <p className="text-label text-secondary mt-1 whitespace-nowrap">Total minutes</p>
+        <p className="text-label text-secondary mt-1 whitespace-nowrap">total minutes</p>
       </div>
     </div>
   );

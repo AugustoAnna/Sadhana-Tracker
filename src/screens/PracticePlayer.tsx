@@ -24,11 +24,11 @@ export function PracticePlayer() {
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const [audioMissing, setAudioMissing] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [mode, setMode] = useState<'loading' | 'countdown' | 'manual'>('loading');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completedRef = useRef(false);
+  const sessionKeyRef = useRef<string | null>(null);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -40,6 +40,8 @@ export function PracticePlayer() {
   const stopAudio = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.onended = null;
+      audioRef.current.ontimeupdate = null;
       audioRef.current = null;
     }
   }, []);
@@ -62,73 +64,118 @@ export function PracticePlayer() {
     logPractice, setPlayerSession, navigate, clearTimer, stopAudio,
   ]);
 
-  const startCountdown = useCallback((durationSec: number) => {
+  const finishRef = useRef(finishAndReturn);
+  finishRef.current = finishAndReturn;
+
+  const startIntervalCountdown = useCallback((durationSec: number) => {
     setSecondsLeft(durationSec);
     setTotalSeconds(durationSec);
     setElapsedSeconds(0);
-    setReady(true);
+    setMode('countdown');
 
+    clearTimer();
     timerRef.current = setInterval(() => {
       setSecondsLeft((s) => {
         if (s <= 1) {
           clearTimer();
-          void finishAndReturn();
+          void finishRef.current();
           return 0;
         }
         setElapsedSeconds((e) => e + 1);
         return s - 1;
       });
     }, 1000);
-  }, [clearTimer, finishAndReturn]);
+  }, [clearTimer]);
 
   useEffect(() => {
-    if (!currentPractice || !currentInstance || !resolvedKind) return;
+    if (!currentPractice || !currentInstance || !resolvedKind || !playerSession) return;
+
+    const sessionKey = `${currentInstance.id}:${playerSession.timedMinutes ?? ''}:${resolvedKind}`;
+    if (sessionKeyRef.current === sessionKey) return;
+    sessionKeyRef.current = sessionKey;
     completedRef.current = false;
+    setMode('loading');
+
+    let cancelled = false;
 
     const init = async () => {
       if (resolvedKind === 'guided') {
         const audioUrl = await getPracticeAudio(currentInstance.practiceId);
+        if (cancelled) return;
+
         if (!audioUrl) {
-          setAudioMissing(true);
-          setReady(true);
+          setMode('manual');
           return;
         }
 
-        setAudioMissing(false);
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
 
         await new Promise<void>((resolve) => {
-          audio.addEventListener('loadedmetadata', () => resolve(), { once: true });
-          audio.addEventListener('error', () => resolve(), { once: true });
+          const done = () => resolve();
+          audio.addEventListener('loadedmetadata', done, { once: true });
+          audio.addEventListener('error', done, { once: true });
           audio.load();
         });
+        if (cancelled) return;
 
         const duration = Number.isFinite(audio.duration) && audio.duration > 0
           ? Math.ceil(audio.duration)
           : (currentPractice.minutes ?? 10) * 60;
 
-        audio.play().catch(() => {});
-        audio.onended = () => void finishAndReturn();
-        startCountdown(duration);
+        setTotalSeconds(duration);
+        setSecondsLeft(duration);
+        setElapsedSeconds(0);
+        setMode('countdown');
+
+        audio.onended = () => void finishRef.current();
+
+        try {
+          await audio.play();
+        } catch {
+          startIntervalCountdown(duration);
+          return;
+        }
+
+        clearTimer();
+        timerRef.current = setInterval(() => {
+          if (!audioRef.current) return;
+          const a = audioRef.current;
+          const elapsed = Math.floor(a.currentTime);
+          const left = Number.isFinite(a.duration) && a.duration > 0
+            ? Math.max(0, Math.ceil(a.duration - a.currentTime))
+            : Math.max(0, duration - elapsed);
+          setSecondsLeft(left);
+          setElapsedSeconds(elapsed);
+          if (left <= 0 || a.ended) {
+            clearTimer();
+            void finishRef.current();
+          }
+        }, 500);
       } else if (resolvedKind === 'timed') {
-        const duration = (playerSession?.timedMinutes ?? currentPractice.minutes ?? 10) * 60;
-        startCountdown(duration);
+        const duration = (playerSession.timedMinutes ?? currentPractice.minutes ?? 10) * 60;
+        startIntervalCountdown(duration);
       } else {
-        setReady(true);
-        setAudioMissing(true);
+        setMode('manual');
       }
     };
 
     void init();
 
     return () => {
+      cancelled = true;
       clearTimer();
       stopAudio();
+      sessionKeyRef.current = null;
     };
   }, [
-    currentPractice?.id, currentInstance?.id, resolvedKind,
-    playerSession?.timedMinutes, startCountdown, finishAndReturn, clearTimer, stopAudio,
+    currentInstance?.id,
+    currentPractice?.id,
+    resolvedKind,
+    playerSession?.timedMinutes,
+    clearTimer,
+    stopAudio,
+    startIntervalCountdown,
   ]);
 
   if (!playerSession || !currentPractice || !currentInstance) {
@@ -152,15 +199,24 @@ export function PracticePlayer() {
     navigate('/practice-home', { replace: true });
   };
 
-  const showCountdown = ready && (
-    (resolvedKind === 'guided' && !audioMissing) ||
-    resolvedKind === 'timed'
-  );
+  const handleStopTimer = () => {
+    track('practice_quit', {
+      practice_id: currentInstance.practiceId,
+      instance: currentInstance.instanceNumber,
+      elapsed_seconds: elapsedSeconds,
+      total_seconds: totalSeconds,
+      reason: 'stopped',
+    });
+    completedRef.current = true;
+    clearTimer();
+    stopAudio();
 
-  const showMarkCompleted = ready && (
-    (resolvedKind === 'guided' && audioMissing) ||
-    resolvedKind === 'unguided'
-  );
+    const minutes = Math.max(1, Math.ceil(elapsedSeconds / 60) || 1);
+    void logPractice(currentInstance.id, minutes, 'player').then(() => {
+      setPlayerSession(null);
+      navigate('/practice-home', { replace: true });
+    });
+  };
 
   return (
     <div
@@ -192,11 +248,19 @@ export function PracticePlayer() {
           />
         </div>
 
-        <div className="shrink-0 w-full flex flex-col items-center">
-          {showCountdown && (
-            <p className="text-[28px] tabular-nums font-medium">{formatTime(secondsLeft)}</p>
+        <div className="shrink-0 w-full flex flex-col items-center gap-3 min-h-[44px]">
+          {mode === 'countdown' && (
+            <>
+              <p className="text-[28px] tabular-nums font-medium">{formatTime(secondsLeft)}</p>
+              <button
+                onClick={handleStopTimer}
+                className="px-6 py-2.5 rounded-xl bg-white/20 font-semibold min-h-11 text-base"
+              >
+                Stop timer
+              </button>
+            </>
           )}
-          {showMarkCompleted && (
+          {mode === 'manual' && (
             <button
               onClick={() => void finishAndReturn()}
               className="px-8 py-3 rounded-xl bg-white/20 font-semibold min-h-11 text-lg"
