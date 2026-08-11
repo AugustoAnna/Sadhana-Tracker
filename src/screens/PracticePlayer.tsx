@@ -27,6 +27,7 @@ export function PracticePlayer() {
   const [paused, setPaused] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [isGuided, setIsGuided] = useState(true);
+  const [audioMissing, setAudioMissing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -34,7 +35,6 @@ export function PracticePlayer() {
   const currentInstanceId = instanceIds[currentIndex];
   const currentInstance = instances.find((i) => i.id === currentInstanceId);
   const currentPractice = currentInstance ? getPractice(currentInstance.practiceId) : null;
-  const hasNextPractice = sessionsEnabled && currentIndex < instanceIds.length - 1;
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -65,7 +65,7 @@ export function PracticePlayer() {
 
     if (phase === 'practice') {
       await logCurrentPractice();
-      if (hasNextPractice) {
+      if (sessionsEnabled && currentIndex < instanceIds.length - 1) {
         setPhase('transition');
         setSecondsLeft(5);
         return;
@@ -78,7 +78,7 @@ export function PracticePlayer() {
       setCurrentIndex((i) => i + 1);
       setPhase('practice');
     }
-  }, [phase, hasNextPractice, logCurrentPractice, clearTimer, stopAudio]);
+  }, [phase, sessionsEnabled, currentIndex, instanceIds.length, logCurrentPractice, clearTimer, stopAudio]);
 
   useEffect(() => {
     if (!currentPractice || !currentInstance) return;
@@ -91,6 +91,7 @@ export function PracticePlayer() {
         setSecondsLeft(duration);
         setTotalSeconds(duration);
         setElapsedSeconds(0);
+        setAudioMissing(!audioUrl);
 
         if (audioUrl) {
           const audio = new Audio(audioUrl);
@@ -99,7 +100,7 @@ export function PracticePlayer() {
           audio.onended = () => advance();
         }
 
-        if (!paused) {
+        if (!paused && audioUrl) {
           timerRef.current = setInterval(() => {
             setSecondsLeft((s) => {
               setElapsedSeconds((e) => e + 1);
@@ -128,37 +129,11 @@ export function PracticePlayer() {
   }, [currentIndex, phase, currentPractice?.id, currentInstance?.id, paused, advance, clearTimer, stopAudio]);
 
   useEffect(() => {
-    if (phase !== 'transition') return;
-    timerRef.current = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          advance();
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return clearTimer;
-  }, [phase, advance, clearTimer]);
-
-  useEffect(() => {
     if (phase !== 'done') return;
     addRecentSession(instanceIds);
     setPlayerSession(null);
     navigate('/post-practice', { replace: true });
   }, [phase, instanceIds, addRecentSession, setPlayerSession, navigate]);
-
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.hidden) {
-        setPaused(true);
-        clearTimer();
-        stopAudio();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [clearTimer, stopAudio]);
 
   if (!playerSession || !currentPractice) {
     return null;
@@ -184,56 +159,50 @@ export function PracticePlayer() {
   };
 
   return (
-    <div className="h-full bg-ground flex flex-col text-white">
-      <div className="flex items-center justify-between px-4 pt-12">
+    <div
+      className="h-full flex flex-col text-white"
+      style={{
+        background: 'radial-gradient(ellipse at center, #A88B34 0%, #7D6528 100%)',
+      }}
+    >
+      <div className="flex items-center justify-between px-4 pt-10">
         <button
           onClick={() => setLeaveOpen(true)}
-          className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center"
+          className="w-11 h-11 rounded-full bg-white/25 flex items-center justify-center"
+          aria-label="Close"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
-        <p className="font-serif text-headline">Please keep your eyes closed</p>
+        <p className="font-serif text-[22px] text-center flex-1 px-2">{currentPractice.name}</p>
         <div className="w-11" />
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        {isGuided ? (
-          <p className="text-display tabular-nums font-medium mb-6">{formatTime(secondsLeft)}</p>
+      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-8">
+        <div
+          className="rounded-[4px] p-3 mb-8"
+          style={{ backgroundColor: '#7A4A2A', width: 'min(55vw, 220px)' }}
+        >
+          <PracticeIllustration
+            practiceId={currentPractice.id}
+            size={200}
+            className="w-full !h-auto aspect-square !rounded-[2px]"
+          />
+        </div>
+
+        {isGuided && !audioMissing ? (
+          <p className="text-[28px] tabular-nums font-medium">{formatTime(secondsLeft)}</p>
         ) : (
           <button
             onClick={advance}
-            className="px-8 py-3 rounded-xl bg-primary-light text-white font-semibold min-h-11 mb-6"
+            className="px-8 py-3 rounded-xl bg-white/20 font-semibold min-h-11 text-lg"
           >
             Mark completed
           </button>
         )}
 
-        <div className="flex items-center gap-4 w-full max-w-sm">
-          <div className="rounded-[12px] overflow-hidden shadow-lg flex-1">
-            <PracticeIllustration practiceId={currentPractice.id} size={160} />
-          </div>
-          {hasNextPractice && (() => {
-            const nextInst = instances.find((i) => i.id === instanceIds[currentIndex + 1]);
-            const nextP = nextInst ? getPractice(nextInst.practiceId) : null;
-            if (!nextP) return null;
-            return (
-              <PracticeIllustration practiceId={nextP.id} size={64} />
-            );
-          })()}
-        </div>
-
-        <p className="font-serif text-headline mt-6 text-center px-4">{currentPractice.name}</p>
-
-        {hasNextPractice && (() => {
-          const nextInst = instances.find((i) => i.id === instanceIds[currentIndex + 1]);
-          const nextP = nextInst ? getPractice(nextInst.practiceId) : null;
-          if (!nextP) return null;
-          return <SkipHoldButton label={nextP.name} onComplete={advance} />;
-        })()}
-
-        {paused && isGuided && (
+        {paused && isGuided && !audioMissing && (
           <button
             onClick={() => setPaused(false)}
             className="mt-4 px-6 py-2 rounded-xl bg-white/20 font-medium"
@@ -243,68 +212,16 @@ export function PracticePlayer() {
         )}
       </div>
 
-      {sessionsEnabled && instanceIds.length > 1 && (
-        <div className="flex justify-center gap-2 pb-8 safe-bottom">
-          {instanceIds.map((id, i) => (
-            <div
-              key={id}
-              className={`w-2 h-2 rounded-full ${
-                i < currentIndex ? 'bg-white' : i === currentIndex ? 'bg-white/80 ring-2 ring-white' : 'bg-white/30'
-              }`}
-            />
-          ))}
-        </div>
-      )}
-
       <Modal
         open={leaveOpen}
-        title="Leave session"
+        dark
+        title="Leaving the session?"
         message="Nothing counts until the practice is complete."
         confirmLabel="Leave session"
-        cancelLabel="Keep going"
+        cancelLabel="Stay"
         onConfirm={handleLeave}
         onCancel={() => setLeaveOpen(false)}
       />
     </div>
-  );
-}
-
-function SkipHoldButton({ label, onComplete }: { label: string; onComplete: () => void }) {
-  const [progress, setProgress] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const start = () => {
-    setProgress(0);
-    const startTime = Date.now();
-    timerRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const p = Math.min(elapsed / 2000, 1);
-      setProgress(p);
-      if (p >= 1) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        onComplete();
-      }
-    }, 50);
-  };
-
-  const stop = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setProgress(0);
-  };
-
-  return (
-    <button
-      type="button"
-      className="mt-6 relative px-4 py-2 rounded-xl border border-white/30 text-sm text-white/90 overflow-hidden"
-      onPointerDown={start}
-      onPointerUp={stop}
-      onPointerLeave={stop}
-    >
-      <span
-        className="absolute inset-0 bg-white/20 origin-left"
-        style={{ transform: `scaleX(${progress})` }}
-      />
-      <span className="relative">Skip to {label}</span>
-    </button>
   );
 }

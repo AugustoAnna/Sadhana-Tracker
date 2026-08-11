@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
 import type { PracticeLog } from '@/types';
 import { getTotalDaysPracticed, getTotalMinutes, getCurrentStreak } from '@/utils/dates';
-
 import {
   buildMonthCalendar,
   CALENDAR_CELL_PX,
   CALENDAR_GAP_PX,
-  CALENDAR_BASE_COLOR,
+  CALENDAR_GUTTER_PX,
+  COLOR_TODAY_RING,
   HEAT_BAND_COLORS,
+  cellAccessibleName,
 } from '@/utils/monthCalendar';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -20,18 +21,25 @@ interface PracticeCalendarProps {
 
 export function PracticeCalendar({ logs }: PracticeCalendarProps) {
   const data = useMemo(() => buildMonthCalendar(logs), [logs]);
+  const gridWidth = data.columns * CALENDAR_CELL_PX + (data.columns - 1) * CALENDAR_GAP_PX;
 
   return (
-    <div className="mt-4">
-      <div className="flex" style={{ height: 24 + GRID_HEIGHT }}>
+    <div className="mt-2">
+      <div
+        className="flex overflow-x-auto overflow-y-hidden no-scrollbar"
+        style={{ height: 24 + GRID_HEIGHT }}
+        role="grid"
+        tabIndex={0}
+        aria-label={`${data.monthLabel} practice calendar`}
+      >
         <div
-          className="flex flex-col justify-around shrink-0 pr-2"
-          style={{ width: 24, height: GRID_HEIGHT, marginTop: 24 }}
+          className="flex flex-col justify-between shrink-0 pr-1"
+          style={{ width: CALENDAR_GUTTER_PX, height: GRID_HEIGHT, marginTop: 24 }}
         >
           {DAY_LABELS.map((label, i) => (
             <span
               key={i}
-              className="text-[14px] font-medium text-[#1C1C1C] leading-none text-center"
+              className="text-[13px] font-medium text-[#1C1C1C] leading-none text-center"
               style={{ height: CALENDAR_CELL_PX }}
             >
               {label}
@@ -39,49 +47,28 @@ export function PracticeCalendar({ logs }: PracticeCalendarProps) {
           ))}
         </div>
 
-        <div className="flex-1 overflow-x-auto no-scrollbar">
-          <div className="inline-flex flex-col" style={{ minWidth: '100%' }}>
-            <div className="flex mb-1" style={{ gap: CALENDAR_GAP_PX * 4 }}>
-              {data.columns.map((_col, ci) => (
-                <div key={ci} style={{ width: CALENDAR_CELL_PX }}>
-                  {ci === 0 && (
-                    <p className="text-[15px] font-semibold text-[#1C1C1C] whitespace-nowrap">
-                      {data.monthLabel}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex" style={{ gap: CALENDAR_GAP_PX * 4 }}>
-              {data.columns.map((col, ci) => (
-                <div
-                  key={ci}
-                  className="relative shrink-0"
-                  style={{ width: CALENDAR_CELL_PX, height: GRID_HEIGHT }}
-                >
-                  {col.cells.map((cell) => (
-                    <div
-                      key={cell.date}
-                      role="gridcell"
-                      aria-label={
-                        cell.minutes > 0
-                          ? `${cell.date}: ${cell.minutes} minutes practiced`
-                          : `${cell.date}: no practice`
-                      }
-                      className="absolute rounded-[6px]"
-                      style={{
-                        width: CALENDAR_CELL_PX,
-                        height: CALENDAR_CELL_PX,
-                        top: cell.row * ROW_HEIGHT,
-                        backgroundColor: cell.color,
-                        border: cell.minutes === 0 ? `1px solid ${CALENDAR_BASE_COLOR}` : undefined,
-                      }}
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
+        <div className="shrink-0" style={{ width: gridWidth }}>
+          <p className="text-[15px] font-semibold text-[#1C1C1C] mb-1 h-6">{data.monthLabel}</p>
+          <div
+            className="relative"
+            style={{ width: gridWidth, height: GRID_HEIGHT }}
+          >
+            {data.cells.map((cell) => (
+              <div
+                key={cell.date}
+                role="gridcell"
+                aria-label={cellAccessibleName(cell)}
+                className="absolute rounded-[9px]"
+                style={{
+                  width: CALENDAR_CELL_PX,
+                  height: CALENDAR_CELL_PX,
+                  left: cell.column * ROW_HEIGHT,
+                  top: cell.row * ROW_HEIGHT,
+                  backgroundColor: cell.fill,
+                  boxShadow: cell.isToday ? `inset 0 0 0 2px ${COLOR_TODAY_RING}` : undefined,
+                }}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -105,7 +92,7 @@ export function ProgressStatBoxes({ logs }: { logs: PracticeLog[] }) {
   const streak = getCurrentStreak(logs);
 
   return (
-    <div className="grid grid-cols-3 gap-2 mb-4">
+    <div className="grid grid-cols-3 gap-2">
       <div className="bg-card rounded-[14px] p-3 border border-hairline">
         <p className="text-stat text-ink">{totalDays}</p>
         <p className="text-label text-secondary mt-1 whitespace-nowrap">Total days</p>

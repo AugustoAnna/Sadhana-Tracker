@@ -37,7 +37,8 @@ export function formatInstanceName(
 ): string {
   const suffix = getInstanceSuffix(instance, instances);
   if (!suffix) return practiceName;
-  return `${practiceName} ${suffix}`;
+  const label = suffix === 1 ? '1st' : '2nd';
+  return `${practiceName} ${label}`;
 }
 
 export function formatPracticeNameWithSuffix(

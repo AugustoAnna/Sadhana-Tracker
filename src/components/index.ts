@@ -14,6 +14,7 @@ export { Toast } from './Toast';
 export { PlantVisual } from './PlantVisual';
 export { ProgressBar } from './ProgressBar';
 export { PracticeIllustration } from './PracticeIllustration';
+export { PracticeName } from './PracticeName';
 export { PracticeCard } from './PracticeCard';
 export { ConfirmFooter } from './ConfirmFooter';
 export { PracticeCalendar, ProgressStatBoxes } from './PracticeCalendar';

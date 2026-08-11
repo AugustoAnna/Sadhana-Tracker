@@ -1,25 +1,78 @@
 # Illustration mapping
 
-## Practices without illustrations (TBD-PM — awaiting Drive folder review)
+Maps practice slugs to files in `public/illustrations/`. Filenames follow the slug in `src/data/catalogue.ts`.
 
-The asset folder was not available in the build environment. Per spec §4.1, five of 47 practices lack illustrations. **Placeholder neutral squares render until assets are mapped.**
+**Setup:** See `docs/illustration-setup.md` for copying files from Google Drive.
 
-Candidate practices pending PM confirmation:
+## Practices without illustrations
 
-1. Ardhasiddhasana
-2. Bhakti Sadhana
-3. Jala Neti
-4. Knee Rotations
-5. Thoppukarnam
+Awaiting PM confirmation / assets. These render a **neutral square placeholder** only:
 
-## Unmatched files
+| Slug | Practice name |
+| --- | --- |
+| `ardhasiddhasana` | Ardhasiddhasana |
+| `bhakti-sadhana` | Bhakti Sadhana |
+| `jala-neti` | Jala Neti |
+| `knee-rotations` | Knee Rotations |
+| `thoppukarnam` | Thoppukarnam |
 
-TBD-PM — illustration Drive folder not attached to this build session.
+## Mapping table (42 with art)
 
-## Mapping table
+| Slug | Expected filename | Notes |
+| --- | --- | --- |
+| `achala-arpanam` | `achala-arpanam.png` | |
+| `angamardana` | `angamardana.png` | |
+| `aum-chanting` | `aum-chanting.png` | |
+| `bhastrika-kriya` | `bhastrika-kriya.png` | |
+| `bhuta-shuddhi` | `bhuta-shuddhi.png` | |
+| `breath-watching` | `breath-watching.png` | |
+| `chit-shakti-health` | `chit-shakti-health.png` | Drive may use `cs-health` — rename |
+| `chit-shakti-love` | `chit-shakti-love.png` | |
+| `chit-shakti-peace` | `chit-shakti-peace.png` | |
+| `chit-shakti-success` | `chit-shakti-success.png` | |
+| `devi-sadhana` | `devi-sadhana.png` | |
+| `directional-movements` | `directional-movements.png` | |
+| `eye-care` | `eye-care.png` | |
+| `guru-mahima` | `guru-mahima.png` | |
+| `guru-pooja` | `guru-pooja.png` | |
+| `infinity-meditation` | `infinity-meditation.png` | |
+| `ie-crash-course` | `ie-crash-course.png` | |
+| `isha-kriya` | `isha-kriya.png` | |
+| `linga-bhairavi-arati` | `linga-bhairavi-arati.png` | |
+| `living-soil` | `living-soil.png` | |
+| `mahamantra` | `mahamantra.png` | |
+| `margazhi-mantra` | `margazhi-mantra.png` | |
+| `nada-yoga` | `nada-yoga.png` | |
+| `nadi-shuddhi` | `nadi-shuddhi.png` | |
+| `namaskar-process` | `namaskar-process.png` | |
+| `neck-practices` | `neck-practices.png` | |
+| `rudraksha-diksha` | `rudraksha-diksha.png` | |
+| `sadhguru-presence` | `sadhguru-presence.png` | |
+| `samyama` | `samyama.png` | |
+| `shakti-chalana` | `shakti-chalana.png` | |
+| `shambhavi` | `shambhavi.png` | |
+| `shambhavi-mudra` | `shambhavi-mudra.png` | |
+| `shanmuki-mudra` | `shanmuki-mudra.png` | |
+| `shiva-namaskar` | `shiva-namaskar.png` | |
+| `shoonya` | `shoonya.png` | |
+| `simha-kriya` | `simha-kriya.png` | |
+| `squatting` | `squatting.png` | |
+| `sukha-kriya` | `sukha-kriya.png` | |
+| `surya-kriya` | `surya-kriya.png` | |
+| `surya-shakti` | `surya-shakti.png` | |
+| `yoga-namaskar` | `yoga-namaskar.png` | |
+| `yogasanas` | `yogasanas.png` | |
 
-| Filename | Matched practice | Method | Confidence |
-| --- | --- | --- | --- |
-| TBD-PM | — | — | — |
+Fallback extension: `.webp` if `.png` missing (`src/data/illustrationMap.ts`).
 
-**Procedure:** Normalise filenames and practice names; exact match, then prefix match with `cs` → `chit shakti` expansion. Review before trusting.
+## Unmatched Drive files
+
+After copying from Drive, any file that does not match a slug above should be listed here during review:
+
+| Drive filename | Action |
+| --- | --- |
+| _(paste after download)_ | Rename to slug or flag PM |
+
+## Review gate (spec §4.2)
+
+Mapping is documented. **Wiring is active** in this build (`PracticeIllustration` + `illustrationMap.ts`). If PM prefers review before wiring, revert `PracticeIllustration` to placeholders only.

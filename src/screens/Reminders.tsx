@@ -4,13 +4,13 @@ import { BackHeader, Toggle, BottomSheet, TimePicker, Button } from '@/component
 import { useAppStore } from '@/stores/appStore';
 import { formatTimeDisplay } from '@/utils/dates';
 import {
-  requestNotificationPermission,
   getNotificationPermission,
   scheduleReminders,
 } from '@/services/notifications';
 import { precacheInvocation } from '@/services/audio';
 import { isFeatureEnabled } from '@/features';
 import { track } from '@/services/instrumentation';
+import { updateParticipantFields } from '@/services/sync';
 import type { ReminderKey } from '@/types';
 import { getPractice } from '@/data/catalogue';
 
@@ -86,13 +86,24 @@ export function Reminders() {
     setSheetOpen(false);
   };
 
-  const handleEnableNotifications = async () => {
-    const result = await requestNotificationPermission();
-    setPermission(result);
-    if (result === 'granted') {
-      setShowConfirmation(true);
-      await scheduleReminders();
-      setTimeout(() => setShowConfirmation(false), 2500);
+  const handleEnableNotifications = () => {
+    if (!('Notification' in window)) return;
+
+    const applyResult = async (result: NotificationPermission) => {
+      setPermission(result);
+      await updateParticipantFields({ notification_permission: result });
+      if (result === 'granted') {
+        setShowConfirmation(true);
+        await scheduleReminders();
+        setTimeout(() => setShowConfirmation(false), 2500);
+      }
+    };
+
+    const result = Notification.requestPermission();
+    if (typeof result === 'object' && result !== null && 'then' in result) {
+      void (result as Promise<NotificationPermission>).then(applyResult);
+    } else {
+      void applyResult(result as NotificationPermission);
     }
   };
 

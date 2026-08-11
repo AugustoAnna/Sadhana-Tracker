@@ -1,7 +1,7 @@
 import { getPractice } from '@/data/catalogue';
 import type { PracticeInstance } from '@/types';
-import { formatInstanceName } from '@/utils/instances';
 import { PracticeIllustration } from './PracticeIllustration';
+import { PracticeName } from './PracticeName';
 
 interface PracticeCardProps {
   instance: PracticeInstance;
@@ -36,11 +36,9 @@ export function PracticeCard({
   const practice = getPractice(instance.practiceId);
   if (!practice) return null;
 
-  const displayName = formatInstanceName(practice.name, instance, allInstances);
-
   const metadataLine = (() => {
     if (practice.type === 'timed') {
-      if (timedMinutesToday > 0) return `${timedMinutesToday} minutes practiced so far`;
+      if (timedMinutesToday > 0) return `${timedMinutesToday} min practiced so far`;
       return null;
     }
     return formatDuration(practice.minutes);
@@ -86,7 +84,9 @@ export function PracticeCard({
       <PracticeIllustration practiceId={practice.id} size={44} />
 
       <div className="flex-1 min-w-0">
-        <p className="text-body truncate">{displayName}</p>
+        <p className="text-body truncate">
+          <PracticeName name={practice.name} instance={instance} instances={allInstances} />
+        </p>
         {metadataLine && (
           <p className="text-label text-secondary mt-0.5">{metadataLine}</p>
         )}

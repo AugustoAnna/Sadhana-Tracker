@@ -1,11 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BackHeader, BottomSheet, PracticeIllustration, ConfirmFooter } from '@/components';
+import {
+  BackHeader, BottomSheet, PracticeIllustration, ConfirmFooter, PracticeName,
+} from '@/components';
 import { useAppStore } from '@/stores/appStore';
 import {
   PRACTICES, COMMONLY_PRACTICED_IDS, MAX_PRACTICE_INSTANCES, getPractice,
 } from '@/data/catalogue';
-import { getInstanceSuffix } from '@/utils/instances';
+import { sortAlphabetically } from '@/utils/sortInstances';
+
+function SectionHeader({
+  title,
+  open,
+  onToggle,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex items-center gap-2 w-full py-2 text-title"
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        className={`transition-transform ${open ? 'rotate-90' : ''}`}
+      >
+        <path d="M9 18l6-6-6-6" />
+      </svg>
+      {title}
+    </button>
+  );
+}
 
 export function EditPractices() {
   const navigate = useNavigate();
@@ -18,9 +51,14 @@ export function EditPractices() {
   const profile = useAppStore((s) => s.profile);
   const markEducationShown = useAppStore((s) => s.markInstanceEducationShown);
 
-  const [addedOpen, setAddedOpen] = useState(false);
+  const [addedOpen, setAddedOpen] = useState(instances.length > 0);
+  const [commonOpen, setCommonOpen] = useState(false);
   const [otherOpen, setOtherOpen] = useState(false);
   const [educationOpen, setEducationOpen] = useState(false);
+
+  useEffect(() => {
+    if (instances.length > 0) setAddedOpen(true);
+  }, [instances.length]);
 
   const atCap = instances.length >= MAX_PRACTICE_INSTANCES;
 
@@ -38,6 +76,8 @@ export function EditPractices() {
     const instance = await addPracticeInstance(practiceId);
     if (!instance) return;
 
+    setAddedOpen(true);
+
     if (shouldShowEducation) {
       setEducationOpen(true);
     }
@@ -48,13 +88,17 @@ export function EditPractices() {
     markEducationShown();
   };
 
-  const handleDone = async () => {
+  const handleDone = () => {
     if (firstSetup) {
       navigate('/reminders', { state: { firstSetup: true } });
     } else {
       navigate('/practice-home');
     }
   };
+
+  const getName = (id: string) => getPractice(id)?.name ?? id;
+
+  const sortedAdded = sortAlphabetically(instances, getName);
 
   const commonlyPracticed = [...COMMONLY_PRACTICED_IDS]
     .map((id) => getPractice(id))
@@ -68,40 +112,31 @@ export function EditPractices() {
   return (
     <div className="h-full flex flex-col bg-page">
       <div className="flex-1 overflow-y-auto pb-28">
-        <BackHeader title="Add practices" />
+        <BackHeader title="My practices" />
         <p className="px-4 text-label text-secondary mb-5">
           Select the practices you have learnt and are currently practicing.
         </p>
 
-        {instances.length > 0 && (
-          <div className="px-4 mb-5">
-            <button
-              onClick={() => setAddedOpen(!addedOpen)}
-              className="flex items-center gap-2 w-full py-2 text-title"
-            >
-              <svg
-                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                className={`transition-transform ${addedOpen ? 'rotate-90' : ''}`}
-              >
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-              My practices
-            </button>
-            {addedOpen && (
-              <div className="bg-card rounded-[14px] px-3 mt-1">
-                {instances.map((inst) => {
+        <div className="px-4 mb-5">
+          <SectionHeader title="Added" open={addedOpen} onToggle={() => setAddedOpen(!addedOpen)} />
+          {addedOpen && (
+            <div className="bg-card rounded-[14px] mt-1">
+              {sortedAdded.length === 0 ? (
+                <p className="text-label text-secondary p-3">No practices added yet.</p>
+              ) : (
+                sortedAdded.map((inst) => {
                   const p = getPractice(inst.practiceId);
                   if (!p) return null;
-                  const suffix = getInstanceSuffix(inst, instances);
                   return (
-                    <div key={inst.id} className="flex items-center gap-3 py-3 border-b border-hairline last:border-0">
+                    <div key={inst.id} className="flex items-center gap-3 py-3 px-3 border-b border-hairline last:border-0">
                       <PracticeIllustration practiceId={p.id} size={40} />
                       <div className="flex-1 min-w-0">
                         <p className="text-body truncate">
-                          {p.name}{suffix ? ` ${suffix}` : ''}
+                          <PracticeName name={p.name} instance={inst} instances={instances} />
                         </p>
                       </div>
                       <button
+                        type="button"
                         onClick={() => removePracticeInstance(inst.id)}
                         className="text-error w-11 h-11 flex items-center justify-center"
                         aria-label={`Remove ${p.name}`}
@@ -112,43 +147,42 @@ export function EditPractices() {
                       </button>
                     </div>
                   );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="px-4 mb-5">
-          <p className="eyebrow mb-3">Commonly practiced</p>
-          <div className="bg-card rounded-[14px] px-3">
-            {commonlyPracticed.map((p) => p && (
-              <PracticeAddRow
-                key={p.id}
-                practiceId={p.id}
-                name={p.name}
-                instanceCount={getInstanceCount(p.id)}
-                atCap={atCap}
-                onAdd={() => handleAdd(p.id)}
-              />
-            ))}
-          </div>
+                })
+              )}
+            </div>
+          )}
         </div>
 
         <div className="px-4 mb-5">
-          <button
-            onClick={() => setOtherOpen(!otherOpen)}
-            className="flex items-center gap-2 w-full py-2 text-title"
-          >
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              className={`transition-transform ${otherOpen ? 'rotate-90' : ''}`}
-            >
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-            All other practices
-          </button>
+          <SectionHeader
+            title="Commonly practiced"
+            open={commonOpen}
+            onToggle={() => setCommonOpen(!commonOpen)}
+          />
+          {commonOpen && (
+            <div className="bg-card rounded-[14px] mt-1">
+              {commonlyPracticed.map((p) => p && (
+                <PracticeAddRow
+                  key={p.id}
+                  practiceId={p.id}
+                  name={p.name}
+                  instanceCount={getInstanceCount(p.id)}
+                  atCap={atCap}
+                  onAdd={() => handleAdd(p.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-4 mb-5">
+          <SectionHeader
+            title="All other practices"
+            open={otherOpen}
+            onToggle={() => setOtherOpen(!otherOpen)}
+          />
           {otherOpen && (
-            <div className="bg-card rounded-[14px] px-3 mt-1">
+            <div className="bg-card rounded-[14px] mt-1">
               {otherPractices.map((p) => (
                 <PracticeAddRow
                   key={p.id}
@@ -183,13 +217,14 @@ export function EditPractices() {
         hideCloseButton
         dismissOnBackdrop={false}
       >
-        <p className="text-label text-secondary mb-4">
+        <div className="bg-card rounded-[14px] px-4 py-3 mb-4">
+          <p className="text-body">
+            <span className="font-semibold">Example:</span> Shoonya 1st · Shoonya 2nd
+          </p>
+        </div>
+        <p className="text-label text-secondary mb-6">
           Add a practice again so it appears in your list twice and you can mark each one.
         </p>
-        <div className="bg-card rounded-[14px] px-3 mb-6">
-          <div className="py-3 border-b border-hairline text-body">Isha Kriya 1</div>
-          <div className="py-3 text-body">Isha Kriya 2</div>
-        </div>
         <button
           type="button"
           onClick={handleDismissEducation}
@@ -219,17 +254,17 @@ function PracticeAddRow({
   const allowsSecond = practice?.type !== 'timed';
   const hidden = instanceCount >= (allowsSecond ? 2 : 1);
   const addAgain = instanceCount === 1;
-  const displayName = addAgain ? `${name} 2` : name;
 
   if (hidden) return null;
 
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-hairline last:border-0">
+    <div className="flex items-center gap-3 py-3 px-3 border-b border-hairline last:border-0">
       <PracticeIllustration practiceId={practiceId} size={40} />
       <div className="flex-1 min-w-0">
-        <p className="text-body truncate">{displayName}</p>
+        <p className="text-body truncate">{name}</p>
       </div>
       <button
+        type="button"
         onClick={onAdd}
         disabled={atCap}
         className={`px-3 py-1.5 rounded-[7px] text-meta font-semibold min-h-11 disabled:opacity-30 ${

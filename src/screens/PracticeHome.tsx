@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BackHeader, PracticeCard, BottomSheet, MinutePicker, Button,
@@ -10,6 +10,7 @@ import {
   getPracticesCompletedToday, getMinutesForDay, todayKey,
   isInstanceCompletedToday, isInstanceCompletedTwiceToday, getTimedMinutesToday,
 } from '@/utils/dates';
+import { sortTrackingInstances } from '@/utils/sortInstances';
 import { useHaptic } from '@/hooks';
 import { track } from '@/services/instrumentation';
 
@@ -25,6 +26,8 @@ export function PracticeHome() {
   const [minuteMode, setMinuteMode] = useState<'log' | 'play'>('log');
   const [selectedMinutes, setSelectedMinutes] = useState(10);
   const [minuteDefault, setMinuteDefault] = useState(10);
+
+  const sortedInstances = useMemo(() => sortTrackingInstances(instances), [instances]);
 
   const today = todayKey();
   const todayMinutes = getMinutesForDay(logs, today);
@@ -91,14 +94,14 @@ export function PracticeHome() {
       <BackHeader dark title="Practices" hideBack rightAction={bellAction} />
 
       <div className="px-4">
-        <section className="mt-1">
+        <section className="mt-5">
           <p className="section-header mb-2">Today</p>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-card rounded-[14px] p-4 border border-hairline">
+            <div className="bg-card rounded-[14px] p-3 border border-hairline">
               <p className="text-stat text-ink">{completedToday}</p>
               <p className="text-label text-secondary mt-1">practices completed</p>
             </div>
-            <div className="bg-card rounded-[14px] p-4 border border-hairline">
+            <div className="bg-card rounded-[14px] p-3 border border-hairline">
               <p className="text-stat text-ink">{todayMinutes}</p>
               <p className="text-label text-secondary mt-1">minutes practiced</p>
             </div>
@@ -121,15 +124,15 @@ export function PracticeHome() {
           </div>
 
           {instances.length === 0 ? (
-            <div className="bg-card rounded-[14px] p-6 text-center">
+            <div className="bg-card rounded-[14px] p-3 text-center">
               <p className="text-label text-secondary mb-4">Add the practices you do to start tracking.</p>
               <Button fullWidth onClick={() => navigate('/practices/edit', { state: { firstSetup: true } })}>
                 Add practices
               </Button>
             </div>
           ) : (
-            <div className="bg-card rounded-[14px] divide-y divide-hairline px-1">
-              {instances.map((inst) => (
+            <div className="bg-card rounded-[14px] divide-y divide-hairline">
+              {sortedInstances.map((inst) => (
                 <PracticeCard
                   key={inst.id}
                   instance={inst}
@@ -152,15 +155,15 @@ export function PracticeHome() {
 
         <section className="mt-5">
           <p className="section-header mb-2">My practice progress</p>
-          <div className="bg-card rounded-[14px] p-4 border border-hairline">
-            <ProgressStatBoxes logs={logs} />
+          <ProgressStatBoxes logs={logs} />
+          <div className="bg-card rounded-[14px] p-3 border border-hairline mt-3">
             <PracticeCalendar logs={logs} />
           </div>
         </section>
       </div>
 
-      <BottomSheet open={!!minuteSheet} onClose={() => setMinuteSheet(null)} title="How long did you practice?">
-        <MinutePicker value={selectedMinutes} onChange={setSelectedMinutes} defaultValue={minuteDefault} />
+      <BottomSheet open={!!minuteSheet} onClose={() => setMinuteSheet(null)} title="How long did you practice?" key={minuteSheet ?? 'closed'}>
+        <MinutePicker initialValue={minuteDefault} onChange={setSelectedMinutes} />
         <Button fullWidth className="mt-4" onClick={handleConfirmMinutes}>Add</Button>
       </BottomSheet>
     </div>
