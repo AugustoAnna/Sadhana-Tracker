@@ -89,13 +89,13 @@ export function PracticeCalendar({ logs }: PracticeCalendarProps) {
       </div>
 
       <div className="mt-4 flex items-center gap-2">
-        <span className="text-meta text-secondary">0 min</span>
+        <span className="text-meta text-secondary">0 mins</span>
         <div className="flex flex-1 h-2 rounded overflow-hidden">
           {HEAT_BAND_COLORS.map((color, i) => (
             <div key={i} className="flex-1 h-full" style={{ backgroundColor: color }} />
           ))}
         </div>
-        <span className="text-meta text-secondary">240+ min</span>
+        <span className="text-meta text-secondary">240+ mins</span>
       </div>
     </div>
   );

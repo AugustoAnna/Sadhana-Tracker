@@ -69,7 +69,7 @@ export function MinutePicker({ initialValue, onChange }: MinutePickerProps) {
               }`}
               style={{ height: ROW_HEIGHT }}
             >
-              {m} min
+              {m} mins
             </button>
           ))}
         </div>

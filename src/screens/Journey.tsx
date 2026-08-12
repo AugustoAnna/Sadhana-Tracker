@@ -62,8 +62,8 @@ export function Journey() {
             </p>
             <ProgressBar progress={journey.progressInLevel} className="mt-2" />
             <div className="flex justify-between text-meta text-secondary mt-1">
-              <span>{formatMinutes(journey.totalMinutes)} min</span>
-              <span>{formatMinutes(journey.minutesToNext)} min to next</span>
+              <span>{formatMinutes(journey.totalMinutes)} mins</span>
+              <span>{formatMinutes(journey.minutesToNext)} mins to next</span>
             </div>
           </div>
         </div>
@@ -109,10 +109,10 @@ export function Journey() {
                 </p>
                 {reached && info ? (
                   <p className="text-xs text-muted">
-                    Reached {info.date} · {formatMinutes(info.minutes)} min
+                    Reached {info.date} · {formatMinutes(info.minutes)} mins
                   </p>
                 ) : !reached && (
-                  <p className="text-xs text-muted">{formatMinutes(threshold)} min required</p>
+                  <p className="text-xs text-muted">{formatMinutes(threshold)} mins required</p>
                 )}
               </div>
             </div>

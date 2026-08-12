@@ -19,7 +19,7 @@ interface PracticeCardProps {
 
 function formatDuration(minutes: number | null): string {
   if (!minutes) return '';
-  return `${minutes} min`;
+  return `${minutes} mins`;
 }
 
 export function PracticeCard({
@@ -41,7 +41,7 @@ export function PracticeCard({
 
   const metadataLine = (() => {
     if (kind === 'timed') {
-      if (timedMinutesToday > 0) return `${timedMinutesToday} min practiced so far`;
+      if (timedMinutesToday > 0) return `${timedMinutesToday} mins practiced so far`;
       return null;
     }
     return formatDuration(practice.minutes);
