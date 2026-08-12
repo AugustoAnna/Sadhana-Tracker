@@ -7,7 +7,7 @@ export interface PracticeReminderConfig {
   defaultEnabled: boolean;
 }
 
-/** Only Sadhguru's Presence — Guru Pooja pending PM confirmation. */
+/** Practice-specific reminders — only Sadhguru's Presence. */
 export const PRACTICE_REMINDER_CONFIG: Record<string, PracticeReminderConfig> = {
   'sadhguru-presence': { time: '18:20', lockedTime: true, defaultEnabled: true },
 };

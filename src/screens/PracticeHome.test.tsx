@@ -12,8 +12,10 @@ const mockState = {
     addedAt: Date.now(),
   }],
   logs: [],
+  profile: { firstRecordReassuranceShown: true },
   logPractice: vi.fn(),
   setPlayerSession: vi.fn(),
+  markFirstRecordReassuranceShown: vi.fn(),
 };
 
 vi.mock('@/stores/appStore', () => ({

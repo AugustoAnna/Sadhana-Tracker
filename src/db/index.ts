@@ -48,6 +48,22 @@ export class SadhanaDB extends Dexie {
         });
       }
     });
+    this.version(3).stores({
+      profile: 'id',
+      practiceInstances: 'id, practiceId, order',
+      practiceLogs: 'id, practiceId, instanceId, timestamp',
+      reminders: 'id',
+      savedSessions: 'id, lastUsedAt',
+      syncQueue: 'id, createdAt',
+      appMeta: 'id',
+    }).upgrade(async (tx) => {
+      const profile = await tx.table('profile').get('profile');
+      if (profile) {
+        await tx.table('profile').update('profile', {
+          firstRecordReassuranceShown: profile.firstRecordReassuranceShown ?? false,
+        });
+      }
+    });
   }
 }
 
@@ -149,6 +165,7 @@ export async function initDB(database: SadhanaDB = getDb()) {
       durationPreference: null,
       onboardingComplete: false,
       instanceEducationShown: false,
+      firstRecordReassuranceShown: false,
       notificationPermissionAsked: false,
       trackerIntroSeen: false,
       featureDiscoveryStep: 0,

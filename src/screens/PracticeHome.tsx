@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BackHeader, PracticeCard, BottomSheet, MinutePicker, Button,
@@ -21,12 +21,16 @@ export function PracticeHome() {
   const logs = useAppStore((s) => s.logs);
   const logPractice = useAppStore((s) => s.logPractice);
   const setPlayerSession = useAppStore((s) => s.setPlayerSession);
+  const profile = useAppStore((s) => s.profile);
+  const markFirstRecordReassuranceShown = useAppStore((s) => s.markFirstRecordReassuranceShown);
   const haptic = useHaptic();
 
   const [minuteSheet, setMinuteSheet] = useState<string | null>(null);
   const [minuteMode, setMinuteMode] = useState<'log' | 'play'>('log');
   const [selectedMinutes, setSelectedMinutes] = useState(10);
   const [minuteDefault, setMinuteDefault] = useState(10);
+  const [reassuranceOpen, setReassuranceOpen] = useState(false);
+  const reassuranceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sortedInstances = useMemo(() => sortTrackingInstances(instances), [instances]);
 
@@ -55,9 +59,22 @@ export function PracticeHome() {
 
   const handleCheckbox = async (instanceId: string) => {
     haptic();
+    const showReassurance = !profile?.firstRecordReassuranceShown;
     await logPractice(instanceId, getDefaultLogMinutes(
       instances.find((i) => i.id === instanceId)!.practiceId,
     ), 'checkbox');
+    if (showReassurance) {
+      if (reassuranceTimerRef.current) clearTimeout(reassuranceTimerRef.current);
+      reassuranceTimerRef.current = setTimeout(() => {
+        setReassuranceOpen(true);
+        reassuranceTimerRef.current = null;
+      }, 500);
+    }
+  };
+
+  const handleDismissReassurance = () => {
+    setReassuranceOpen(false);
+    void markFirstRecordReassuranceShown();
   };
 
   const handleConfirmMinutes = async () => {
@@ -179,6 +196,21 @@ export function PracticeHome() {
         <MinutePicker initialValue={minuteDefault} onChange={setSelectedMinutes} />
         <Button fullWidth className="mt-4" onClick={handleConfirmMinutes}>
           {minuteMode === 'play' ? 'Start practice' : 'Add'}
+        </Button>
+      </BottomSheet>
+
+      <BottomSheet
+        open={reassuranceOpen}
+        onClose={handleDismissReassurance}
+        title="That's recorded"
+        hideCloseButton
+        dismissOnBackdrop={false}
+      >
+        <p className="text-label text-secondary mb-6">
+          Nothing to confirm and nothing to save. You can close the app — it is kept, even without internet.
+        </p>
+        <Button fullWidth onClick={handleDismissReassurance}>
+          Got it
         </Button>
       </BottomSheet>
     </div>

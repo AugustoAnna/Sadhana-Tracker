@@ -41,6 +41,7 @@ export interface Profile {
   durationPreference: DurationPreference | null;
   onboardingComplete: boolean;
   instanceEducationShown: boolean;
+  firstRecordReassuranceShown: boolean;
   notificationPermissionAsked: boolean;
   trackerIntroSeen: boolean;
   featureDiscoveryStep: number;
