@@ -15,30 +15,32 @@ const square = await image
   .png()
   .toBuffer();
 
-const outputs = [
-  { file: 'icon-192.png', size: 192 },
-  { file: 'icon-512.png', size: 512 },
-  { file: 'apple-touch-icon.png', size: 180 },
-];
-
-for (const { file, size } of outputs) {
-  await sharp(square).resize(size, size).png().toFile(`${OUT}/${file}`);
+async function onBackground(input, size, contentSize) {
+  const offset = Math.round((size - contentSize) / 2);
+  return sharp({
+    create: { width: size, height: size, channels: 4, background: BACKGROUND },
+  })
+    .composite([
+      {
+        input,
+        top: offset,
+        left: offset,
+        resize: { width: contentSize, height: contentSize },
+      },
+    ])
+    .png()
+    .toBuffer();
 }
 
-const safeScale = 0.8;
-const safeSize = Math.round(512 * safeScale);
-await sharp({
-  create: { width: 512, height: 512, channels: 4, background: BACKGROUND },
-})
-  .composite([
-    {
-      input: square,
-      top: Math.round((512 - safeSize) / 2),
-      left: Math.round((512 - safeSize) / 2),
-      resize: { width: safeSize, height: safeSize },
-    },
-  ])
+await sharp(square).resize(192, 192).png().toFile(`${OUT}/icon-192.png`);
+await sharp(square).resize(512, 512).png().toFile(`${OUT}/icon-512.png`);
+await sharp(square)
+  .resize(180, 180)
+  .flatten({ background: BACKGROUND })
   .png()
-  .toFile(`${OUT}/icon-maskable-512.png`);
+  .toFile(`${OUT}/apple-touch-icon.png`);
+await onBackground(square, 512, Math.round(512 * 0.8)).then((b) =>
+  sharp(b).toFile(`${OUT}/icon-maskable-512.png`),
+);
 
 console.log(`Generated icons in ${OUT}`);
