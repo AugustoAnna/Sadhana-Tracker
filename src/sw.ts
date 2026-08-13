@@ -39,7 +39,7 @@ function scheduleOne(reminder: ScheduledReminder) {
     if (Notification.permission !== 'granted') return;
     await self.registration.showNotification('Time to practice', {
       body: 'Your practice reminder is here.',
-      icon: '/favicon.svg',
+      icon: '/icons/icon-192.png',
       tag: `reminder-${key}`,
       data: { slot: reminder.slot, kind: reminder.kind, deliveredAt: Date.now() },
     });
@@ -84,7 +84,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title ?? 'Time to practice', {
       body: data.body ?? 'Your practice reminder is here.',
-      icon: '/favicon.svg',
+      icon: '/icons/icon-192.png',
       tag: data.tag ?? 'reminder-push',
       data: { slot: data.slot ?? null, kind: data.kind ?? 'generic', deliveredAt: Date.now() },
     }).then(() => {
