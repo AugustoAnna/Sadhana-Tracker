@@ -14,7 +14,7 @@ export default defineConfig({
       filename: 'sw.ts',
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Sadhana Tracker',
         short_name: 'Sadhana',
@@ -25,9 +25,20 @@ export default defineConfig({
         orientation: 'portrait',
         icons: [
           {
-            src: 'favicon.svg',
+            src: 'icons/icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
+          },
+          {
+            src: 'icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+          {
+            src: 'icons/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },
