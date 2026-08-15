@@ -1,10 +1,9 @@
 # Supabase Setup
 
-**Project:** `sadhana tracker` (`eevoabfiyzsfoberzsom`)  
-**Region:** ap-southeast-2 (Sydney)  
-**URL:** https://eevoabfiyzsfoberzsom.supabase.co
+**Project:** `sadhana tracker` (`mmzzcigydnelnxdhmoqw`)
+**URL:** https://mmzzcigydnelnxdhmoqw.supabase.co
 
-Schema applied via MCP on 2026-08-07. Legacy prototype tables preserved as `*_legacy`.
+Schema applied via SQL on 2026-08-15 (v3, `002_v3_schema.sql`).
 
 ## Local config
 
@@ -14,28 +13,29 @@ Schema applied via MCP on 2026-08-07. Legacy prototype tables preserved as `*_le
 cp .env.example .env.local
 ```
 
-Fill from **Project Settings → API** in the [Supabase dashboard](https://supabase.com/dashboard/project/eevoabfiyzsfoberzsom/settings/api).
+Fill from **Project Settings → API** in the [Supabase dashboard](https://supabase.com/dashboard/project/mmzzcigydnelnxdhmoqw/settings/api).
 
 ## Tables
 
 | Table | Purpose |
 |---|---|
-| `participants` | Name, meditator status, onboarding flags |
-| `practice_instances` | Practices added to the participant's list |
-| `practice_logs` | Every logged practice session |
-| `reminders` | Up to 3 reminder slots |
-| `saved_sessions` | Named session shortcuts |
-
-Legacy tables (`device_sessions_legacy`, `practice_logs_legacy`, `analytics_events_legacy`) are preserved from the earlier prototype.
+| `participants` | Name, platform, notification permission, segment |
+| `practices` | Seeded practice catalogue |
+| `participant_practices` | Practices added to the participant's list |
+| `practice_completed` | Every logged practice session |
+| `reminders` | Up to 3 reminder slots + practice reminders |
+| `events` | Instrumentation events |
 
 ## Migrations
 
-Applied remotely via Supabase MCP. Local SQL mirror:
+Applied against the live project (`mmzzcigydnelnxdhmoqw`). Local SQL mirror:
 
 ```
-supabase/migrations/20260807100000_initial_schema.sql
+supabase/migrations/002_v3_schema.sql   (current, supersedes 001_study_build.sql)
+supabase/migrations/001_study_build.sql (superseded)
+supabase/migrations/20260807100000_initial_schema.sql (pre-v3 prototype)
 ```
 
 ## Security note
 
-RLS policies are permissive for the study pilot (no auth). Tighten before wider release.
+RLS policies are permissive for the study pilot (own-row rules on participant data; public read on `practices`). Tighten before wider release.

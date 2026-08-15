@@ -13,12 +13,12 @@ Open http://localhost:5173 on a mobile viewport (portrait).
 
 ## Stack
 
-- React 18 + TypeScript + Vite
+- React 19 + TypeScript + Vite
 - Tailwind CSS v4
 - Dexie (IndexedDB) for offline persistence
 - Zustand for state
 - vite-plugin-pwa for service worker
-- Mock Supabase sync (awaiting credentials)
+- Supabase (anonymous auth, RLS, offline sync queue)
 
 ## Docs
 
@@ -28,7 +28,6 @@ Open http://localhost:5173 on a mobile viewport (portrait).
 
 ## Placeholders (awaiting assets)
 
-- Supabase URL and anon key
 - Practice illustrations (47)
 - Plant visuals (levels 0–16)
 - Level labels 8–16
@@ -61,9 +60,10 @@ gh repo create sadhana-tracker --public --source=. --push
 
 ## Supabase
 
-See [SUPABASE.md](./SUPABASE.md) for setup. Quick version:
+Credentials live in `.env.local` (see `.env.example`). The app syncs to the shared project `mmzzcigydnelnxdhmoqw.supabase.co`. `npm run dev` writes to that same project — rows are tagged `environment='study'` unless `VITE_APP_ENV=lab` is set. Demo mode (local Dexie DB) skips sync entirely.
 
-1. Create a Supabase project
-2. Run `supabase/migrations/20260807100000_initial_schema.sql` in the SQL Editor
-3. Copy `.env.example` → `.env.local` and add your URL + anon key
-4. Restart `npm run dev`
+Quick setup:
+
+1. Apply the schema in `supabase/migrations/002_v3_schema.sql` in the SQL Editor (supersedes `001_study_build.sql`; `20260807100000_initial_schema.sql` is the pre-v3 prototype)
+2. Copy `.env.example` → `.env.local` and add your URL + anon key
+3. Restart `npm run dev`
