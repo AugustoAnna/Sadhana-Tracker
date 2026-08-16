@@ -1,51 +1,7 @@
-# Supabase Setup
+-- Seed the practices catalogue.
+-- The table is a read-only reference for participant_practices.practice_id (FK);
+-- without this seed every participant_practices / practice_completed insert fails.
 
-**Project:** `sadhana tracker`  
-**URL:** https://mmzzcigydnelnxdhmoqw.supabase.co
-
-V3 schema (participants, practices, participant_practices, practice_completed, reminders, events) with anonymous auth and per-user RLS.
-
-## Local config
-
-`.env.local` is configured with project credentials (gitignored). To recreate:
-
-```bash
-cp .env.example .env.local
-```
-
-Fill from **Project Settings → API** in the [Supabase dashboard](https://supabase.com/dashboard/project/mmzzcigydnelnxdhmoqw/settings/api).
-
-## Tables
-
-| Table | Purpose |
-|---|---|
-| `participants` | One row per anonymous auth user (name, platform, segment, environment) |
-| `practices` | Read-only practice catalogue (seeded — see below) |
-| `participant_practices` | Practices added to the participant's list |
-| `practice_completed` | Every logged practice session |
-| `reminders` | Reminder slots |
-| `events` | Instrumentation events |
-
-Analysis views: `study_participants`, `study_practice_completed`, `study_practices_added`, `study_events`, `study_participant_profile`.
-
-## Migrations
-
-Applied via the Supabase SQL editor. Local SQL mirror:
-
-```
-supabase/migrations/001_study_build.sql
-supabase/migrations/002_v3_schema.sql
-supabase/migrations/003_seed_practices.sql
-supabase/migrations/20260807100000_initial_schema.sql   (v2, superseded)
-```
-
-## Seed the practice catalogue
-
-The `practices` table is a read-only catalogue referenced by `participant_practices.practice_id` and `practice_completed.practice_id` (FK). It is **not** seeded by any migration, so it must be seeded once via the SQL editor — otherwise every `participant_practices` / `practice_completed` insert fails the FK and those tables stay empty.
-
-Run this in the Supabase SQL editor:
-
-```sql
 insert into practices (id, name, kind, default_minutes, illustration, audio_path, allows_second_instance, sort_order)
 values
   ('achala-arpanam', 'Achala Arpanam', 'guided', 12, '/illustrations/Achala-arpanam_illustration.webp', 'https://images-sgex-prod.sadhguru.org/static-exclusive/assets/en/media/achala-arpanam-practice.mp3', true, 0),
@@ -96,10 +52,3 @@ values
   ('yogasanas', 'Yogasanas', 'unguided', 50, '/illustrations/Yogasanas_illustration.webp', NULL, true, 45),
   ('sadhguru-presence', 'Sadhguru''s Presence', 'guided', 10, '/illustrations/Sadhguru-presence_illustration.webp', 'https://images-sgex-prod.sadhguru.org/sgapp/assets/common/media/brahmananda-swarupa.mp3', true, 46)
 on conflict (id) do nothing;
-```
-
-Verify: `select count(*) from practices;` → `47`.
-
-## Security note
-
-RLS restricts each user to their own rows (`auth_user_id = auth.uid()`); clients authenticate via anonymous sign-in. Never expose the service role key to the client.
