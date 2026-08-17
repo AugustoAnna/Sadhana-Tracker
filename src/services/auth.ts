@@ -18,6 +18,7 @@ export async function ensureAnonymousAuth(): Promise<string | null> {
     const { data, error } = await supabase.auth.signInAnonymously();
     if (error || !data.user) {
       console.error('Anonymous auth failed:', error?.message);
+      authReady = null;
       return null;
     }
     return data.user.id;

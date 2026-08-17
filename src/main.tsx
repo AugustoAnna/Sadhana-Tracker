@@ -37,13 +37,11 @@ function Bootstrap() {
   useEffect(() => {
     async function init() {
       await ensureDatabasesReady();
-      const recovered = await recoverFromInterruptedDemo();
+      await recoverFromInterruptedDemo();
       await hydrate();
       await initAppLifecycle();
-      if (!recovered) {
-        initSyncListener();
-        await syncFullState();
-      }
+      initSyncListener();
+      await syncFullState();
       setReady(true);
     }
     init();

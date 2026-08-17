@@ -9,3 +9,4 @@ export { PracticePlayer } from './PracticePlayer';
 export { PostPractice } from './PostPractice';
 export { LevelUp } from './LevelUp';
 export { Journey } from './Journey';
+export { EditName } from './EditName';
