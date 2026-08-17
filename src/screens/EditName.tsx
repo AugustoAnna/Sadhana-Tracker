@@ -31,7 +31,7 @@ export function EditName() {
   const handleSave = async () => {
     const previousName = profile?.name ?? null;
     await setNameStore(name.trim());
-    track('name_changed', { previous_name: previousName, new_name: name.trim() });
+    await track('name_changed', { previous_name: previousName, new_name: name.trim() });
     navigate(-1);
   };
 
