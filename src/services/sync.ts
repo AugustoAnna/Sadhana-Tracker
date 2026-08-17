@@ -156,8 +156,7 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
       return !error;
     }
     case 'participants': {
-      await ensureParticipant(profile);
-      return true;
+      return ensureParticipant(profile) !== null;
     }
     case 'reminders': {
       const reminder = item.payload as Reminder;
@@ -255,6 +254,29 @@ export async function syncFullState(): Promise<void> {
 
 export function initSyncListener() {
   window.addEventListener('online', () => drainSyncQueue());
+}
+
+export async function getParticipantName(): Promise<string | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const authUserId = await ensureAnonymousAuth();
+  if (!authUserId) return null;
+  const { data } = await supabase
+    .from('participants')
+    .select('name')
+    .eq('auth_user_id', authUserId)
+    .maybeSingle();
+  return data?.name ?? null;
+}
+
+export async function fetchBannerTargets(): Promise<Set<string>> {
+  const supabase = getSupabase();
+  if (!supabase) return new Set();
+  const { data } = await supabase
+    .from('banner_targets')
+    .select('name');
+  if (!data) return new Set();
+  return new Set(data.map((r) => r.name));
 }
 
 export { isSupabaseConfigured };

@@ -14,6 +14,7 @@ import {
   PracticePlayer,
   LevelUp,
   Journey,
+  EditName,
 } from '@/screens';
 import { InstrumentationPage } from '@/screens/InstrumentationPage';
 import {
@@ -46,6 +47,9 @@ export function AppRouter() {
           } />
           <Route path="/reminders" element={
             <SetupGuard><Reminders /></SetupGuard>
+          } />
+          <Route path="/name" element={
+            <PostOnboardingGuard><EditName /></PostOnboardingGuard>
           } />
 
           {isFeatureEnabled('sessions') && (
