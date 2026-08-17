@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, TextInput } from '@/components';
 import { useAppStore } from '@/stores/appStore';
+import { track } from '@/services/instrumentation';
 
 export function EditName() {
   const profile = useAppStore((s) => s.profile);
@@ -28,7 +29,9 @@ export function EditName() {
   }, []);
 
   const handleSave = async () => {
+    const previousName = profile?.name ?? null;
     await setNameStore(name.trim());
+    track('name_changed', { previous_name: previousName, new_name: name.trim() });
     navigate(-1);
   };
 
