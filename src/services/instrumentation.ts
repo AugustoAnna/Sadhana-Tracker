@@ -13,7 +13,8 @@ export type InstrumentEvent =
   | 'reminder_disabled'
   | 'reminder_delivered'
   | 'reminder_tapped'
-  | 'sync_failed';
+  | 'sync_failed'
+  | 'name_changed';
 
 interface TrackPayload {
   [key: string]: unknown;
