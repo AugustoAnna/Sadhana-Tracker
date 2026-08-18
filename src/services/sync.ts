@@ -251,20 +251,34 @@ export async function syncFullState(): Promise<void> {
 
   await ensureParticipant(profile);
 
-  const [instances, logs, reminders] = await Promise.all([
+  const [instances, logs, reminders, existingQueue] = await Promise.all([
     db.practiceInstances.toArray(),
     db.practiceLogs.toArray(),
     db.reminders.toArray(),
+    db.syncQueue.toArray(),
   ]);
 
+  const queued = new Set(
+    existingQueue.map((i) => `${i.table}:${(i.payload as { id?: string }).id}`),
+  );
+
   for (const inst of instances) {
-    await queueSync({ table: 'participant_practices', operation: 'insert', payload: inst });
+    const key = `participant_practices:${inst.id}`;
+    if (!queued.has(key)) {
+      await queueSync({ table: 'participant_practices', operation: 'insert', payload: inst });
+    }
   }
   for (const log of logs) {
-    await queueSync({ table: 'practice_completed', operation: 'insert', payload: log });
+    const key = `practice_completed:${log.id}`;
+    if (!queued.has(key)) {
+      await queueSync({ table: 'practice_completed', operation: 'insert', payload: log });
+    }
   }
   for (const r of reminders) {
-    await queueSync({ table: 'reminders', operation: 'insert', payload: r });
+    const key = `reminders:${r.remoteId ?? r.id}`;
+    if (!queued.has(key)) {
+      await queueSync({ table: 'reminders', operation: 'insert', payload: r });
+    }
   }
 
   await drainSyncQueue();
@@ -272,7 +286,7 @@ export async function syncFullState(): Promise<void> {
   // Ensure push subscription is synced if permission already granted
   if (Notification.permission === 'granted') {
     const { enablePushNotifications } = await import('./notifications');
-    await enablePushNotifications();
+    void enablePushNotifications();
   }
 }
 
