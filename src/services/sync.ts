@@ -11,7 +11,8 @@ export type SyncTable =
   | 'practice_completed'
   | 'reminders'
   | 'events'
-  | 'saved_sessions';
+  | 'saved_sessions'
+  | 'push_subscriptions';
 
 export interface SyncQueueItem {
   id: string;
@@ -76,6 +77,7 @@ export async function updateParticipantFields(
     platform?: string;
     installed_standalone?: boolean;
     notification_permission?: string;
+    timezone?: string;
     segment?: string;
     name?: string;
   },
@@ -88,6 +90,7 @@ export async function updateParticipantFields(
   await supabase.from('participants').update({
     platform: fields.platform,
     notification_permission: fields.notification_permission,
+    timezone: fields.timezone,
     segment: fields.segment,
     name: fields.name,
     ...(fields.installed_standalone ? { installed_standalone: true } : {}),
@@ -197,6 +200,21 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
       if (!isFeatureEnabled('sessions')) return true;
       return true;
     }
+    case 'push_subscriptions': {
+      const sub = item.payload as {
+        endpoint: string;
+        p256dh: string;
+        auth: string;
+      };
+      const { error } = await supabase.from('push_subscriptions').upsert({
+        participant_id: pid,
+        endpoint: sub.endpoint,
+        p256dh: sub.p256dh,
+        auth: sub.auth,
+        environment: APP_ENV,
+      }, { onConflict: 'participant_id,endpoint' });
+      return !error;
+    }
     default:
       return true;
   }
@@ -251,6 +269,12 @@ export async function syncFullState(): Promise<void> {
   }
 
   await drainSyncQueue();
+
+  // Ensure push subscription is synced if permission already granted
+  if (Notification.permission === 'granted') {
+    const { enablePushNotifications } = await import('./notifications');
+    await enablePushNotifications();
+  }
 }
 
 export function initSyncListener() {

@@ -1,5 +1,6 @@
 import { getDb } from '@/db';
 import type { Reminder } from '@/types';
+import { subscribeToPush, syncPushSubscription, syncTimezone } from './push';
 
 export async function scheduleReminders(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
@@ -36,4 +37,18 @@ export function isNotificationSupported(): boolean {
 export function getNotificationPermission(): NotificationPermission | 'unsupported' {
   if (!isNotificationSupported()) return 'unsupported';
   return Notification.permission;
+}
+
+export async function enablePushNotifications(): Promise<void> {
+  if (!('serviceWorker' in navigator)) return;
+  if (Notification.permission !== 'granted') return;
+
+  const registration = await navigator.serviceWorker.ready;
+
+  const subscription = await subscribeToPush(registration);
+  if (subscription) {
+    await syncPushSubscription(subscription);
+  }
+
+  await syncTimezone();
 }

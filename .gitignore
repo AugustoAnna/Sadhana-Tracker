@@ -7,3 +7,4 @@ dist
 .env.*.local
 tsconfig.tsbuildinfo
 .cursor/
+supabase/.temp/

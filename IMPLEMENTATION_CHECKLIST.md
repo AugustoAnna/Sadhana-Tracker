@@ -44,6 +44,7 @@
 - [x] Service worker audio cache (structure in place)
 - [x] Invocation audio precache (placeholder)
 - [x] Push notification reminders (basic Notification API)
+- [x] Web Push reminders with server-side delivery
 - [x] Day boundary handling
 - [x] Deferred journey animation
 - [x] Level up once per day rule
@@ -67,4 +68,4 @@
 - [ ] Recent sessions from history (only saved sessions shown)
 - [ ] Audio download progress on Added section
 - [ ] Figma fidelity pass when node IDs available
-- [ ] SW-based scheduled notifications (currently setTimeout fallback)
+- [x] SW-based scheduled notifications (now with Web Push fallback)
