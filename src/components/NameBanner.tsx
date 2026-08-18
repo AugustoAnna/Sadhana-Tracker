@@ -12,7 +12,7 @@ export function NameBanner() {
   return (
     <div className="bg-primary/10 rounded-[14px] p-4 mb-4">
       <p className="text-body mb-2">
-        Namaskaram {serverName}, we noticed you are not using your real name. So that we can help you, please click the button and add your name.
+        Namaskaram '{serverName}', we noticed you are not using your real name. So that we can help you, please click the button and add your name.
       </p>
       <Button fullWidth onClick={() => navigate('/name')}>
         Add your name
