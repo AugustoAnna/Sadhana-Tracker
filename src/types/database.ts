@@ -17,6 +17,7 @@ export type Database = {
           platform: string | null;
           installed_standalone: boolean;
           notification_permission: string | null;
+          timezone: string | null;
           segment: string | null;
           environment: string;
           created_at: string;
@@ -28,6 +29,7 @@ export type Database = {
           platform?: string | null;
           installed_standalone?: boolean;
           notification_permission?: string | null;
+          timezone?: string | null;
           segment?: string | null;
           environment: string;
           created_at?: string;
@@ -39,6 +41,7 @@ export type Database = {
           platform?: string | null;
           installed_standalone?: boolean;
           notification_permission?: string | null;
+          timezone?: string | null;
           segment?: string | null;
           environment?: string;
           created_at?: string;
@@ -165,6 +168,28 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['events']['Insert']>;
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: {
+          id: string;
+          participant_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          environment: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          participant_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          environment: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['push_subscriptions']['Insert']>;
         Relationships: [];
       };
       banner_targets: {

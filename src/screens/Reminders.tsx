@@ -6,6 +6,7 @@ import { formatTimeDisplay } from '@/utils/dates';
 import {
   getNotificationPermission,
   scheduleReminders,
+  enablePushNotifications,
 } from '@/services/notifications';
 import { precacheInvocation } from '@/services/audio';
 import { isFeatureEnabled } from '@/features';
@@ -34,6 +35,7 @@ function applyPermissionResult(
   if (result === 'granted') {
     setShowConfirmation(true);
     void scheduleReminders();
+    void enablePushNotifications();
     setTimeout(() => setShowConfirmation(false), 2500);
   }
 }

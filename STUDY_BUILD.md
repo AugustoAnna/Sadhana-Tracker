@@ -28,7 +28,7 @@ Supersedes change orders 01 and 02. Updated as work proceeds.
 - [x] Name step (keyboard-safe continue)
 - [x] Simplified onboarding: welcome → name → add practices → reminders → Practices
 - [ ] Reminders: Sadhguru's Presence practice-specific slot
-- [ ] Web Push reminders (replace in-app timers)
+- [x] Web Push reminders (replace in-app timers)
 
 ## Phase 3 — Practices tracker (§4.4)
 - [x] Section order: Today → Practices → My Practice Progress
