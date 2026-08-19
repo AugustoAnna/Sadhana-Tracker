@@ -9,6 +9,20 @@ const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT")!;
 // Configure web-push with VAPID keys
 webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
+type PushSubscriptionRow = {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  environment: string;
+};
+
+type ParticipantRow = {
+  id: string;
+  timezone: string | null;
+  push_subscriptions: PushSubscriptionRow[];
+};
+
 function getCurrentTimeInTimezone(timezone: string): { hour: number; minute: number } {
   const now = new Date();
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -34,7 +48,9 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Get all enabled reminders with their participants and push subscriptions
+    // Get all enabled reminders with their participants and push subscriptions.
+    // push_subscriptions has no FK to reminders — it must be embedded through
+    // participants (both tables reference participants.id).
     const { data: dueReminders, error: queryError } = await supabase
       .from("reminders")
       .select(`
@@ -43,15 +59,17 @@ serve(async (req) => {
         slot,
         practice_id,
         time_local,
+        environment,
         participants!inner (
           id,
-          timezone
-        ),
-        push_subscriptions!inner (
-          id,
-          endpoint,
-          p256dh,
-          auth
+          timezone,
+          push_subscriptions!inner (
+            id,
+            endpoint,
+            p256dh,
+            auth,
+            environment
+          )
         )
       `)
       .eq("enabled", true);
@@ -68,11 +86,10 @@ serve(async (req) => {
     let deletedCount = 0;
 
     for (const reminder of dueReminders ?? []) {
-      const participant = reminder.participants as { id: string; timezone: string | null };
-      const subscription = reminder.push_subscriptions as { id: string; endpoint: string; p256dh: string; auth: string };
+      const participant = reminder.participants as unknown as ParticipantRow;
 
       // Skip if no timezone set
-      if (!participant.timezone) continue;
+      if (!participant?.timezone) continue;
 
       // Get current time in participant's timezone
       const { hour: currentHour, minute: currentMinute } = getCurrentTimeInTimezone(
@@ -83,8 +100,26 @@ serve(async (req) => {
       const [reminderHour, reminderMinute] = reminder.time_local.split(":").map(Number);
 
       // Check if current time matches reminder time (within the current minute)
-      if (currentHour === reminderHour && currentMinute === reminderMinute) {
-        // Send push notification using web-push library
+      if (currentHour !== reminderHour || currentMinute !== reminderMinute) continue;
+
+      // A participant can have several devices; only push to subscriptions
+      // registered in the same environment as the reminder (lab vs study).
+      const subscriptions = (participant.push_subscriptions ?? []).filter(
+        (sub) => sub.environment === reminder.environment,
+      );
+
+      // Flat payload — the service worker push handler reads slot/kind from
+      // the top level of the payload JSON.
+      const payload = JSON.stringify({
+        title: "Time to practice",
+        body: "Your practice reminder is here.",
+        tag: `reminder-${reminder.id}`,
+        slot: reminder.slot,
+        kind: reminder.kind,
+        practice_id: reminder.practice_id,
+      });
+
+      for (const subscription of subscriptions) {
         try {
           const pushSubscription = {
             endpoint: subscription.endpoint,
@@ -94,22 +129,11 @@ serve(async (req) => {
             },
           };
 
-          const payload = JSON.stringify({
-            title: "Time to practice",
-            body: "Your practice reminder is here.",
-            tag: `reminder-${reminder.id}`,
-            data: {
-              slot: reminder.slot,
-              kind: reminder.kind,
-              practice_id: reminder.practice_id,
-            },
-          });
-
           await webPush.sendNotification(pushSubscription, payload);
           sentCount++;
         } catch (pushError: any) {
-          // Handle expired subscriptions (410 Gone)
-          if (pushError.statusCode === 410) {
+          // Handle expired subscriptions (410 Gone, 404 Not Registered)
+          if (pushError.statusCode === 410 || pushError.statusCode === 404) {
             await supabase
               .from("push_subscriptions")
               .delete()
