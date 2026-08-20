@@ -1,11 +1,20 @@
 import { getDb } from '@/db';
 import type { Reminder } from '@/types';
-import { subscribeToPush, syncPushSubscription, syncTimezone } from './push';
+import { subscribeToPush, syncPushSubscription, syncTimezone, isPushSubscribed } from './push';
 
 export async function scheduleReminders(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
 
   const registration = await navigator.serviceWorker.ready;
+
+  // When a push subscription is active the server delivers reminders, and
+  // local SW timers would duplicate every notification. Keep timers only as
+  // a fallback when push is unavailable (demo mode, missing VAPID key).
+  if (await isPushSubscribed(registration)) {
+    registration.active?.postMessage({ type: 'SCHEDULE_REMINDERS', reminders: [] });
+    return;
+  }
+
   const reminders = await getDb().reminders.filter((r) => r.enabled).toArray();
 
   registration.active?.postMessage({
@@ -48,6 +57,9 @@ export async function enablePushNotifications(): Promise<void> {
   const subscription = await subscribeToPush(registration);
   if (subscription) {
     await syncPushSubscription(subscription);
+    // The permission-grant flow schedules timers before the subscription
+    // exists — re-run now that it does, so the fallback timers are cleared.
+    await scheduleReminders();
   }
 
   await syncTimezone();
