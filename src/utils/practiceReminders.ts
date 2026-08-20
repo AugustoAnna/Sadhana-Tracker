@@ -9,7 +9,7 @@ export interface PracticeReminderConfig {
 
 /** Practice-specific reminders — only Sadhguru's Presence. */
 export const PRACTICE_REMINDER_CONFIG: Record<string, PracticeReminderConfig> = {
-  'sadhguru-presence': { time: '18:20', lockedTime: true, defaultEnabled: true },
+  'sadhguru-presence': { time: '18:18', lockedTime: true, defaultEnabled: true },
 };
 
 export function getPracticeReminderIds(instances: PracticeInstance[]): string[] {
