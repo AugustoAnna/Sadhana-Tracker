@@ -312,7 +312,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       id: 'sadhguru-presence',
       kind: 'practice',
       practiceId: 'sadhguru-presence',
-      time: '15:57',
+      time: '15:59',
       enabled: true,
       remoteId: crypto.randomUUID(),
     };
