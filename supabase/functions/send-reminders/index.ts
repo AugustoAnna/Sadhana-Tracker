@@ -110,9 +110,12 @@ serve(async (req) => {
 
       // Flat payload — the service worker push handler reads slot/kind from
       // the top level of the payload JSON.
+      const isPresence = reminder.practice_id === 'sadhguru-presence';
       const payload = JSON.stringify({
-        title: "Time to practice",
-        body: "Your practice reminder is here.",
+        title: isPresence ? 'Presence time' : 'Time to practice',
+        body: isPresence
+          ? "Sadhguru's presence time begins in two minutes."
+          : 'Your practice reminder is here.',
         tag: `reminder-${reminder.id}`,
         slot: reminder.slot,
         kind: reminder.kind,

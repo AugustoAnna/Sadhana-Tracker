@@ -35,10 +35,16 @@ function scheduleOne(reminder: ScheduledReminder) {
   const existing = timers.get(key);
   if (existing) clearTimeout(existing);
 
+  const isPresence = reminder.practiceId === 'sadhguru-presence';
+  const title = isPresence ? 'Presence time' : 'Time to practice';
+  const body = isPresence
+    ? "Sadhguru's presence time begins in two minutes."
+    : 'Your practice reminder is here.';
+
   const timer = setTimeout(async () => {
     if (Notification.permission !== 'granted') return;
-    await self.registration.showNotification('Time to practice', {
-      body: 'Your practice reminder is here.',
+    await self.registration.showNotification(title, {
+      body,
       icon: '/icons/icon-192.png',
       tag: `reminder-${key}`,
       data: { slot: reminder.slot, kind: reminder.kind, deliveredAt: Date.now() },
