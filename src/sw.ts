@@ -38,7 +38,7 @@ function scheduleOne(reminder: ScheduledReminder) {
   const isPresence = reminder.practiceId === 'sadhguru-presence';
   const title = isPresence ? 'Presence time' : 'Time to practice';
   const body = isPresence
-    ? "Sadhguru's presence time begins in two minutes."
+    ? 'Presence time is starting soon.'
     : 'Your practice reminder is here.';
 
   const timer = setTimeout(async () => {

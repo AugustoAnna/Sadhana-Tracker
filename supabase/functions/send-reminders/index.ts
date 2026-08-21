@@ -114,7 +114,7 @@ serve(async (req) => {
       const payload = JSON.stringify({
         title: isPresence ? 'Presence time' : 'Time to practice',
         body: isPresence
-          ? "Sadhguru's presence time begins in two minutes."
+          ? 'Presence time is starting soon.'
           : 'Your practice reminder is here.',
         tag: `reminder-${reminder.id}`,
         slot: reminder.slot,

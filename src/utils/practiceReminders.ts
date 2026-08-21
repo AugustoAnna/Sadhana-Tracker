@@ -1,5 +1,6 @@
 import type { PracticeInstance, Reminder, ReminderKey } from '@/types';
 import type { SadhanaDB } from '@/db';
+import { queueSync } from '@/services/sync';
 
 export interface PracticeReminderConfig {
   time: string;
@@ -9,7 +10,7 @@ export interface PracticeReminderConfig {
 
 /** Practice-specific reminders — only Sadhguru's Presence. */
 export const PRACTICE_REMINDER_CONFIG: Record<string, PracticeReminderConfig> = {
-  'sadhguru-presence': { time: '18:18', lockedTime: true, defaultEnabled: true },
+  'sadhguru-presence': { time: '18:15', lockedTime: true, defaultEnabled: true },
 };
 
 export function getPracticeReminderIds(instances: PracticeInstance[]): string[] {
@@ -42,7 +43,9 @@ export async function syncPracticeReminders(database: SadhanaDB): Promise<Remind
       };
       await database.reminders.put(reminder);
     } else if (config.lockedTime && existing.time !== config.time) {
+      const updated = { ...existing, time: config.time };
       await database.reminders.update(practiceId, { time: config.time });
+      await queueSync({ table: 'reminders', operation: 'insert', payload: updated });
     }
   }
 
