@@ -66,7 +66,7 @@ describe('PracticeHome entry points (study build)', () => {
         <PracticeHome />
       </MemoryRouter>,
     );
-    expect(getByText(/Namaskaram Anonymous/)).toBeDefined();
+    expect(getByText(/Namaskaram 'Anonymous'/)).toBeDefined();
     mockState.serverName = null;
     mockState.bannerTargets = null;
   });
