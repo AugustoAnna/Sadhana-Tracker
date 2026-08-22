@@ -49,7 +49,7 @@ export function getNotificationPermission(): NotificationPermission | 'unsupport
 }
 
 export async function enablePushNotifications(): Promise<void> {
-  if (!('serviceWorker' in navigator)) return;
+  if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
 
   const registration = await navigator.serviceWorker.ready;

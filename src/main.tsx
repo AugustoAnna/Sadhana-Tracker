@@ -39,12 +39,16 @@ function Bootstrap() {
       await ensureDatabasesReady();
       await recoverFromInterruptedDemo();
       await hydrate();
-      await initAppLifecycle();
       initSyncListener();
-      await syncFullState();
-      setReady(true);
+      // Auth and sync are network-bound and must never block first render —
+      // the app works from local data and syncs in the background.
+      initAppLifecycle()
+        .then(() => syncFullState())
+        .catch((err) => console.error('Background sync failed:', err));
     }
-    init();
+    init()
+      .catch((err) => console.error('Bootstrap failed:', err))
+      .finally(() => setReady(true));
   }, [hydrate]);
 
   if (!ready) {
