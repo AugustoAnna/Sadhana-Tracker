@@ -13,6 +13,19 @@ import { registerSW } from 'virtual:pwa-register';
 registerSW({ immediate: true });
 
 if ('serviceWorker' in navigator) {
+  // When an updated worker takes control mid-session this page is still
+  // running the previous bundle — reload once so it picks up the new one.
+  // Skipped on first-ever install (no prior controller): the page already
+  // came from the network.
+  let hadController = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) {
+      hadController = true;
+      return;
+    }
+    window.location.reload();
+  });
+
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data?.type === 'REMINDER_DELIVERED') {
       track('reminder_delivered', {
