@@ -10,7 +10,21 @@ import './index.css';
 
 import { registerSW } from 'virtual:pwa-register';
 
-registerSW({ immediate: true });
+registerSW({
+  immediate: true,
+  onRegisteredSW(_url, registration) {
+    // Installed (home-screen) PWAs are resumed from a suspended background
+    // state rather than reloaded, so they don't get the browser's normal
+    // navigation-triggered update check. Ask explicitly whenever the app
+    // comes back to the foreground.
+    if (!registration) return;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        void registration.update();
+      }
+    });
+  },
+});
 
 if ('serviceWorker' in navigator) {
   // When an updated worker takes control mid-session this page is still
@@ -23,7 +37,18 @@ if ('serviceWorker' in navigator) {
       hadController = true;
       return;
     }
-    window.location.reload();
+    // Reloading mid-practice would cut off a running timer/audio session.
+    // Defer until the session ends instead of interrupting it.
+    if (!useAppStore.getState().playerSession) {
+      window.location.reload();
+      return;
+    }
+    const unsubscribe = useAppStore.subscribe((state) => {
+      if (!state.playerSession) {
+        unsubscribe();
+        window.location.reload();
+      }
+    });
   });
 
   navigator.serviceWorker.addEventListener('message', (event) => {
