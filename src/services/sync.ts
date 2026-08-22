@@ -159,13 +159,22 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
       return !error;
     }
     case 'participants': {
-      return ensureParticipant(profile) !== null;
+      return (await ensureParticipant(profile)) !== null;
     }
     case 'reminders': {
-      const reminder = item.payload as Reminder;
+      const queued = item.payload as Reminder;
+      // Reminders created before remoteId existed have local ids ("1",
+      // "sadhguru-presence") that the uuid id column rejects — backfill a
+      // remoteId so these queue items can ever succeed.
+      const reminder = (await db.reminders.get(queued.id)) ?? queued;
+      let remoteId = reminder.remoteId;
+      if (!remoteId) {
+        remoteId = crypto.randomUUID();
+        await db.reminders.update(reminder.id, { remoteId });
+      }
       const slot = reminder.kind === 'generic' ? reminder.slot : null;
       const { error } = await supabase.from('reminders').upsert({
-        id: String(reminder.remoteId ?? reminder.id),
+        id: remoteId,
         participant_id: pid,
         kind: reminder.kind,
         slot,
@@ -275,7 +284,7 @@ export async function syncFullState(): Promise<void> {
     }
   }
   for (const r of reminders) {
-    const key = `reminders:${r.remoteId ?? r.id}`;
+    const key = `reminders:${r.id}`;
     if (!queued.has(key)) {
       await queueSync({ table: 'reminders', operation: 'insert', payload: r });
     }
@@ -283,8 +292,10 @@ export async function syncFullState(): Promise<void> {
 
   void drainSyncQueue();
 
-  // Ensure push subscription is synced if permission already granted
-  if (Notification.permission === 'granted') {
+  // Ensure push subscription is synced if permission already granted.
+  // iOS WebKit only defines the Notification global for installed
+  // (standalone) apps — a bare read throws in the regular browser.
+  if ('Notification' in window && Notification.permission === 'granted') {
     const { enablePushNotifications } = await import('./notifications');
     void enablePushNotifications();
   }
