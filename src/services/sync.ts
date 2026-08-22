@@ -281,7 +281,7 @@ export async function syncFullState(): Promise<void> {
     }
   }
 
-  await drainSyncQueue();
+  void drainSyncQueue();
 
   // Ensure push subscription is synced if permission already granted
   if (Notification.permission === 'granted') {
