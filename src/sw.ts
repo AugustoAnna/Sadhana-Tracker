@@ -5,6 +5,10 @@ import { precacheAndRoute } from 'workbox-precaching';
 declare let self: ServiceWorkerGlobalScope;
 
 precacheAndRoute(self.__WB_MANIFEST);
+// injectManifest mode does not add skipWaiting for us. Without it an
+// updated worker stays waiting until every tab closes, so open clients
+// keep being served the previous precached bundle indefinitely.
+self.skipWaiting();
 clientsClaim();
 
 type ScheduledReminder = {
