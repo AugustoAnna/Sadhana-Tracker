@@ -12,6 +12,7 @@ const mockState = {
     addedAt: Date.now(),
   }],
   logs: [],
+  currentDay: '2026-08-23',
   profile: { firstRecordReassuranceShown: true },
   serverName: null as string | null,
   bannerTargets: null as Set<string> | null,
