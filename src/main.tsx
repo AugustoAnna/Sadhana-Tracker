@@ -4,6 +4,7 @@ import { AppRouter } from '@/app/router';
 import { useAppStore } from '@/stores/appStore';
 import { initSyncListener, syncFullState } from '@/services/sync';
 import { initAppLifecycle } from '@/services/appLifecycle';
+import { initDayRollover } from '@/services/dayRollover';
 import { ensureDatabasesReady, recoverFromInterruptedDemo } from '@/services/demoMode';
 import { track } from '@/services/instrumentation';
 import './index.css';
@@ -52,6 +53,7 @@ function Bootstrap() {
       await ensureDatabasesReady();
       await recoverFromInterruptedDemo();
       await hydrate();
+      initDayRollover();
       initSyncListener();
       // Auth and sync are network-bound and must never block first render —
       // the app works from local data and syncs in the background.

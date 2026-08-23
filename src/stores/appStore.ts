@@ -26,8 +26,11 @@ interface AppStore {
   isDemoMode: boolean;
   serverName: string | null;
   bannerTargets: Set<string> | null;
+  /** Local calendar day the UI is currently rendering. See refreshDay. */
+  currentDay: string;
 
   hydrate: () => Promise<void>;
+  refreshDay: () => Promise<void>;
   setName: (name: string) => Promise<void>;
   setMeditatorStatus: (isMeditator: boolean) => Promise<void>;
   setDrawnToType: (type: DrawnToType) => Promise<void>;
@@ -72,6 +75,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   isDemoMode: false,
   serverName: null,
   bannerTargets: null,
+  currentDay: todayKey(),
 
   hydrate: async () => {
     const db = getDb();
@@ -106,7 +110,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
       pendingJourneyMinutes: meta?.pendingJourneyMinutes ?? 0,
       serverName,
       bannerTargets,
+      currentDay: todayKey(),
     });
+  },
+
+  refreshDay: async () => {
+    const day = todayKey();
+    if (day === get().currentDay) return;
+    // Midnight passed while the app sat in the background. Nothing else in the
+    // tree changes at a day boundary, so without this the screens keep showing
+    // yesterday's completed ticks and minutes until some other state moves.
+    set({ currentDay: day });
+    try {
+      // Another context (a browser tab open alongside the installed PWA) may
+      // have written logs this copy never saw — the rollover is a cheap place
+      // to catch up from IndexedDB.
+      const logs = await getDb().practiceLogs.toArray();
+      set({
+        logs: logs.map((l) => ({
+          ...l,
+          localDate: l.localDate ?? formatDateKey(new Date(l.timestamp)),
+        })),
+      });
+    } catch (err) {
+      console.error('Failed to re-read logs on day change:', err);
+    }
   },
 
   setName: async (name) => {

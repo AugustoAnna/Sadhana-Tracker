@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { PracticeLog } from '@/types';
+import { useAppStore } from '@/stores/appStore';
 import { getTotalDaysPracticed, getTotalMinutes, getCurrentStreak } from '@/utils/dates';
 import {
   buildMonthCalendar,
@@ -21,7 +22,10 @@ interface PracticeCalendarProps {
 }
 
 export function PracticeCalendar({ logs }: PracticeCalendarProps) {
-  const data = useMemo(() => buildMonthCalendar(logs), [logs]);
+  // currentDay is a dependency, not an input: the grid has to be rebuilt when
+  // the calendar day rolls over so today's ring and heat move with it.
+  const currentDay = useAppStore((s) => s.currentDay);
+  const data = useMemo(() => buildMonthCalendar(logs), [logs, currentDay]);
   const gridCols = data.columns;
   const gridWidth = gridCols * CALENDAR_CELL_PX + (gridCols - 1) * CALENDAR_GAP_PX;
 

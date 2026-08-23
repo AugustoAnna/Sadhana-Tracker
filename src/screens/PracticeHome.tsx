@@ -8,7 +8,7 @@ import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
 import { getResolvedKind } from '@/data/practiceAssets';
 import {
-  getPracticesCompletedToday, getMinutesForDay, todayKey,
+  getPracticesCompletedToday, getMinutesForDay,
   isInstanceCompletedToday, isInstanceCompletedTwiceToday, getTimedMinutesToday,
 } from '@/utils/dates';
 import { sortTrackingInstances } from '@/utils/sortInstances';
@@ -35,7 +35,9 @@ export function PracticeHome() {
 
   const sortedInstances = useMemo(() => sortTrackingInstances(instances), [instances]);
 
-  const today = todayKey();
+  // Read the day from the store rather than the clock: this is what re-renders
+  // the screen when the app is resumed after midnight (see initDayRollover).
+  const today = useAppStore((s) => s.currentDay);
   const todayMinutes = getMinutesForDay(logs, today);
   const completedToday = getPracticesCompletedToday(logs);
 
