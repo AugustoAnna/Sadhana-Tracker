@@ -154,42 +154,62 @@ export async function clearDatabase(database: SadhanaDB) {
   ]);
 }
 
-export async function initDB(database: SadhanaDB = getDb()) {
-  const profile = await database.profile.get('profile');
-  if (!profile) {
-    await database.profile.add({
-      id: 'profile',
-      name: '',
-      isMeditator: null,
-      drawnToType: null,
-      durationPreference: null,
-      onboardingComplete: false,
-      instanceEducationShown: false,
-      firstRecordReassuranceShown: false,
-      notificationPermissionAsked: false,
-      trackerIntroSeen: false,
-      featureDiscoveryStep: 0,
-    });
-  }
+const seedInFlight = new WeakMap<SadhanaDB, Promise<void>>();
 
-  const meta = await database.appMeta.get('meta');
-  if (!meta) {
-    await database.appMeta.add({
-      id: 'meta',
-      lastLevelUpDate: null,
-      pendingJourneyMinutes: 0,
-      recentSessionKeys: [],
-    });
-  }
+export function initDB(database: SadhanaDB = getDb()): Promise<void> {
+  // StrictMode mounts Bootstrap's effect twice in dev, so two seeds can race a
+  // freshly-wiped database: both read it as empty and both add the fixed
+  // 'profile'/'meta'/reminder keys, and the loser throws ConstraintError. Users
+  // whose storage is evicted land on that same empty-database path, so keep the
+  // check and the write atomic rather than relying on a single caller.
+  const inFlight = seedInFlight.get(database);
+  if (inFlight) return inFlight;
+  const run = seedDatabase(database).finally(() => seedInFlight.delete(database));
+  seedInFlight.set(database, run);
+  return run;
+}
 
-  const reminders = await database.reminders.count();
-  if (reminders === 0) {
-    await database.reminders.bulkAdd([
-      { id: 1, kind: 'generic', slot: 1, time: '06:00', enabled: true },
-      { id: 2, kind: 'generic', slot: 2, time: '12:00', enabled: false },
-      { id: 3, kind: 'generic', slot: 3, time: '18:00', enabled: false },
-    ]);
-  }
+async function seedDatabase(database: SadhanaDB): Promise<void> {
+  await database.transaction(
+    'rw',
+    database.profile,
+    database.appMeta,
+    database.reminders,
+    async () => {
+      if (!(await database.profile.get('profile'))) {
+        await database.profile.add({
+          id: 'profile',
+          name: '',
+          isMeditator: null,
+          drawnToType: null,
+          durationPreference: null,
+          onboardingComplete: false,
+          instanceEducationShown: false,
+          firstRecordReassuranceShown: false,
+          notificationPermissionAsked: false,
+          trackerIntroSeen: false,
+          featureDiscoveryStep: 0,
+        });
+      }
+
+      if (!(await database.appMeta.get('meta'))) {
+        await database.appMeta.add({
+          id: 'meta',
+          lastLevelUpDate: null,
+          pendingJourneyMinutes: 0,
+          recentSessionKeys: [],
+        });
+      }
+
+      if ((await database.reminders.count()) === 0) {
+        await database.reminders.bulkAdd([
+          { id: 1, kind: 'generic', slot: 1, time: '06:00', enabled: true },
+          { id: 2, kind: 'generic', slot: 2, time: '12:00', enabled: false },
+          { id: 3, kind: 'generic', slot: 3, time: '18:00', enabled: false },
+        ]);
+      }
+    },
+  );
 }
 
 const SNAPSHOT_KEY = 'sadhana_real_snapshot';

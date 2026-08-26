@@ -46,10 +46,15 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
 
   if (existing) {
     participantId = existing.id;
-    await supabase
-      .from('participants')
-      .update({ name: profile.name })
-      .eq('auth_user_id', authUserId);
+    // A device whose local database was evicted comes back with a blank profile
+    // name. Writing that over the stored copy erases the only human-readable
+    // record of whose row this is, so leave it alone until there is a real name.
+    if (profile.name) {
+      await supabase
+        .from('participants')
+        .update({ name: profile.name })
+        .eq('auth_user_id', authUserId);
+    }
     return existing.id;
   }
 
@@ -72,6 +77,123 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
   return data.id;
 }
 
+function sourceFromLogMode(mode: 'logged' | 'minutes_added' | 'guided'): PracticeLog['source'] {
+  if (mode === 'logged') return 'checkbox';
+  if (mode === 'minutes_added') return 'minutes';
+  return 'player';
+}
+
+/**
+ * Pull this participant's server-side practice history back into IndexedDB.
+ *
+ * Storage eviction wipes the local database while the practice history survives
+ * in Supabase, and nothing else in the app reads it back — hydrate() is local
+ * only and syncFullState() is upload only, so an evicted participant sees an
+ * empty app forever.
+ *
+ * Merges rather than replaces: the server stores the client-generated ids
+ * (participant_practices.id IS the local instance id, practice_completed.id IS
+ * the local log id), so bulkPut is idempotent and leaves local-only rows alone.
+ * Deletions are safe too — removePracticeInstance deletes server-side, so a
+ * synced removal cannot come back.
+ *
+ * Returns the number of rows written, 0 when there was nothing to restore.
+ */
+export async function restoreFromServer(): Promise<number> {
+  const supabase = getSupabase();
+  if (!supabase || isDemoDatabaseActive()) return 0;
+
+  const authUserId = await ensureAnonymousAuth();
+  if (!authUserId) return 0;
+
+  const { data: participant } = await supabase
+    .from('participants')
+    .select('id, name')
+    .eq('auth_user_id', authUserId)
+    .maybeSingle();
+  if (!participant) return 0;
+
+  const [remoteInstances, remoteLogs] = await Promise.all([
+    supabase
+      .from('participant_practices')
+      .select('id, practice_id, instance, created_at')
+      .eq('participant_id', participant.id)
+      .order('created_at'),
+    supabase
+      .from('practice_completed')
+      .select('id, practice_id, instance, minutes, mode, was_offline, local_date, occurred_at')
+      .eq('participant_id', participant.id),
+  ]);
+  if (remoteInstances.error || remoteLogs.error) return 0;
+
+  const db = getDb();
+  const localInstances = await db.practiceInstances.toArray();
+  const known = new Map(localInstances.map((i) => [i.id, i]));
+  // Server has no column for display order; keep whatever the device already
+  // shows and append anything it has never seen, oldest first.
+  let nextOrder = localInstances.reduce((max, i) => Math.max(max, i.order + 1), 0);
+
+  const instances: PracticeInstance[] = (remoteInstances.data ?? []).map((row) => {
+    const local = known.get(row.id);
+    return {
+      id: row.id,
+      practiceId: row.practice_id,
+      instanceNumber: row.instance as 1 | 2,
+      order: local ? local.order : nextOrder++,
+      addedAt: local ? local.addedAt : new Date(row.created_at).getTime(),
+    };
+  });
+
+  const byPractice = new Map<string, string>();
+  for (const inst of [...instances, ...localInstances]) {
+    const key = `${inst.practiceId}:${inst.instanceNumber}`;
+    if (!byPractice.has(key)) byPractice.set(key, inst.id);
+  }
+
+  let unattached = 0;
+  const logs: PracticeLog[] = [];
+  for (const row of remoteLogs.data ?? []) {
+    // practice_completed records practice_id + instance, never the instance row
+    // id, so the link has to be rebuilt. A practice removed since it was logged
+    // has nothing to hang off.
+    const instanceId = byPractice.get(`${row.practice_id}:${row.instance}`);
+    if (!instanceId) {
+      unattached += 1;
+      continue;
+    }
+    logs.push({
+      id: row.id,
+      practiceId: row.practice_id,
+      instanceId,
+      minutes: row.minutes,
+      timestamp: new Date(row.occurred_at).getTime(),
+      localDate: row.local_date,
+      source: sourceFromLogMode(row.mode as 'logged' | 'minutes_added' | 'guided'),
+      wasOffline: row.was_offline ?? false,
+    });
+  }
+
+  if (!instances.length && !logs.length) return 0;
+
+  await db.transaction('rw', db.practiceInstances, db.practiceLogs, db.profile, async () => {
+    if (instances.length) await db.practiceInstances.bulkPut(instances);
+    if (logs.length) await db.practiceLogs.bulkPut(logs);
+    const profile = await db.profile.get('profile');
+    // A restored participant is past onboarding by definition; without this the
+    // landing guard keeps routing them to /welcome on top of their own history.
+    if (profile && !profile.name && participant.name) {
+      await db.profile.update('profile', { name: participant.name, onboardingComplete: true });
+    } else if (profile && logs.length && !profile.onboardingComplete) {
+      await db.profile.update('profile', { onboardingComplete: true });
+    }
+  });
+
+  if (unattached) {
+    console.warn(`restoreFromServer: ${unattached} record(s) had no matching practice`);
+  }
+  return instances.length + logs.length;
+}
+
 export async function updateParticipantFields(
   fields: {
     platform?: string;
@@ -86,6 +208,13 @@ export async function updateParticipantFields(
   if (!supabase) return;
   const authUserId = await ensureAnonymousAuth();
   if (!authUserId) return;
+
+  // initAppLifecycle calls this before anything has queued a sync, so on a first
+  // launch the row does not exist yet and the UPDATE matches zero rows and is
+  // silently discarded — losing platform/standalone/permission for everyone who
+  // opens the app only once. Make sure the row is there first.
+  const profile = await getDb().profile.get('profile');
+  if (profile) await ensureParticipant(profile);
 
   await supabase.from('participants').update({
     platform: fields.platform,
