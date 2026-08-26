@@ -42,6 +42,10 @@ export async function syncPracticeReminders(database: SadhanaDB): Promise<Remind
         remoteId: crypto.randomUUID(),
       };
       await database.reminders.put(reminder);
+      // Dexie alone is not enough: send-reminders reads the `reminders` table,
+      // so a reminder that is never queued here simply does not exist for the
+      // server and no push is ever sent for it.
+      await queueSync({ table: 'reminders', operation: 'insert', payload: reminder });
     } else if (config.lockedTime && existing.time !== config.time) {
       const updated = { ...existing, time: config.time };
       await database.reminders.update(practiceId, { time: config.time });
