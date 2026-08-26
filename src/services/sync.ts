@@ -23,6 +23,7 @@ export interface SyncQueueItem {
 }
 
 let syncInProgress = false;
+let drainRequestedAgain = false;
 let participantId: string | null = null;
 
 function logModeFromSource(source: PracticeLog['source']): 'logged' | 'minutes_added' | 'guided' {
@@ -229,25 +230,39 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
 }
 
 export async function drainSyncQueue() {
-  if (syncInProgress || !navigator.onLine || !isSupabaseConfigured() || isDemoDatabaseActive()) return;
+  if (!navigator.onLine || !isSupabaseConfigured() || isDemoDatabaseActive()) return;
+
+  if (syncInProgress) {
+    // The running pass already took its snapshot of the queue, so whatever was
+    // just added would sit there until something else happened to trigger a
+    // drain — in practice the next launch. Ask it to go round again instead of
+    // dropping the request on the floor.
+    drainRequestedAgain = true;
+    return;
+  }
 
   syncInProgress = true;
   try {
     const db = getDb();
-    const profile = await db.profile.get('profile');
-    if (profile?.name) {
-      await ensureParticipant(profile);
-    }
+    do {
+      drainRequestedAgain = false;
 
-    const items = (await db.syncQueue.orderBy('createdAt').toArray()) as SyncQueueItem[];
-    for (const item of items) {
-      const ok = await syncItem(item);
-      if (ok) {
-        await db.syncQueue.delete(item.id);
+      const profile = await db.profile.get('profile');
+      if (profile?.name) {
+        await ensureParticipant(profile);
       }
-    }
+
+      const items = (await db.syncQueue.orderBy('createdAt').toArray()) as SyncQueueItem[];
+      for (const item of items) {
+        const ok = await syncItem(item);
+        if (ok) {
+          await db.syncQueue.delete(item.id);
+        }
+      }
+    } while (drainRequestedAgain);
   } finally {
     syncInProgress = false;
+    drainRequestedAgain = false;
   }
 }
 
