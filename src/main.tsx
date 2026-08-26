@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppRouter } from '@/app/router';
 import { useAppStore } from '@/stores/appStore';
-import { initSyncListener, syncFullState } from '@/services/sync';
+import { initSyncListener, restoreFromServer, syncFullState } from '@/services/sync';
 import { initAppLifecycle } from '@/services/appLifecycle';
 import { initDayRollover } from '@/services/dayRollover';
 import { ensureDatabasesReady, recoverFromInterruptedDemo } from '@/services/demoMode';
@@ -58,7 +58,14 @@ function Bootstrap() {
       // Auth and sync are network-bound and must never block first render —
       // the app works from local data and syncs in the background.
       initAppLifecycle()
-        .then(() => syncFullState())
+        .then(async () => {
+          // Before pushing local state up, pull down anything this device lost
+          // to storage eviction — otherwise an evicted participant uploads an
+          // empty database over a history that is still sitting in Supabase.
+          const restored = await restoreFromServer();
+          if (restored) await hydrate();
+          await syncFullState();
+        })
         .catch((err) => console.error('Background sync failed:', err));
     }
     init()
