@@ -210,24 +210,39 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   addPracticeInstance: async (practiceId) => {
     const db = getDb();
-    const { instances } = get();
-    if (instances.length >= 21) return null;
-
     const kind = getResolvedKind(practiceId);
-    const existing = instances.filter((i) => i.practiceId === practiceId);
-    if (kind === 'timed' && existing.length >= 1) return null;
-    const instanceNumber = (existing.length >= 1 ? 2 : 1) as 1 | 2;
-    if (existing.length >= 2) return null;
 
-    const instance: PracticeInstance = {
-      id: generateId(),
-      practiceId,
-      instanceNumber,
-      order: instances.length,
-      addedAt: Date.now(),
-    };
-    await db.practiceInstances.add(instance);
-    const updatedInstances = [...instances, instance];
+    // Decide the instance number from the database inside a transaction rather
+    // than from the store snapshot. Two taps in quick succession both read the
+    // same snapshot, both see no existing instance and both claim number 1;
+    // Dexie accepts the duplicate but Postgres has
+    // unique(participant_id, practice_id, instance), so the second row is
+    // rejected on every sync drain from then on and never reaches the server.
+    const instance = await db.transaction('rw', db.practiceInstances, async () => {
+      const all = await db.practiceInstances.toArray();
+      if (all.length >= 21) return null;
+
+      const existing = all.filter((i) => i.practiceId === practiceId);
+      if (kind === 'timed' && existing.length >= 1) return null;
+      if (existing.length >= 2) return null;
+
+      const taken = new Set(existing.map((i) => i.instanceNumber));
+      const instanceNumber: 1 | 2 = taken.has(1) ? 2 : 1;
+      if (taken.has(instanceNumber)) return null;
+
+      const created: PracticeInstance = {
+        id: generateId(),
+        practiceId,
+        instanceNumber,
+        order: all.length,
+        addedAt: Date.now(),
+      };
+      await db.practiceInstances.add(created);
+      return created;
+    });
+    if (!instance) return null;
+
+    const updatedInstances = await db.practiceInstances.orderBy('order').toArray();
     const reminders = await syncPracticeReminders(db);
     set({ instances: updatedInstances, reminders });
     await queueSync({ table: 'participant_practices', operation: 'insert', payload: instance });
