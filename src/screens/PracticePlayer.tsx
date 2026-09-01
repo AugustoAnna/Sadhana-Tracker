@@ -7,6 +7,12 @@ import { getResolvedKind } from '@/data/practiceAssets';
 import { getPracticeAudio } from '@/services/audio';
 import { track } from '@/services/instrumentation';
 
+const TICK_MS = 500;
+/** Wait this long between attempts to revive playback the OS suspended. */
+const RESUME_RETRY_MS = 2000;
+/** After this long without progress, finish the session on the clock instead. */
+const STALL_GIVE_UP_MS = 30000;
+
 export function PracticePlayer() {
   const navigate = useNavigate();
   const playerSession = useAppStore((s) => s.playerSession);
@@ -25,10 +31,15 @@ export function PracticePlayer() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [mode, setMode] = useState<'loading' | 'countdown' | 'manual'>('loading');
+  const [needsResume, setNeedsResume] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completedRef = useRef(false);
   const sessionKeyRef = useRef<string | null>(null);
+  const audioDrivenRef = useRef(false);
+  const userPausedRef = useRef(false);
+  const lastAdvanceRef = useRef({ time: 0, at: 0 });
+  const lastResumeAttemptRef = useRef(0);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -38,11 +49,18 @@ export function PracticePlayer() {
   }, []);
 
   const stopAudio = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.onended = null;
-      audioRef.current.ontimeupdate = null;
-      audioRef.current = null;
+    audioDrivenRef.current = false;
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.onended = null;
+      audio.removeAttribute('src');
+      audio.load();
+    }
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
     }
   }, []);
 
@@ -67,25 +85,40 @@ export function PracticePlayer() {
   const finishRef = useRef(finishAndReturn);
   finishRef.current = finishAndReturn;
 
-  const startIntervalCountdown = useCallback((durationSec: number) => {
-    setSecondsLeft(durationSec);
-    setTotalSeconds(durationSec);
-    setElapsedSeconds(0);
+  /** Count down against the wall clock so a throttled tab cannot stretch the session. */
+  const startIntervalCountdown = useCallback((remainingSec: number, totalSec = remainingSec) => {
+    setSecondsLeft(remainingSec);
+    setTotalSeconds(totalSec);
+    setElapsedSeconds(totalSec - remainingSec);
+    setNeedsResume(false);
     setMode('countdown');
 
     clearTimer();
+    const endsAt = Date.now() + remainingSec * 1000;
     timerRef.current = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          clearTimer();
-          void finishRef.current();
-          return 0;
-        }
-        setElapsedSeconds((e) => e + 1);
-        return s - 1;
-      });
-    }, 1000);
+      const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      setSecondsLeft(left);
+      setElapsedSeconds(totalSec - left);
+      if (left <= 0) {
+        clearTimer();
+        void finishRef.current();
+      }
+    }, TICK_MS);
   }, [clearTimer]);
+
+  const resumeAudio = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioDrivenRef.current) return;
+    userPausedRef.current = false;
+    lastResumeAttemptRef.current = Date.now();
+    void audio.play().then(
+      () => {
+        setNeedsResume(false);
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+      },
+      () => setNeedsResume(true),
+    );
+  }, []);
 
   useEffect(() => {
     if (!currentPractice || !currentInstance || !resolvedKind || !playerSession) return;
@@ -94,6 +127,8 @@ export function PracticePlayer() {
     if (sessionKeyRef.current === sessionKey) return;
     sessionKeyRef.current = sessionKey;
     completedRef.current = false;
+    userPausedRef.current = false;
+    setNeedsResume(false);
     setMode('loading');
 
     let cancelled = false;
@@ -103,13 +138,13 @@ export function PracticePlayer() {
         const audioUrl = await getPracticeAudio(currentInstance.practiceId);
         if (cancelled) return;
 
-        if (!audioUrl) {
+        const audio = audioRef.current;
+        if (!audioUrl || !audio) {
           setMode('manual');
           return;
         }
 
-        const audio = new Audio(audioUrl);
-        audioRef.current = audio;
+        audio.src = audioUrl;
 
         await new Promise<void>((resolve) => {
           const done = () => resolve();
@@ -136,22 +171,70 @@ export function PracticePlayer() {
           startIntervalCountdown(duration);
           return;
         }
+        if (cancelled) return;
+
+        audioDrivenRef.current = true;
+        lastAdvanceRef.current = { time: 0, at: Date.now() };
+        lastResumeAttemptRef.current = 0;
+
+        // Lock-screen controls also keep the OS treating this as an active
+        // media session, which matters across the silent stretches of a
+        // guided practice.
+        if ('mediaSession' in navigator && typeof MediaMetadata !== 'undefined') {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: currentPractice.name,
+            artist: 'Sadhana',
+          });
+          navigator.mediaSession.playbackState = 'playing';
+          navigator.mediaSession.setActionHandler('play', () => resumeAudio());
+          navigator.mediaSession.setActionHandler('pause', () => {
+            userPausedRef.current = true;
+            audioRef.current?.pause();
+            navigator.mediaSession.playbackState = 'paused';
+            setNeedsResume(true);
+          });
+        }
 
         clearTimer();
         timerRef.current = setInterval(() => {
-          if (!audioRef.current) return;
-          const a = audioRef.current;
-          const elapsed = Math.floor(a.currentTime);
-          const left = Number.isFinite(a.duration) && a.duration > 0
-            ? Math.max(0, Math.ceil(a.duration - a.currentTime))
-            : Math.max(0, duration - elapsed);
-          setSecondsLeft(left);
-          setElapsedSeconds(elapsed);
-          if (left <= 0 || a.ended) {
+          const el = audioRef.current;
+          if (!el || !audioDrivenRef.current) return;
+
+          const now = Date.now();
+          const total = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : duration;
+          const played = el.currentTime;
+
+          setSecondsLeft(Math.max(0, Math.ceil(total - played)));
+          setElapsedSeconds(Math.floor(played));
+
+          if (el.ended || total - played <= 0) {
             clearTimer();
             void finishRef.current();
+            return;
           }
-        }, 500);
+
+          if (played > lastAdvanceRef.current.time + 0.05) {
+            lastAdvanceRef.current = { time: played, at: now };
+            setNeedsResume(false);
+            return;
+          }
+
+          if (userPausedRef.current) return;
+
+          // Phones suspend media that has gone quiet or dropped into the
+          // background, and a guided practice can be silent for minutes at a
+          // time. Nudge playback back rather than freezing on a dead clock.
+          if (now - lastResumeAttemptRef.current >= RESUME_RETRY_MS) {
+            lastResumeAttemptRef.current = now;
+            void el.play().catch(() => setNeedsResume(true));
+          }
+
+          if (now - lastAdvanceRef.current.at >= STALL_GIVE_UP_MS) {
+            audioDrivenRef.current = false;
+            el.pause();
+            startIntervalCountdown(Math.max(1, Math.ceil(total - played)), Math.ceil(total));
+          }
+        }, TICK_MS);
       } else if (resolvedKind === 'timed') {
         const duration = (playerSession.timedMinutes ?? currentPractice.minutes ?? 10) * 60;
         startIntervalCountdown(duration);
@@ -176,7 +259,50 @@ export function PracticePlayer() {
     clearTimer,
     stopAudio,
     startIntervalCountdown,
+    resumeAudio,
   ]);
+
+  // Coming back to the screen is the first moment a suspended element can be
+  // revived, so retry there instead of waiting for the next tick.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (audioDrivenRef.current && !userPausedRef.current && audioRef.current?.paused) {
+        resumeAudio();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [resumeAudio]);
+
+  // Keeping the screen awake avoids the lock that suspends playback to begin with.
+  useEffect(() => {
+    if (mode !== 'countdown' || !('wakeLock' in navigator)) return;
+
+    let sentinel: WakeLockSentinel | null = null;
+    let dropped = false;
+
+    const acquire = () => {
+      navigator.wakeLock.request('screen').then(
+        (lock) => {
+          if (dropped) void lock.release().catch(() => {});
+          else sentinel = lock;
+        },
+        () => {},
+      );
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !dropped) acquire();
+    };
+
+    acquire();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      dropped = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      void sentinel?.release().catch(() => {});
+    };
+  }, [mode]);
 
   if (!playerSession || !currentPractice || !currentInstance) {
     return null;
@@ -206,6 +332,8 @@ export function PracticePlayer() {
         background: 'radial-gradient(ellipse at center, #A88B34 0%, #7D6528 100%)',
       }}
     >
+      <audio ref={audioRef} className="hidden" preload="auto" playsInline />
+
       <div className="flex items-center justify-between px-4 pt-8 pb-2">
         <button
           onClick={() => setLeaveOpen(true)}
@@ -229,9 +357,20 @@ export function PracticePlayer() {
           />
         </div>
 
-        <div className="shrink-0 w-full flex flex-col items-center min-h-[44px]">
+        <div className="shrink-0 w-full flex flex-col items-center gap-4 min-h-[44px]">
           {mode === 'countdown' && (
             <p className="text-[28px] tabular-nums font-medium">{formatTime(secondsLeft)}</p>
+          )}
+          {mode === 'countdown' && needsResume && (
+            <button
+              onClick={resumeAudio}
+              className="px-8 py-3 rounded-xl bg-white/20 font-semibold min-h-11 text-lg flex items-center gap-2"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              Resume
+            </button>
           )}
           {mode === 'manual' && (
             <button
