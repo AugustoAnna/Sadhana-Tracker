@@ -5,6 +5,7 @@ import { useAppStore } from '@/stores/appStore';
 import { initSyncListener, restoreFromServer, syncFullState } from '@/services/sync';
 import { initAppLifecycle } from '@/services/appLifecycle';
 import { initDayRollover } from '@/services/dayRollover';
+import { initServiceWorkerUpdates } from '@/services/swUpdate';
 import { ensureDatabasesReady, recoverFromInterruptedDemo } from '@/services/demoMode';
 import { track } from '@/services/instrumentation';
 import './index.css';
@@ -13,20 +14,9 @@ import { registerSW } from 'virtual:pwa-register';
 
 registerSW({ immediate: true });
 
-if ('serviceWorker' in navigator) {
-  // When an updated worker takes control mid-session this page is still
-  // running the previous bundle — reload once so it picks up the new one.
-  // Skipped on first-ever install (no prior controller): the page already
-  // came from the network.
-  let hadController = Boolean(navigator.serviceWorker.controller);
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController) {
-      hadController = true;
-      return;
-    }
-    window.location.reload();
-  });
+initServiceWorkerUpdates();
 
+if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data?.type === 'REMINDER_DELIVERED') {
       track('reminder_delivered', {
