@@ -1,5 +1,6 @@
 import {
   startOfMonth, getDaysInMonth, format, isAfter, isBefore, parseISO,
+  addMonths, differenceInCalendarMonths, isSameYear,
 } from 'date-fns';
 import type { PracticeLog } from '@/types';
 import { getHeatMapColor } from '@/data/constants';
@@ -29,6 +30,8 @@ export interface CalendarCell {
 }
 
 export interface MonthCalendarData {
+  /** `yyyy-MM` — stable key for the month block. */
+  monthKey: string;
   monthLabel: string;
   columns: number;
   cells: CalendarCell[];
@@ -52,10 +55,19 @@ function getFirstTrackingDate(logs: PracticeLog[]): string | null {
   return dates[0] ?? null;
 }
 
-/** E1 — month grid with column = calendar week within month. */
-export function buildMonthCalendar(logs: PracticeLog[], now = new Date()): MonthCalendarData {
-  const monthStart = startOfMonth(now);
-  const daysInMonth = getDaysInMonth(now);
+/**
+ * E1 — month grid with column = calendar week within month.
+ *
+ * `monthDate` picks which month to lay out; `now` stays the reference point for
+ * "today" and "not yet arrived", so past months render fully elapsed.
+ */
+export function buildMonthCalendar(
+  logs: PracticeLog[],
+  monthDate: Date = new Date(),
+  now: Date = new Date(),
+): MonthCalendarData {
+  const monthStart = startOfMonth(monthDate);
+  const daysInMonth = getDaysInMonth(monthStart);
   const firstWeekday = mondayZeroWeekday(monthStart);
   const today = todayKey();
   const firstTracking = getFirstTrackingDate(logs);
@@ -68,7 +80,7 @@ export function buildMonthCalendar(logs: PracticeLog[], now = new Date()): Month
     const row = (date - 1 + firstWeekday) % 7;
     maxColumn = Math.max(maxColumn, column);
 
-    const dateObj = new Date(now.getFullYear(), now.getMonth(), date);
+    const dateObj = new Date(monthStart.getFullYear(), monthStart.getMonth(), date);
     const dateKey = formatDateKey(dateObj);
 
     const isToday = dateKey === today;
@@ -107,11 +119,27 @@ export function buildMonthCalendar(logs: PracticeLog[], now = new Date()): Month
   }
 
   return {
-    monthLabel: format(now, 'MMMM'),
+    monthKey: format(monthStart, 'yyyy-MM'),
+    // Years only earn a label once the strip reaches back past January.
+    monthLabel: format(monthStart, isSameYear(monthStart, now) ? 'MMMM' : 'MMMM yyyy'),
     columns: maxColumn + 1,
     cells,
     firstTrackingDate: firstTracking,
   };
+}
+
+/**
+ * Every month from the first tracked day through the current one, oldest first.
+ * With no logs yet this is just the current month.
+ */
+export function buildCalendarMonths(logs: PracticeLog[], now = new Date()): MonthCalendarData[] {
+  const currentMonth = startOfMonth(now);
+  const firstTracking = getFirstTrackingDate(logs);
+  const firstMonth = firstTracking ? startOfMonth(parseISO(firstTracking)) : currentMonth;
+  const startMonth = isBefore(firstMonth, currentMonth) ? firstMonth : currentMonth;
+  const count = differenceInCalendarMonths(currentMonth, startMonth) + 1;
+
+  return Array.from({ length: count }, (_, i) => buildMonthCalendar(logs, addMonths(startMonth, i), now));
 }
 
 export const HEAT_BAND_COLORS = [
