@@ -150,6 +150,9 @@ export const HEAT_BAND_COLORS = HEAT_MAP_COLORS
   .filter((b) => !b.empty)
   .map((b) => b.color);
 
+/** Legend end label, read off the top band so it cannot outlive a band change. */
+export const HEAT_TOP_BAND_LABEL = `${HEAT_MAP_COLORS[HEAT_MAP_COLORS.length - 1].min}+ mins`;
+
 export function cellAccessibleName(cell: CalendarCell): string {
   if (cell.state === 'future') return `${cell.date}: not yet arrived`;
   if (cell.state === 'before-tracking') return `${cell.date}: before tracking began`;

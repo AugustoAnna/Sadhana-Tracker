@@ -10,6 +10,7 @@ import {
   CALENDAR_MONTH_GAP_PX,
   COLOR_TODAY_RING,
   HEAT_BAND_COLORS,
+  HEAT_TOP_BAND_LABEL,
   cellAccessibleName,
   type MonthCalendarData,
 } from '@/utils/monthCalendar';
@@ -139,7 +140,7 @@ export function PracticeCalendar({ logs }: PracticeCalendarProps) {
             <div key={i} className="flex-1 h-full" style={{ backgroundColor: color }} />
           ))}
         </div>
-        <span className="text-meta text-secondary">240+ mins</span>
+        <span className="text-meta text-secondary">{HEAT_TOP_BAND_LABEL}</span>
       </div>
     </div>
   );
