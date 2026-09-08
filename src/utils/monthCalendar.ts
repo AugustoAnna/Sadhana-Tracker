@@ -17,7 +17,7 @@ export const CALENDAR_MONTH_GAP_PX = 40;
 export const COLOR_NOT_YET = '#EDE5D6';         // beige
 export const COLOR_BEFORE_TRACKING = '#E4DBCA'; // travertine
 export const COLOR_NO_PRACTICE = '#DCD3C0';     // col_bone
-export const COLOR_TODAY_RING = '#20A1AA';      // teal
+export const COLOR_TODAY_RING = '#FFBD31';      // accent — teal now sits inside the ramp
 
 export type CellState = 'future' | 'before-tracking' | 'no-practice' | 'practiced';
 
