@@ -3,7 +3,7 @@ import {
   addMonths, differenceInCalendarMonths, isSameYear,
 } from 'date-fns';
 import type { PracticeLog } from '@/types';
-import { getHeatMapColor } from '@/data/constants';
+import { getHeatMapColor, HEAT_MAP_COLORS } from '@/data/constants';
 import { formatDateKey, todayKey } from './dates';
 
 export const CALENDAR_CELL_PX = 26;
@@ -11,10 +11,13 @@ export const CALENDAR_GAP_PX = 5;
 export const CALENDAR_GUTTER_PX = 18;
 export const CALENDAR_MONTH_GAP_PX = 40;
 
-export const COLOR_NOT_YET = '#EEE9DE';
-export const COLOR_BEFORE_TRACKING = '#E4DDD0';
-export const COLOR_NO_PRACTICE = '#D5CCBA';
-export const COLOR_TODAY_RING = 'var(--color-primary)';
+// Neutral states, from the official Sadhguru app palette: beige, travertine and
+// col_bone. They step down in lightness the way the states step toward "counted",
+// and all three stay lighter than the lightest heat band.
+export const COLOR_NOT_YET = '#EDE5D6';         // beige
+export const COLOR_BEFORE_TRACKING = '#E4DBCA'; // travertine
+export const COLOR_NO_PRACTICE = '#DCD3C0';     // col_bone
+export const COLOR_TODAY_RING = '#20A1AA';      // teal
 
 export type CellState = 'future' | 'before-tracking' | 'no-practice' | 'practiced';
 
@@ -142,10 +145,10 @@ export function buildCalendarMonths(logs: PracticeLog[], now = new Date()): Mont
   return Array.from({ length: count }, (_, i) => buildMonthCalendar(logs, addMonths(startMonth, i), now));
 }
 
-export const HEAT_BAND_COLORS = [
-  '#FBDFB2', '#F9D08F', '#F7BF6E', '#F4AD4E', '#F09A32', '#E8871F',
-  '#DC7317', '#CC5F12', '#B94D0F', '#A33C0D', '#8A2C0B', '#6E1D08',
-];
+/** Legend gradient — the cell bands themselves, so the two can never drift apart. */
+export const HEAT_BAND_COLORS = HEAT_MAP_COLORS
+  .filter((b) => !b.empty)
+  .map((b) => b.color);
 
 export function cellAccessibleName(cell: CalendarCell): string {
   if (cell.state === 'future') return `${cell.date}: not yet arrived`;
