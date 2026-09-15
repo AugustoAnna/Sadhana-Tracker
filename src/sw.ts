@@ -51,7 +51,7 @@ function scheduleOne(reminder: ScheduledReminder) {
       body,
       icon: '/icons/icon-192.png',
       tag: `reminder-${key}`,
-      data: { slot: reminder.slot, kind: reminder.kind, deliveredAt: Date.now() },
+      data: { slot: reminder.slot, kind: reminder.kind, deliveredAt: Date.now(), url: '/' },
     });
     scheduleOne(reminder);
   }, delay);
@@ -71,22 +71,31 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const data = event.notification.data as { deliveredAt?: number; slot?: number; kind?: string };
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      if (clients[0]) {
-        clients[0].focus();
-        clients[0].postMessage({
-          type: 'REMINDER_TAPPED',
-          slot: data?.slot ?? null,
-          kind: data?.kind ?? 'generic',
-          minutes_since_delivered: data?.deliveredAt
-            ? Math.round((Date.now() - data.deliveredAt) / 60000)
-            : 0,
-        });
-      }
-    }),
-  );
+  const data = event.notification.data as {
+    deliveredAt?: number;
+    slot?: number;
+    kind?: string;
+    url?: string;
+  };
+
+  event.waitUntil((async () => {
+    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const appClient = allClients.find((client) => client.url.startsWith(self.location.origin));
+    const targetClient = appClient
+      ? await appClient.focus()
+      : await self.clients.openWindow(data?.url ?? '/');
+
+    if (targetClient) {
+      targetClient.postMessage({
+        type: 'REMINDER_TAPPED',
+        slot: data?.slot ?? null,
+        kind: data?.kind ?? 'generic',
+        minutes_since_delivered: data?.deliveredAt
+          ? Math.round((Date.now() - data.deliveredAt) / 60000)
+          : 0,
+      });
+    }
+  })());
 });
 
 self.addEventListener('push', (event) => {
@@ -96,7 +105,12 @@ self.addEventListener('push', (event) => {
       body: data.body ?? 'Your practice reminder is here.',
       icon: '/icons/icon-192.png',
       tag: data.tag ?? 'reminder-push',
-      data: { slot: data.slot ?? null, kind: data.kind ?? 'generic', deliveredAt: Date.now() },
+      data: {
+        slot: data.slot ?? null,
+        kind: data.kind ?? 'generic',
+        deliveredAt: Date.now(),
+        url: typeof data.url === 'string' ? data.url : '/',
+      },
     }).then(() => {
       self.clients.matchAll().then((clients) => {
         for (const client of clients) {
