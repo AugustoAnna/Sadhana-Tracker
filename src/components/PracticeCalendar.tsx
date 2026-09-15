@@ -1,15 +1,18 @@
-import { useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { PracticeLog } from '@/types';
 import { useAppStore } from '@/stores/appStore';
 import { getTotalDaysPracticed, getTotalMinutes, getCurrentStreak } from '@/utils/dates';
 import {
-  buildMonthCalendar,
+  buildCalendarMonths,
   CALENDAR_CELL_PX,
   CALENDAR_GAP_PX,
   CALENDAR_GUTTER_PX,
+  CALENDAR_MONTH_GAP_PX,
   COLOR_TODAY_RING,
   HEAT_BAND_COLORS,
+  HEAT_TOP_BAND_LABEL,
   cellAccessibleName,
+  type MonthCalendarData,
 } from '@/utils/monthCalendar';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -21,45 +24,85 @@ interface PracticeCalendarProps {
   logs: PracticeLog[];
 }
 
+function MonthBlock({ month }: { month: MonthCalendarData }) {
+  const gridCols = month.columns;
+  const gridWidth = gridCols * CALENDAR_CELL_PX + (gridCols - 1) * CALENDAR_GAP_PX;
+
+  return (
+    <div style={{ width: gridWidth, flex: '0 0 auto' }}>
+      <p
+        className="text-[15px] font-semibold text-[#1C1C1C] whitespace-nowrap"
+        style={{ height: LABEL_ROW_HEIGHT, lineHeight: `${LABEL_ROW_HEIGHT}px` }}
+      >
+        {month.monthLabel}
+      </p>
+
+      <div
+        role="grid"
+        aria-label={`${month.monthLabel} practice calendar`}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${gridCols}, ${CALENDAR_CELL_PX}px)`,
+          gridTemplateRows: `repeat(7, ${CALENDAR_CELL_PX}px)`,
+          columnGap: CALENDAR_GAP_PX,
+          rowGap: CALENDAR_GAP_PX,
+          marginTop: CALENDAR_GAP_PX,
+        }}
+      >
+        {month.cells.map((cell) => (
+          <div
+            key={cell.date}
+            role="gridcell"
+            aria-label={cellAccessibleName(cell)}
+            className="rounded-[6px]"
+            style={{
+              gridColumn: cell.column + 1,
+              gridRow: cell.row + 1,
+              backgroundColor: cell.fill,
+              boxShadow: cell.isToday ? `inset 0 0 0 2px ${COLOR_TODAY_RING}` : undefined,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function PracticeCalendar({ logs }: PracticeCalendarProps) {
   // currentDay is a dependency, not an input: the grid has to be rebuilt when
   // the calendar day rolls over so today's ring and heat move with it.
   const currentDay = useAppStore((s) => s.currentDay);
-  const data = useMemo(() => buildMonthCalendar(logs), [logs, currentDay]);
-  const gridCols = data.columns;
-  const gridWidth = gridCols * CALENDAR_CELL_PX + (gridCols - 1) * CALENDAR_GAP_PX;
+  const months = useMemo(() => buildCalendarMonths(logs), [logs, currentDay]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Past months live to the left, so the strip opens pinned to the current one.
+  const pinnedToEnd = useRef(true);
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !pinnedToEnd.current) return;
+    el.scrollLeft = el.scrollWidth;
+  }, [months.length]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      pinnedToEnd.current = el.scrollWidth - el.clientWidth - el.scrollLeft < CALENDAR_CELL_PX;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
     <div className="mt-2 pb-1">
-      <div
-        className="overflow-x-auto overflow-y-visible no-scrollbar"
-        role="grid"
-        tabIndex={0}
-        aria-label={`${data.monthLabel} practice calendar`}
-      >
-        <div style={{ width: CALENDAR_GUTTER_PX + CALENDAR_GAP_PX + gridWidth, minHeight: TOTAL_HEIGHT }}>
+      <div className="flex" style={{ minHeight: TOTAL_HEIGHT }}>
+        <div style={{ flex: '0 0 auto', width: CALENDAR_GUTTER_PX, marginRight: CALENDAR_GAP_PX }}>
+          <div style={{ height: LABEL_ROW_HEIGHT }} />
           <div
+            aria-hidden="true"
             style={{
               display: 'grid',
-              gridTemplateColumns: `${CALENDAR_GUTTER_PX}px ${gridWidth}px`,
-              columnGap: CALENDAR_GAP_PX,
-            }}
-          >
-            <div />
-            <p
-              className="text-[15px] font-semibold text-[#1C1C1C]"
-              style={{ height: LABEL_ROW_HEIGHT, lineHeight: `${LABEL_ROW_HEIGHT}px` }}
-            >
-              {data.monthLabel}
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `${CALENDAR_GUTTER_PX}px repeat(${gridCols}, ${CALENDAR_CELL_PX}px)`,
               gridTemplateRows: `repeat(7, ${CALENDAR_CELL_PX}px)`,
-              columnGap: CALENDAR_GAP_PX,
               rowGap: CALENDAR_GAP_PX,
               marginTop: CALENDAR_GAP_PX,
             }}
@@ -68,25 +111,23 @@ export function PracticeCalendar({ logs }: PracticeCalendarProps) {
               <span
                 key={`label-${row}`}
                 className="text-[13px] font-medium text-[#1C1C1C] flex items-center justify-center"
-                style={{ gridColumn: 1, gridRow: row + 1 }}
               >
                 {label}
               </span>
             ))}
+          </div>
+        </div>
 
-            {data.cells.map((cell) => (
-              <div
-                key={cell.date}
-                role="gridcell"
-                aria-label={cellAccessibleName(cell)}
-                className="rounded-[6px]"
-                style={{
-                  gridColumn: cell.column + 2,
-                  gridRow: cell.row + 1,
-                  backgroundColor: cell.fill,
-                  boxShadow: cell.isToday ? `inset 0 0 0 2px ${COLOR_TODAY_RING}` : undefined,
-                }}
-              />
+        <div
+          ref={scrollRef}
+          className="flex-1 min-w-0 overflow-x-auto overflow-y-visible no-scrollbar"
+          tabIndex={0}
+          role="group"
+          aria-label="Practice calendar, scroll left for earlier months"
+        >
+          <div className="flex" style={{ gap: CALENDAR_MONTH_GAP_PX, width: 'max-content' }}>
+            {months.map((month) => (
+              <MonthBlock key={month.monthKey} month={month} />
             ))}
           </div>
         </div>
@@ -99,7 +140,7 @@ export function PracticeCalendar({ logs }: PracticeCalendarProps) {
             <div key={i} className="flex-1 h-full" style={{ backgroundColor: color }} />
           ))}
         </div>
-        <span className="text-meta text-secondary">240+ mins</span>
+        <span className="text-meta text-secondary">{HEAT_TOP_BAND_LABEL}</span>
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
 import {
   startOfMonth, getDaysInMonth, format, isAfter, isBefore, parseISO,
+  addMonths, differenceInCalendarMonths, isSameYear,
 } from 'date-fns';
 import type { PracticeLog } from '@/types';
-import { getHeatMapColor } from '@/data/constants';
+import { getHeatMapColor, HEAT_MAP_COLORS } from '@/data/constants';
 import { formatDateKey, todayKey } from './dates';
 
 export const CALENDAR_CELL_PX = 26;
@@ -10,10 +11,13 @@ export const CALENDAR_GAP_PX = 5;
 export const CALENDAR_GUTTER_PX = 18;
 export const CALENDAR_MONTH_GAP_PX = 40;
 
-export const COLOR_NOT_YET = '#EEE9DE';
-export const COLOR_BEFORE_TRACKING = '#E4DDD0';
-export const COLOR_NO_PRACTICE = '#D5CCBA';
-export const COLOR_TODAY_RING = 'var(--color-primary)';
+// Neutral states, from the official Sadhguru app palette: beige, travertine and
+// col_bone. They step down in lightness the way the states step toward "counted",
+// and all three stay lighter than the lightest heat band.
+export const COLOR_NOT_YET = '#EDE5D6';         // beige
+export const COLOR_BEFORE_TRACKING = '#E4DBCA'; // travertine
+export const COLOR_NO_PRACTICE = '#DCD3C0';     // col_bone
+export const COLOR_TODAY_RING = '#FFBD31';      // accent — teal now sits inside the ramp
 
 export type CellState = 'future' | 'before-tracking' | 'no-practice' | 'practiced';
 
@@ -29,6 +33,8 @@ export interface CalendarCell {
 }
 
 export interface MonthCalendarData {
+  /** `yyyy-MM` — stable key for the month block. */
+  monthKey: string;
   monthLabel: string;
   columns: number;
   cells: CalendarCell[];
@@ -52,10 +58,19 @@ function getFirstTrackingDate(logs: PracticeLog[]): string | null {
   return dates[0] ?? null;
 }
 
-/** E1 — month grid with column = calendar week within month. */
-export function buildMonthCalendar(logs: PracticeLog[], now = new Date()): MonthCalendarData {
-  const monthStart = startOfMonth(now);
-  const daysInMonth = getDaysInMonth(now);
+/**
+ * E1 — month grid with column = calendar week within month.
+ *
+ * `monthDate` picks which month to lay out; `now` stays the reference point for
+ * "today" and "not yet arrived", so past months render fully elapsed.
+ */
+export function buildMonthCalendar(
+  logs: PracticeLog[],
+  monthDate: Date = new Date(),
+  now: Date = new Date(),
+): MonthCalendarData {
+  const monthStart = startOfMonth(monthDate);
+  const daysInMonth = getDaysInMonth(monthStart);
   const firstWeekday = mondayZeroWeekday(monthStart);
   const today = todayKey();
   const firstTracking = getFirstTrackingDate(logs);
@@ -68,7 +83,7 @@ export function buildMonthCalendar(logs: PracticeLog[], now = new Date()): Month
     const row = (date - 1 + firstWeekday) % 7;
     maxColumn = Math.max(maxColumn, column);
 
-    const dateObj = new Date(now.getFullYear(), now.getMonth(), date);
+    const dateObj = new Date(monthStart.getFullYear(), monthStart.getMonth(), date);
     const dateKey = formatDateKey(dateObj);
 
     const isToday = dateKey === today;
@@ -107,17 +122,36 @@ export function buildMonthCalendar(logs: PracticeLog[], now = new Date()): Month
   }
 
   return {
-    monthLabel: format(now, 'MMMM'),
+    monthKey: format(monthStart, 'yyyy-MM'),
+    // Years only earn a label once the strip reaches back past January.
+    monthLabel: format(monthStart, isSameYear(monthStart, now) ? 'MMMM' : 'MMMM yyyy'),
     columns: maxColumn + 1,
     cells,
     firstTrackingDate: firstTracking,
   };
 }
 
-export const HEAT_BAND_COLORS = [
-  '#FBDFB2', '#F9D08F', '#F7BF6E', '#F4AD4E', '#F09A32', '#E8871F',
-  '#DC7317', '#CC5F12', '#B94D0F', '#A33C0D', '#8A2C0B', '#6E1D08',
-];
+/**
+ * Every month from the first tracked day through the current one, oldest first.
+ * With no logs yet this is just the current month.
+ */
+export function buildCalendarMonths(logs: PracticeLog[], now = new Date()): MonthCalendarData[] {
+  const currentMonth = startOfMonth(now);
+  const firstTracking = getFirstTrackingDate(logs);
+  const firstMonth = firstTracking ? startOfMonth(parseISO(firstTracking)) : currentMonth;
+  const startMonth = isBefore(firstMonth, currentMonth) ? firstMonth : currentMonth;
+  const count = differenceInCalendarMonths(currentMonth, startMonth) + 1;
+
+  return Array.from({ length: count }, (_, i) => buildMonthCalendar(logs, addMonths(startMonth, i), now));
+}
+
+/** Legend gradient — the cell bands themselves, so the two can never drift apart. */
+export const HEAT_BAND_COLORS = HEAT_MAP_COLORS
+  .filter((b) => !b.empty)
+  .map((b) => b.color);
+
+/** Legend end label, read off the top band so it cannot outlive a band change. */
+export const HEAT_TOP_BAND_LABEL = `${HEAT_MAP_COLORS[HEAT_MAP_COLORS.length - 1].min}+ mins`;
 
 export function cellAccessibleName(cell: CalendarCell): string {
   if (cell.state === 'future') return `${cell.date}: not yet arrived`;
