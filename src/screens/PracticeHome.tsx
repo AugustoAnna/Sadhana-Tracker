@@ -13,6 +13,7 @@ import {
 } from '@/utils/dates';
 import { sortTrackingInstances } from '@/utils/sortInstances';
 import { useHaptic } from '@/hooks';
+import { COPY } from '@/copy/strings';
 import { track } from '@/services/instrumentation';
 
 export function PracticeHome() {
@@ -23,6 +24,7 @@ export function PracticeHome() {
   const setPlayerSession = useAppStore((s) => s.setPlayerSession);
   const profile = useAppStore((s) => s.profile);
   const markFirstRecordReassuranceShown = useAppStore((s) => s.markFirstRecordReassuranceShown);
+  const playerSession = useAppStore((s) => s.playerSession);
   const haptic = useHaptic();
 
   const [minuteSheet, setMinuteSheet] = useState<string | null>(null);
@@ -120,7 +122,7 @@ export function PracticeHome() {
 
   return (
     <div className="h-full overflow-y-auto pb-8 bg-page">
-      <BackHeader dark title="Practices" hideBack rightAction={bellAction} />
+      <BackHeader dark title={COPY.tracker.header.title} hideBack rightAction={bellAction} />
 
       <div className="px-4">
         <section className="mt-5">
@@ -172,6 +174,7 @@ export function PracticeHome() {
                   onCheckbox={() => handleCheckbox(inst.id)}
                   onPlus={() => openMinuteSheet(inst.id, 'log')}
                   onPlay={() => handlePlay(inst.id)}
+                  playSessionActive={playerSession?.practiceInstanceIds[0] === inst.id}
                 />
               ))}
             </div>

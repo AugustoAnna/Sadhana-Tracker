@@ -1,6 +1,6 @@
 import { format, parseISO, startOfWeek, endOfWeek, eachDayOfInterval, isBefore, subWeeks } from 'date-fns';
 import type { PracticeLog } from '@/types';
-import { getHeatMapColor } from '@/data/constants';
+import { getHeatMapColor } from '@/data/heatmap';
 import { formatDateKey } from './dates';
 
 export interface WeekProgressDay {

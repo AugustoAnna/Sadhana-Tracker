@@ -15,6 +15,7 @@ interface PracticeCardProps {
   onPlay?: () => void;
   onAdd?: () => void;
   showAdd?: boolean;
+  playSessionActive?: boolean;
 }
 
 function formatDuration(minutes: number | null): string {
@@ -33,6 +34,7 @@ export function PracticeCard({
   onPlay,
   onAdd,
   showAdd,
+  playSessionActive = false,
 }: PracticeCardProps) {
   const practice = getPractice(instance.practiceId);
   if (!practice) return null;
@@ -98,7 +100,7 @@ export function PracticeCard({
       {(kind === 'guided' || kind === 'timed') && onPlay && (
         <button
           onClick={onPlay}
-          disabled={completed}
+          disabled={playSessionActive}
           className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 disabled:opacity-30"
           aria-label="Play"
         >
