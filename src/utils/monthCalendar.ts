@@ -3,13 +3,13 @@ import {
   addMonths, differenceInCalendarMonths, isSameYear,
 } from 'date-fns';
 import type { PracticeLog } from '@/types';
-import { getHeatMapColor, HEAT_MAP_COLORS } from '@/data/constants';
+import { heatmapColor } from '@/data/heatmap';
 import { formatDateKey, todayKey } from './dates';
 
 export const CALENDAR_CELL_PX = 26;
 export const CALENDAR_GAP_PX = 5;
 export const CALENDAR_GUTTER_PX = 18;
-export const CALENDAR_MONTH_GAP_PX = 40;
+export const CALENDAR_MONTH_GAP_PX = 6;
 
 // Neutral states, from the official Sadhguru app palette: beige, travertine and
 // col_bone. They step down in lightness the way the states step toward "counted",
@@ -17,7 +17,9 @@ export const CALENDAR_MONTH_GAP_PX = 40;
 export const COLOR_NOT_YET = '#EDE5D6';         // beige
 export const COLOR_BEFORE_TRACKING = '#E4DBCA'; // travertine
 export const COLOR_NO_PRACTICE = '#DCD3C0';     // col_bone
-export const COLOR_TODAY_RING = '#FFBD31';      // accent — teal now sits inside the ramp
+// Hardcoded rather than var(--color-primary): that token is teal, which sits
+// inside the green heatmap ramp and would make the today-ring hard to spot.
+export const COLOR_TODAY_RING = '#FFBD31';
 
 export type CellState = 'future' | 'before-tracking' | 'no-practice' | 'practiced';
 
@@ -88,25 +90,22 @@ export function buildMonthCalendar(
 
     const isToday = dateKey === today;
     const isFuture = isAfter(dateObj, now);
+    const minutes = minutesForDate(logs, dateKey);
 
     let state: CellState;
     let fill: string;
-
     if (isFuture) {
       state = 'future';
       fill = COLOR_NOT_YET;
-    } else if (firstTracking && isBefore(dateObj, parseISO(firstTracking))) {
+    } else if (firstTracking && dateKey < firstTracking) {
       state = 'before-tracking';
       fill = COLOR_BEFORE_TRACKING;
+    } else if (minutes > 0) {
+      state = 'practiced';
+      fill = heatmapColor(minutes);
     } else {
-      const minutes = minutesForDate(logs, dateKey);
-      if (minutes > 0) {
-        state = 'practiced';
-        fill = getHeatMapColor(minutes).color;
-      } else {
-        state = 'no-practice';
-        fill = COLOR_NO_PRACTICE;
-      }
+      state = 'no-practice';
+      fill = COLOR_NO_PRACTICE;
     }
 
     cells.push({
@@ -115,7 +114,7 @@ export function buildMonthCalendar(
       row,
       column,
       state,
-      minutes: minutesForDate(logs, dateKey),
+      minutes,
       fill,
       isToday,
     });
@@ -144,14 +143,6 @@ export function buildCalendarMonths(logs: PracticeLog[], now = new Date()): Mont
 
   return Array.from({ length: count }, (_, i) => buildMonthCalendar(logs, addMonths(startMonth, i), now));
 }
-
-/** Legend gradient — the cell bands themselves, so the two can never drift apart. */
-export const HEAT_BAND_COLORS = HEAT_MAP_COLORS
-  .filter((b) => !b.empty)
-  .map((b) => b.color);
-
-/** Legend end label, read off the top band so it cannot outlive a band change. */
-export const HEAT_TOP_BAND_LABEL = `${HEAT_MAP_COLORS[HEAT_MAP_COLORS.length - 1].min}+ mins`;
 
 export function cellAccessibleName(cell: CalendarCell): string {
   if (cell.state === 'future') return `${cell.date}: not yet arrived`;

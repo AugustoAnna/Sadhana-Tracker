@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { PracticeLog } from '@/types';
 import { useAppStore } from '@/stores/appStore';
+import { COPY } from '@/copy/strings';
+import { HEATMAP_SHADES } from '@/data/heatmap';
 import { getTotalDaysPracticed, getTotalMinutes, getCurrentStreak } from '@/utils/dates';
 import {
   buildCalendarMonths,
@@ -9,8 +11,6 @@ import {
   CALENDAR_GUTTER_PX,
   CALENDAR_MONTH_GAP_PX,
   COLOR_TODAY_RING,
-  HEAT_BAND_COLORS,
-  HEAT_TOP_BAND_LABEL,
   cellAccessibleName,
   type MonthCalendarData,
 } from '@/utils/monthCalendar';
@@ -134,13 +134,17 @@ export function PracticeCalendar({ logs }: PracticeCalendarProps) {
       </div>
 
       <div className="mt-4 flex items-center gap-2">
-        <span className="text-meta text-secondary">0 mins</span>
-        <div className="flex flex-1 h-2 rounded overflow-hidden">
-          {HEAT_BAND_COLORS.map((color, i) => (
-            <div key={i} className="flex-1 h-full" style={{ backgroundColor: color }} />
+        <span className="text-meta text-secondary">{COPY.progress.legend.less}</span>
+        <div className="flex flex-1 gap-[2px]" style={{ height: 12 }}>
+          {HEATMAP_SHADES.map((color, i) => (
+            <div
+              key={i}
+              className="flex-1"
+              style={{ backgroundColor: color, borderRadius: 2, height: 12 }}
+            />
           ))}
         </div>
-        <span className="text-meta text-secondary">{HEAT_TOP_BAND_LABEL}</span>
+        <span className="text-meta text-secondary">{COPY.progress.legend.more}</span>
       </div>
     </div>
   );
