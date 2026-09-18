@@ -8,6 +8,7 @@ import { useAppStore } from '@/stores/appStore';
 import {
   PRACTICES, COMMONLY_PRACTICED_IDS, MAX_PRACTICE_INSTANCES, getPractice,
 } from '@/data/catalogue';
+import { getResolvedKind } from '@/data/practiceAssets';
 
 function OtherSectionHeader({
   title,
@@ -124,6 +125,7 @@ export function EditPractices() {
                 name={p.name}
                 instanceCount={getInstanceCount(p.id)}
                 atCap={atCap}
+                isTimed={getResolvedKind(p.id) === 'timed'}
                 onToggle={() => handleTogglePractice(p.id)}
                 onSelectCount={(n) => handleChipSelect(p.id, n)}
               />
@@ -146,6 +148,7 @@ export function EditPractices() {
                   name={p.name}
                   instanceCount={getInstanceCount(p.id)}
                   atCap={atCap}
+                  isTimed={getResolvedKind(p.id) === 'timed'}
                   onToggle={() => handleTogglePractice(p.id)}
                   onSelectCount={(n) => handleChipSelect(p.id, n)}
                 />
@@ -175,6 +178,7 @@ function SetupPracticeRow({
   name,
   instanceCount,
   atCap,
+  isTimed,
   onToggle,
   onSelectCount,
 }: {
@@ -182,6 +186,7 @@ function SetupPracticeRow({
   name: string;
   instanceCount: number;
   atCap: boolean;
+  isTimed: boolean;
   onToggle: () => void;
   onSelectCount: (count: 1 | 2) => void;
 }) {
@@ -193,7 +198,7 @@ function SetupPracticeRow({
       <PracticeIllustration practiceId={practiceId} size={40} />
       <div className="flex-1 min-w-0">
         <p className="text-body truncate">{name}</p>
-        {added && (
+        {added && !isTimed && (
           <div className="flex gap-2 mt-2">
             <ChipButton
               label={COPY.setup.chip.once}
