@@ -1,5 +1,3 @@
-import { useEffect, useRef, useState } from 'react';
-
 interface ConfirmFooterProps {
   count: number;
   label?: string;
@@ -7,31 +5,9 @@ interface ConfirmFooterProps {
   onClick: () => void;
 }
 
-export function ConfirmFooter({ count, label = 'Save', disabled, onClick }: ConfirmFooterProps) {
-  const prevCount = useRef(count);
-  const [pulse, setPulse] = useState(false);
-
-  useEffect(() => {
-    if (count > prevCount.current) {
-      setPulse(true);
-      const t = setTimeout(() => setPulse(false), 600);
-      prevCount.current = count;
-      return () => clearTimeout(t);
-    }
-    prevCount.current = count;
-  }, [count]);
-
+export function ConfirmFooter({ label = 'Save', disabled, onClick }: ConfirmFooterProps) {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-page/95 backdrop-blur-sm border-t border-hairline px-4 py-3 safe-bottom z-50">
-      <p
-        className={`text-center text-meta mb-2 transition-all duration-300 ${
-          pulse
-            ? 'text-primary font-semibold scale-105'
-            : 'text-secondary font-normal scale-100'
-        }`}
-      >
-        {count} {count === 1 ? 'practice' : 'practices'} added
-      </p>
       <button
         onClick={onClick}
         disabled={disabled}

@@ -41,6 +41,8 @@ interface AppStore {
   completePotentialOnboarding: () => Promise<void>;
   addPracticeInstance: (practiceId: string) => Promise<PracticeInstance | null>;
   removePracticeInstance: (instanceId: string) => Promise<void>;
+  removeAllInstancesForPractice: (practiceId: string) => Promise<void>;
+  setPracticeInstanceCount: (practiceId: string, count: 1 | 2) => Promise<void>;
   confirmPracticeInstances: (fromFirstSetup: boolean) => Promise<void>;
   logPractice: (instanceId: string, minutes: number, source: 'checkbox' | 'minutes' | 'player') => Promise<void>;
   setReminder: (id: ReminderKey, time: string, enabled: boolean) => Promise<void>;
@@ -272,6 +274,27 @@ export const useAppStore = create<AppStore>((set, get) => ({
       operation: 'delete',
       payload: { id: instanceId } as PracticeInstance,
     });
+  },
+
+  removeAllInstancesForPractice: async (practiceId) => {
+    const ids = get().instances.filter((i) => i.practiceId === practiceId).map((i) => i.id);
+    for (const id of ids) {
+      await get().removePracticeInstance(id);
+    }
+  },
+
+  setPracticeInstanceCount: async (practiceId, count) => {
+    const existing = get().instances.filter((i) => i.practiceId === practiceId);
+    if (existing.length === 0) return;
+    if (count === 2 && existing.length === 1) {
+      await get().addPracticeInstance(practiceId);
+      return;
+    }
+    if (count === 1 && existing.length >= 2) {
+      const second = existing.find((i) => i.instanceNumber === 2)
+        ?? [...existing].sort((a, b) => b.instanceNumber - a.instanceNumber)[0];
+      if (second) await get().removePracticeInstance(second.id);
+    }
   },
 
   confirmPracticeInstances: async (_fromFirstSetup) => {

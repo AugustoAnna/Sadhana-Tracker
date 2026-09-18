@@ -24,6 +24,7 @@ export function PracticeHome() {
   const profile = useAppStore((s) => s.profile);
   const headerTitle = profile?.name?.trim() ? `Practices of ${profile.name}` : 'Practices'
   const markFirstRecordReassuranceShown = useAppStore((s) => s.markFirstRecordReassuranceShown);
+  const playerSession = useAppStore((s) => s.playerSession);
   const haptic = useHaptic();
 
   const [minuteSheet, setMinuteSheet] = useState<string | null>(null);
@@ -177,6 +178,7 @@ export function PracticeHome() {
                   onCheckbox={() => handleCheckbox(inst.id)}
                   onPlus={() => openMinuteSheet(inst.id, 'log')}
                   onPlay={() => handlePlay(inst.id)}
+                  playSessionActive={playerSession?.practiceInstanceIds[0] === inst.id}
                 />
               ))}
             </div>
