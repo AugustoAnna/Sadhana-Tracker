@@ -1,0 +1,1543 @@
+<title>Sadhana Funnel Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --paper:        #f5f6f4;
+    --paper-raised: #ffffff;
+    --ink:          #14171a;
+    --ink-muted:    #5c6570;
+    --ink-faint:    #8b929a;
+    --line:         #dcdfdb;
+    --line-strong:  #c3c8c4;
+    --accent:       #2a78d6;
+    --accent-soft:  rgba(42, 120, 214, 0.10);
+    --accent-ink:   #ffffff;
+    --track:        #e7e9e5;
+    --bar-muted:    #c9cdc8;
+    --cat-2:        #eb6834;
+    --cat-3:        #1baf7a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper:        #14161a;
+      --paper-raised: #1b1e22;
+      --ink:          #f2f3f1;
+      --ink-muted:    #9aa3ab;
+      --ink-faint:    #6d747c;
+      --line:         #2a2e33;
+      --line-strong:  #383e44;
+      --accent:       #3987e5;
+      --accent-soft:  rgba(57, 135, 229, 0.16);
+      --accent-ink:   #ffffff;
+      --track:        #23262b;
+      --bar-muted:    #3a3f45;
+      --cat-2:        #d95926;
+      --cat-3:        #199e70;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper:        #14161a;
+    --paper-raised: #1b1e22;
+    --ink:          #f2f3f1;
+    --ink-muted:    #9aa3ab;
+    --ink-faint:    #6d747c;
+    --line:         #2a2e33;
+    --line-strong:  #383e44;
+    --accent:       #3987e5;
+    --accent-soft:  rgba(57, 135, 229, 0.16);
+    --accent-ink:   #ffffff;
+    --track:        #23262b;
+    --bar-muted:    #3a3f45;
+    --cat-2:        #d95926;
+    --cat-3:        #199e70;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding-inline: 20px;
+    padding-block: 56px 80px;
+  }
+
+  .page {
+    max-width: 720px;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 44px;
+  }
+
+  .mono { font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Masthead ---------- */
+  .masthead { display: flex; flex-direction: column; gap: 14px; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex: none;
+  }
+
+  h1 {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: clamp(30px, 5vw, 40px);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .dek {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ink-muted);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  .meta-line {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* ---------- KPI strip ---------- */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .kpi {
+    background: var(--paper-raised);
+    padding: 18px 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .kpi .kpi-value {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+  }
+  .kpi .kpi-label {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    line-height: 1.4;
+  }
+  .kpi.is-final .kpi-value { color: var(--accent); }
+
+  .kpi-arrow {
+    display: none;
+  }
+
+  /* ---------- Section ---------- */
+  .section { display: flex; flex-direction: column; gap: 18px; }
+  .section-head { display: flex; flex-direction: column; gap: 6px; }
+  .section-eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  h2 {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-weight: 600;
+    font-size: 22px;
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+  .section-note {
+    font-size: 14px;
+    color: var(--ink-muted);
+    line-height: 1.55;
+    max-width: 60ch;
+    margin: 0;
+  }
+
+  /* ---------- Bar chart ---------- */
+  .chart {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 24px 22px 6px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  .bar-row {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding-block: 4px;
+    border-radius: 8px;
+    outline: none;
+    position: relative;
+  }
+  .bar-row:focus-visible {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+
+  .bar-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .bar-label {
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .bar-sub {
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    font-weight: 400;
+  }
+  .bar-value {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink);
+    flex: none;
+    white-space: nowrap;
+  }
+  .bar-value .of {
+    color: var(--ink-faint);
+    font-weight: 400;
+    font-size: 12.5px;
+  }
+
+  .bar-track {
+    height: 24px;
+    background: var(--track);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 0 4px 4px 0;
+    transition: filter 0.15s ease;
+  }
+  .bar-row:hover .bar-fill,
+  .bar-row:focus-visible .bar-fill {
+    filter: brightness(1.12);
+  }
+
+  .bar-names {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--ink-muted);
+    padding-left: 1px;
+  }
+  .bar-names .sep { color: var(--ink-faint); }
+
+  .chart-scale {
+    display: flex;
+    justify-content: space-between;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    padding-top: 4px;
+    padding-bottom: 16px;
+    border-top: 1px solid var(--line);
+    margin-top: 2px;
+  }
+
+  /* ---------- Footnote ---------- */
+  .footnote {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 18px;
+    background: var(--accent-soft);
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-muted);
+  }
+  .footnote strong { color: var(--ink); font-weight: 600; }
+  .footnote-title {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* ---------- Stat row (median callout) ---------- */
+  .stat-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 28px;
+    padding: 20px 22px;
+    background: var(--accent-soft);
+    border-radius: 12px;
+  }
+  .stat-tile { display: flex; flex-direction: column; gap: 2px; }
+  .stat-value {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    font-size: 42px;
+    line-height: 1;
+    color: var(--accent);
+    letter-spacing: -0.01em;
+  }
+  .stat-label {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+  }
+  .stat-meta {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--ink-muted);
+  }
+  .stat-meta strong {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  /* ---------- Column chart (distribution) ---------- */
+  .col-chart {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .col-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 2px 4px;
+    border-radius: 8px;
+    outline: none;
+    min-width: 0;
+  }
+  .col-item:hover,
+  .col-item:focus-visible {
+    background: var(--accent-soft);
+  }
+  .col-item:focus-visible {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .col-tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .col-value {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-muted);
+  }
+  .col-item.is-median .col-value { color: var(--accent); font-weight: 700; }
+  .col-bar-wrap {
+    height: 140px;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    border-bottom: 1px solid var(--line);
+  }
+  .col-bar {
+    width: 22px;
+    max-width: 70%;
+    border-radius: 4px 4px 0 0;
+    background: var(--bar-muted);
+    transition: filter 0.15s ease;
+  }
+  .col-item.is-median .col-bar { background: var(--accent); }
+  .col-item:hover .col-bar,
+  .col-item:focus-visible .col-bar { filter: brightness(1.15); }
+  .col-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .col-item.is-median .col-label { color: var(--accent); font-weight: 600; }
+
+  .legend-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-muted);
+    padding-top: 14px;
+    margin-top: 4px;
+    border-top: 1px solid var(--line);
+  }
+  .legend-row .swatch {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .swatch-accent { background: var(--accent); }
+  .swatch-muted { background: var(--bar-muted); }
+
+  /* ---------- Stacked bar (part-to-whole, categorical) ---------- */
+  .stack-bar {
+    display: flex;
+    gap: 2px;
+    height: 40px;
+  }
+  .stack-seg {
+    height: 100%;
+    border-radius: 5px;
+    transition: filter 0.15s ease;
+    outline: none;
+    min-width: 3px;
+  }
+  .stack-seg:hover,
+  .stack-seg:focus-visible {
+    filter: brightness(1.1);
+  }
+  .stack-seg:focus-visible {
+    box-shadow: 0 0 0 2px var(--ink);
+  }
+  .stack-seg--1 { background: var(--accent); }
+  .stack-seg--2 { background: var(--cat-2); }
+  .stack-seg--3 { background: var(--cat-3); }
+
+  .legend-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 16px;
+    margin-top: 4px;
+    border-top: 1px solid var(--line);
+  }
+  .legend-list .legend-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13.5px;
+  }
+  .legend-list .legend-key {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    color: var(--ink);
+  }
+  .legend-list .swatch {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    transform: translateY(1px);
+    flex: none;
+  }
+  .legend-list .legend-count {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .legend-list .legend-count .share {
+    color: var(--ink-faint);
+    font-weight: 400;
+    font-size: 12px;
+  }
+
+  footer {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+
+  @media (max-width: 560px) {
+    .kpi-strip { grid-template-columns: 1fr; }
+    .kpi { padding: 14px 16px; }
+  }
+</style>
+
+<div class="page">
+
+  <div class="masthead">
+    <div class="eyebrow">Sadhana Tracker &middot; Study Report</div>
+    <h1>Where the funnel broke</h1>
+    <p class="dek">
+      58 named study participants entered the app. This report follows them through
+      setup to their first logged practice, and traces exactly where the 14 who
+      never logged fell off.
+    </p>
+    <div class="meta-line mono">Study environment &middot; single snapshot pulled 2026-09-15 &middot; test &amp; anonymous rows excluded &middot; people collapsed by name across devices</div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi">
+      <div class="kpi-value tnum">58</div>
+      <div class="kpi-label">Named participants</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-value tnum">54</div>
+      <div class="kpi-label">Added a practice<br>(93% &middot; the one hard setup gate)</div>
+    </div>
+    <div class="kpi is-final">
+      <div class="kpi-value tnum">44</div>
+      <div class="kpi-label">Logged a practice<br>(76% &middot; the funnel's floor)</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Non-loggers &middot; 14 of 58</div>
+      <h2>The 14 who never logged, by furthest stage reached</h2>
+      <p class="section-note">
+        Each bar is where a person's progress actually stopped — not a raw count of
+        who did what, since installing and setting a reminder aren't required steps.
+        Hover or focus a bar for the readout; every name is also listed underneath.
+      </p>
+    </div>
+
+    <div class="chart" role="group" aria-label="Where non-logging participants dropped off, by stage">
+
+      <div class="bar-row" tabindex="0">
+        <div class="bar-head">
+          <div>
+            <div class="bar-label">Never added a practice</div>
+            <div class="bar-sub">Stalled at the first onboarding screen — the "Continue" button never unlocks without this</div>
+          </div>
+          <div class="bar-value tnum">4</div>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 80%;"></div>
+        </div>
+        <div class="bar-names">Akshay&nbsp;Kumar&nbsp;V&nbsp;J <span class="sep">&middot;</span> Maya <span class="sep">&middot;</span> Sricharani <span class="sep">&middot;</span> yogi112</div>
+      </div>
+
+      <div class="bar-row" tabindex="0">
+        <div class="bar-head">
+          <div>
+            <div class="bar-label">Added a practice, setup unconfirmed</div>
+            <div class="bar-sub">No reminders row — may have finished setup without touching a toggle, or dropped off before the last screen</div>
+          </div>
+          <div class="bar-value tnum">5</div>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 100%;"></div>
+        </div>
+        <div class="bar-names">Jaja <span class="sep">&middot;</span> Roopa <span class="sep">&middot;</span> Shambhavi&nbsp;Mahamudra <span class="sep">&middot;</span> Shruti&nbsp;Test <span class="sep">&middot;</span> kunal</div>
+      </div>
+
+      <div class="bar-row" tabindex="0">
+        <div class="bar-head">
+          <div>
+            <div class="bar-label">Finished setup, never logged</div>
+            <div class="bar-sub">Confirmed — reached the last onboarding screen and still never logged a session</div>
+          </div>
+          <div class="bar-value tnum">5</div>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 100%;"></div>
+        </div>
+        <div class="bar-names">Amit&nbsp;Verma <span class="sep">&middot;</span> Deepika <span class="sep">&middot;</span> Jagrati&nbsp;Agarwal <span class="sep">&middot;</span> Rajendra <span class="sep">&middot;</span> Ravi</div>
+      </div>
+
+      <div class="chart-scale mono">
+        <span>0 people</span>
+        <span>5 people (widest bar)</span>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        The bottom two bars are the more urgent group: <strong>10 of the 14</strong> non-loggers
+        completed or nearly completed setup and stalled at the very last step — logging their
+        first session — not at onboarding itself. Only <strong>4</strong> people dropped off before
+        adding a single practice.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Engagement &middot; first 21 days</div>
+      <h2>How many distinct practices people try</h2>
+      <p class="section-note">
+        For each of the 44 participants who logged at least once, this counts
+        distinct practices logged within their first 21 days &mdash; day 0 is their
+        own first log, not a fixed calendar date, so someone who joined in week 4
+        is measured on the same footing as someone from week 1. Nine of the 44
+        joined fewer than 21 days ago, so their window is still open; excluding
+        them leaves the median unchanged at 5 (mean 6.2 either way).
+      </p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-value tnum">5</div>
+        <div class="stat-label">median distinct practices</div>
+      </div>
+      <div class="stat-meta">
+        <div>mean <strong class="tnum">6.2</strong></div>
+        <div>range <strong class="tnum">1&ndash;18</strong></div>
+        <div>n = <strong class="tnum">44</strong> loggers</div>
+      </div>
+    </div>
+
+    <div class="chart">
+      <div class="col-chart" role="group" aria-label="Number of participants by count of distinct practices logged in their first 21 days">
+
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">3</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 30%;"></div></div>
+          <div class="col-label">1</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">8</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 80%;"></div></div>
+          <div class="col-label">2</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">3</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 30%;"></div></div>
+          <div class="col-label">3</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">5</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 50%;"></div></div>
+          <div class="col-label">4</div>
+        </div>
+        <div class="col-item is-median" tabindex="0">
+          <div class="col-tag">Median</div>
+          <div class="col-value tnum">5</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 50%;"></div></div>
+          <div class="col-label">5</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">3</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 30%;"></div></div>
+          <div class="col-label">6</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">3</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 30%;"></div></div>
+          <div class="col-label">7</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">4</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 40%;"></div></div>
+          <div class="col-label">8</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">10</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 100%;"></div></div>
+          <div class="col-label">9+</div>
+        </div>
+
+      </div>
+      <div class="legend-row">
+        <span><span class="swatch swatch-accent"></span>median bucket (5 distinct practices)</span>
+        <span><span class="swatch swatch-muted"></span>all other buckets</span>
+        <span style="margin-left: auto;">x-axis: distinct practices logged &middot; y: number of participants</span>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        Half of everyone who logs settles into <strong>5 or fewer</strong> distinct
+        practices in their first three weeks &mdash; most people converge on a small,
+        repeated set rather than exploring the full 47-practice catalogue. The
+        <strong>9+</strong> bucket (10 people) is the long tail of highly exploratory
+        users, topped by one participant who tried 18 distinct practices.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Practice mix &middot; Shambhavi</div>
+      <h2>How many practice only Shambhavi</h2>
+      <p class="section-note">
+        Of the 44 people who've logged anything, this splits them by their entire
+        logged history: exclusively Shambhavi, Shambhavi mixed with other
+        practices, or never Shambhavi at all.
+      </p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-value tnum">1</div>
+        <div class="stat-label">logs only Shambhavi</div>
+      </div>
+      <div class="stat-meta">
+        <div>logged Shambhavi ever <strong class="tnum">36</strong></div>
+        <div>never logged it <strong class="tnum">8</strong></div>
+        <div>n = <strong class="tnum">44</strong> loggers</div>
+      </div>
+    </div>
+
+    <div class="chart">
+      <div
+        class="stack-bar"
+        role="group"
+        aria-label="Participants split by whether their logged practices include Shambhavi"
+      >
+        <div class="stack-seg stack-seg--1" style="width: 2.3%;" tabindex="0" aria-label="Only Shambhavi: 1 participant"></div>
+        <div class="stack-seg stack-seg--2" style="width: 79.5%;" tabindex="0" aria-label="Shambhavi plus other practices: 35 participants"></div>
+        <div class="stack-seg stack-seg--3" style="width: 18.2%;" tabindex="0" aria-label="Never logged Shambhavi: 8 participants"></div>
+      </div>
+
+      <div class="legend-list">
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--accent);"></span>Only Shambhavi &mdash; their entire history is this one practice</span>
+          <span class="legend-count tnum">1 <span class="share">&middot; 2%</span></span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--cat-2);"></span>Shambhavi + other practices</span>
+          <span class="legend-count tnum">35 <span class="share">&middot; 80%</span></span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--cat-3);"></span>Never logged Shambhavi</span>
+          <span class="legend-count tnum">8 <span class="share">&middot; 18%</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        Only <strong>Dabli</strong>'s entire logged history is Shambhavi alone.
+        For nearly everyone else who tries it &mdash; <strong>35 of 36</strong> &mdash;
+        Shambhavi rides alongside other practices rather than standing in for the
+        whole routine, so it reads as a common addition, not a standalone habit.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Abandoned adds &middot; all practices</div>
+      <h2>Practices added but never logged</h2>
+      <p class="section-note">
+        Every practice a participant added to their list is one "slot" &mdash; some
+        practices can be added twice, and each copy counts separately. This is how
+        many of those slots were never followed by a single log, in total and per
+        person. A practice someone later removed from their list is not counted
+        (removals sync as deletes), so this measures what's still on the list
+        and untouched, not everything ever added.
+      </p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-value tnum">153</div>
+        <div class="stat-label">practices added, never logged</div>
+      </div>
+      <div class="stat-meta">
+        <div>of <strong class="tnum">434</strong> total adds <strong class="tnum">(35%)</strong></div>
+        <div><strong class="tnum">30</strong> of 54 people affected</div>
+        <div>median among them <strong class="tnum">4.5</strong></div>
+      </div>
+    </div>
+
+    <div class="section-note" style="margin-top: -6px;">
+      Per participant &mdash; everyone who added at least one practice, by how many of
+      their adds were never logged:
+    </div>
+
+    <div class="chart">
+      <div class="col-chart" role="group" aria-label="Number of participants by count of never-logged added practices">
+
+        <div class="col-item is-median" tabindex="0">
+          <div class="col-tag">Caught up</div>
+          <div class="col-value tnum">24</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 100%;"></div></div>
+          <div class="col-label">0</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">3</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 12.5%;"></div></div>
+          <div class="col-label">1</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">3</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 12.5%;"></div></div>
+          <div class="col-label">2</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">7</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 29.2%;"></div></div>
+          <div class="col-label">3</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">2</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 8.3%;"></div></div>
+          <div class="col-label">4</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">3</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 12.5%;"></div></div>
+          <div class="col-label">5</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">4</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 16.7%;"></div></div>
+          <div class="col-label">6</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">2</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 8.3%;"></div></div>
+          <div class="col-label">7</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">2</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 8.3%;"></div></div>
+          <div class="col-label">8</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">4</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 16.7%;"></div></div>
+          <div class="col-label">9+</div>
+        </div>
+
+      </div>
+      <div class="legend-row">
+        <span><span class="swatch swatch-accent"></span>fully caught up (0 never-logged adds)</span>
+        <span><span class="swatch swatch-muted"></span>has &ge;1 never-logged add</span>
+        <span style="margin-left: auto;">x-axis: never-logged adds &middot; y: number of participants</span>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        <strong>24 of 54</strong> people who ever added a practice logged every single
+        one &mdash; the largest single group. The other 30 carry a median of
+        <strong>4&ndash;5</strong> never-logged adds each, topped by one person at
+        <strong>14</strong>. Shambhavi and Sadhguru's Presence are the most commonly
+        added-and-abandoned practices (14 and 12 stale adds across all participants,
+        respectively) &mdash; both sit in the "Commonly Practiced" section shown first
+        on the add-practices screen, so their high add-and-abandon count may simply
+        track how often they're seen, not a deliberate choice to skip them.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Recovery rate &middot; return-to-practice</div>
+      <h2>When someone skips a day, do they come back fast?</h2>
+      <p class="section-note">
+        A "gap" is the stretch between two of a participant's logging days that
+        skipped at least one calendar day. Of every gap that size or longer, this
+        is the share where the very next log landed just two days later &mdash;
+        one day missed, then back &mdash; rather than drifting longer.
+      </p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-value tnum">52%</div>
+        <div class="stat-label">of gaps recovered within two days</div>
+      </div>
+      <div class="stat-meta">
+        <div><strong class="tnum">37</strong> of <strong class="tnum">71</strong> gaps</div>
+        <div><strong class="tnum">27</strong> people had &ge;1 gap</div>
+        <div>longest recovered gap <strong class="tnum">23</strong> days</div>
+      </div>
+    </div>
+
+    <div class="chart">
+      <div class="col-chart" role="group" aria-label="Number of gaps by length in days, among gaps of two or more days">
+
+        <div class="col-item is-median" tabindex="0">
+          <div class="col-tag">2-day gaps</div>
+          <div class="col-value tnum">37</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 100%;"></div></div>
+          <div class="col-label">2</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">11</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 29.7%;"></div></div>
+          <div class="col-label">3</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">5</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 13.5%;"></div></div>
+          <div class="col-label">4</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">4</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 10.8%;"></div></div>
+          <div class="col-label">5</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">6</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 16.2%;"></div></div>
+          <div class="col-label">6</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">4</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 10.8%;"></div></div>
+          <div class="col-label">7</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">1</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 2.7%;"></div></div>
+          <div class="col-label">8</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">1</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 2.7%;"></div></div>
+          <div class="col-label">9</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">2</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 5.4%;"></div></div>
+          <div class="col-label">10+</div>
+        </div>
+
+      </div>
+      <div class="legend-row">
+        <span><span class="swatch swatch-accent"></span>recovered within two days (gap = 2)</span>
+        <span><span class="swatch swatch-muted"></span>took longer (gap &ge; 3)</span>
+        <span style="margin-left: auto;">x-axis: gap length in days &middot; y: number of gaps</span>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        Just over half of all lapses are a single missed day, not a slide &mdash;
+        the <strong>gap = 2</strong> bucket alone accounts for <strong>37 of 71</strong>
+        gaps, more than every longer bucket combined. Recovery isn't universal
+        though: <strong>Sandeep Kondaparthy</strong> and <strong>Augusto M</strong>
+        bounced back within two days every single time (7/7 and 4/4), while
+        <strong>Aditya Shirpurkar</strong>, <strong>Sam</strong>, and
+        <strong>Anu Sharma</strong> never did (0/3 each) &mdash; recovery speed looks
+        like a trait of the person, not a fixed property of the app.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Engagement &middot; week 1 vs 2 vs 3</div>
+      <h2>Did logging frequency decay, hold, or rise?</h2>
+      <p class="section-note">
+        For each participant, day 0 is their own first logged practice &mdash; not a
+        fixed calendar date. Week 1 = days 0&ndash;6, week 2 = days 7&ndash;13, week 3 =
+        days 14&ndash;20, and each week counts <strong>logging days</strong>: distinct
+        calendar dates with at least one log, not total log count. Restricted to the
+        <strong>35 of 44</strong> loggers with at least 21 days of tenure since their
+        first log as of Sep 15 &mdash; the remaining 9 joined too recently for week 3 to
+        have fully elapsed, and including them would understate week 3 for reasons
+        that have nothing to do with engagement.
+      </p>
+    </div>
+
+    <div class="kpi-strip">
+      <div class="kpi">
+        <div class="kpi-value tnum">6</div>
+        <div class="kpi-label">Week 1 median<br>logging days</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-value tnum">5</div>
+        <div class="kpi-label">Week 2 median<br>logging days</div>
+      </div>
+      <div class="kpi is-final">
+        <div class="kpi-value tnum">5</div>
+        <div class="kpi-label">Week 3 median<br>logging days</div>
+      </div>
+    </div>
+    <div class="stat-meta" style="padding-top: 2px;">
+      <div>mean week 1 <strong class="tnum">5.06</strong></div>
+      <div>mean week 2 <strong class="tnum">4.00</strong></div>
+      <div>mean week 3 <strong class="tnum">3.74</strong></div>
+      <div>n = <strong class="tnum">35</strong> eligible loggers</div>
+    </div>
+
+    <div class="chart">
+      <div class="col-chart" role="group" aria-label="Median logging days per week, week 1 through week 3">
+
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">6</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 100%;"></div></div>
+          <div class="col-label">Week 1</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">5</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 83.3%;"></div></div>
+          <div class="col-label">Week 2</div>
+        </div>
+        <div class="col-item is-median" tabindex="0">
+          <div class="col-tag">Latest</div>
+          <div class="col-value tnum">5</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 83.3%;"></div></div>
+          <div class="col-label">Week 3</div>
+        </div>
+
+      </div>
+      <div class="legend-row">
+        <span><span class="swatch swatch-accent"></span>week 3 (where cadence lands)</span>
+        <span><span class="swatch swatch-muted"></span>week 1 &amp; week 2</span>
+        <span style="margin-left: auto;">y-axis: median logging days that week (max 7)</span>
+      </div>
+    </div>
+
+    <p class="section-note" style="margin-top: -6px;">
+      Per participant &mdash; comparing week 3 to week 1 (decayed: week 3 lower by more
+      than 1 logging day; held: within 1 day either way; rose: week 3 higher by more
+      than 1 day):
+    </p>
+
+    <div class="chart">
+      <div
+        class="stack-bar"
+        role="group"
+        aria-label="Participants split by whether their logging days decayed, held flat, or rose from week 1 to week 3"
+      >
+        <div class="stack-seg stack-seg--1" style="width: 54.3%;" tabindex="0" aria-label="Held roughly flat: 19 participants"></div>
+        <div class="stack-seg stack-seg--2" style="width: 40.0%;" tabindex="0" aria-label="Decayed: 14 participants"></div>
+        <div class="stack-seg stack-seg--3" style="width: 5.7%;" tabindex="0" aria-label="Rose: 2 participants"></div>
+      </div>
+
+      <div class="legend-list">
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--accent);"></span>Held roughly flat &mdash; week 3 within 1 logging day of week 1</span>
+          <span class="legend-count tnum">19 <span class="share">&middot; 54%</span></span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--cat-2);"></span>Decayed &mdash; week 3 more than 1 logging day below week 1</span>
+          <span class="legend-count tnum">14 <span class="share">&middot; 40%</span></span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--cat-3);"></span>Rose &mdash; week 3 more than 1 logging day above week 1</span>
+          <span class="legend-count tnum">2 <span class="share">&middot; 6%</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        Median logging days per week slide from <strong>6 &rarr; 5 &rarr; 5</strong>
+        (mean <strong>5.06 &rarr; 4.00 &rarr; 3.74</strong>) &mdash; a real but modest
+        decay that happens almost entirely between week 1 and week 2, then flattens.
+        Split by person, the picture is more forgiving than the average alone
+        suggests: <strong>54% held</strong> roughly steady cadence from week 1 to
+        week 3, against <strong>40% who decayed</strong> and just <strong>6% who
+        logged more often</strong>. So the honest read is "mostly holds, with a
+        sizeable minority tailing off" rather than a study-wide decline &mdash; nine
+        of the 35 (Pranav Keshri, Petko, Dr. Shruti D., Nitish Taliyan, Yadviga,
+        Suneel, Neha Sharma, Joseph Graham, Swami Gana) logged all 7 days of every
+        single week.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Reminder conversion &middot; small sample</div>
+      <h2>Do reminders actually pull people back to log?</h2>
+      <p class="section-note">
+        Share of a participant's logs that landed within three hours after one
+        of their enabled reminder times &mdash; compared not against another
+        group, but against what that same share would be if their logs were
+        spread evenly through the day. Someone with two reminders has about six
+        hours of the day "in window", so the fair question is how much busier
+        those hours are than the rest, not the raw share alone.
+      </p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-value tnum">2.3&times;</div>
+        <div class="stat-label">more logs in reminder windows than an even spread predicts</div>
+      </div>
+      <div class="stat-meta">
+        <div><strong class="tnum">63%</strong> of logs in-window vs <strong class="tnum">27%</strong> expected</div>
+        <div><strong class="tnum">27</strong> people, <strong class="tnum">2,387</strong> logs</div>
+        <div>median person <strong class="tnum">2.0&times;</strong> &middot; <strong class="tnum">6</strong> people below 1&times;</div>
+      </div>
+    </div>
+
+    <div class="chart">
+      <div class="col-chart" role="group" aria-label="Share of logs within three hours of a reminder: actual versus expected under an even spread" style="max-width: 340px; margin: 0 auto; gap: 48px;">
+
+        <div class="col-item is-median" tabindex="0">
+          <div class="col-tag">Actual</div>
+          <div class="col-value tnum">63%</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 62.6%;"></div></div>
+          <div class="col-label">in reminder windows</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">27%</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 27.4%;"></div></div>
+          <div class="col-label">if spread evenly</div>
+        </div>
+
+      </div>
+      <div class="legend-row">
+        <span><span class="swatch swatch-accent"></span>actual share of logs within 3h after a reminder</span>
+        <span><span class="swatch swatch-muted"></span>share of the day those windows cover</span>
+        <span style="margin-left: auto;">y-axis: % of the group's logs</span>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Data limitation &mdash; read before trusting this number</div>
+      <div>
+        Three things keep this directional rather than conclusive. First,
+        converting a timestamp to "3 hours after a local reminder" needs the
+        participant's timezone, which was added late (migration 004): only
+        <strong>33 of 223</strong> participants have one, and they skew toward
+        people who engaged with notifications. Second, reminder rows store
+        <strong>current</strong> state with no timestamp, so a reminder set in
+        week 3 is applied to week-1 logs as if it had always existed &mdash; this
+        inflates the lift. Third, people plausibly set reminders at the times
+        they already practise, so a <strong>2.3&times;</strong> lift shows logs
+        cluster around reminder times, not that reminders cause them. An
+        earlier version of this section headlined "63% vs 35%" against a
+        4-person no-reminder group; that comparison wasn't like-for-like (a
+        single best-case window vs several fixed ones) and has been withdrawn.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Log type mix &middot; lifetime</div>
+      <h2>How people mark a practice done: checkbox, minutes, or guided</h2>
+      <p class="section-note">
+        Every row in practice_completed, across all 44 named non-test participants who've
+        ever logged, their full lifetime history &mdash; not deduped by day. The
+        <code>mode</code> column has three values, not two: a plain checkbox tap
+        (<strong>logged</strong>), a specific minutes value entered or adjusted
+        (<strong>minutes_added</strong>), and a session completed through the in-app guided
+        audio/video player (<strong>guided</strong>). Guided is its own thing &mdash; neither a
+        minute-log nor a checkbox-only log &mdash; so it's shown as a third slice rather than
+        folded into either of the two categories asked about.
+      </p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-value tnum">85%</div>
+        <div class="stat-label">of all logs are plain checkbox taps</div>
+      </div>
+      <div class="stat-meta">
+        <div>minutes-logs <strong class="tnum">129</strong> <strong class="tnum">(3.9%)</strong></div>
+        <div>guided <strong class="tnum">351</strong> <strong class="tnum">(10.7%)</strong></div>
+        <div>n = <strong class="tnum">3,269</strong> logs &middot; <strong class="tnum">44</strong> loggers</div>
+      </div>
+    </div>
+
+    <div class="chart">
+      <div
+        class="stack-bar"
+        role="group"
+        aria-label="All logs split by mode: checkbox, minutes, or guided"
+      >
+        <div class="stack-seg stack-seg--1" style="width: 85.3%;" tabindex="0" aria-label="Checkbox: 2,789 logs, 85.3%"></div>
+        <div class="stack-seg stack-seg--2" style="width: 3.9%;" tabindex="0" aria-label="Minutes: 129 logs, 3.9%"></div>
+        <div class="stack-seg stack-seg--3" style="width: 10.7%;" tabindex="0" aria-label="Guided: 351 logs, 10.7%"></div>
+      </div>
+
+      <div class="legend-list">
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--accent);"></span>Checkbox &mdash; plain tap, no minutes entered</span>
+          <span class="legend-count tnum">2,789 <span class="share">&middot; 85.3%</span></span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--cat-2);"></span>Minutes &mdash; a specific minutes value entered or adjusted</span>
+          <span class="legend-count tnum">129 <span class="share">&middot; 3.9%</span></span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--cat-3);"></span>Guided &mdash; completed via the in-app audio/video player</span>
+          <span class="legend-count tnum">351 <span class="share">&middot; 10.7%</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        The overwhelming majority of logs &mdash; <strong>2,789 of 3,269 (85.3%)</strong> &mdash;
+        are plain checkbox taps, not minute entries. Minutes-logging is rare on its own,
+        just <strong>129 logs (3.9%)</strong>, and concentrated in a handful of people:
+        <strong>Swami Gana</strong> (39), <strong>Augusto&nbsp;M</strong> (23), and
+        <strong>Maheswari&nbsp;K&nbsp;M</strong> (13) account for over half of every
+        minutes-logged row in the dataset. Guided sessions are the real third category,
+        at <strong>351 logs (10.7%)</strong> &mdash; and they aren't evenly spread either:
+        <strong>Neha Sharma</strong> (188 of her 246 logs) and <strong>Jim&nbsp;Tan</strong>
+        (43 of 56) lean on the player far more than the typical participant, who barely
+        touches it. So the honest read of "minutes vs checkbox" is that checkbox dominates
+        almost everyone's behavior, minutes-entry is a niche habit for a few people, and
+        guided is a separate, player-driven mode that shouldn't be counted as either.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Reminders &middot; setup &amp; timing</div>
+      <h2>Who turns reminders on, how many, and when</h2>
+      <p class="section-note">
+        Reminders are collapsed by name and unioned across a person's device-rows, then
+        deduped by (kind, slot, practice_id, time_local) &mdash; the same reminder syncing
+        down to a second device shouldn't count twice. "Enabled" means the toggle is
+        actually on (enabled=true), not just that a reminders row exists &mdash; visiting the
+        screen alone can leave a disabled row behind. Practices allow up to 3 reminders in
+        the UI (generic slots 1&ndash;3 plus per-practice reminders), though a person can
+        exceed that by combining generic and per-practice reminders.
+      </p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-value tnum">44</div>
+        <div class="stat-label">participants enabled &ge;1 reminder</div>
+      </div>
+      <div class="stat-meta">
+        <div><strong class="tnum">99</strong> distinct enabled reminders total</div>
+        <div>median <strong class="tnum">2</strong> per person &middot; mean <strong class="tnum">2.25</strong></div>
+        <div><strong class="tnum">50</strong> visited the reminders screen at all</div>
+      </div>
+    </div>
+
+    <p class="section-note" style="margin-top: -6px;">
+      Per participant &mdash; how many enabled reminders each of the 44 people who turned at
+      least one on has, out of the possible 1&ndash;5 found in the data:
+    </p>
+
+    <div class="chart">
+      <div class="col-chart" role="group" aria-label="Number of participants by count of enabled reminders">
+
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">12</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 66.7%;"></div></div>
+          <div class="col-label">1</div>
+        </div>
+        <div class="col-item is-median" tabindex="0">
+          <div class="col-tag">Median</div>
+          <div class="col-value tnum">18</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 100%;"></div></div>
+          <div class="col-label">2</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">6</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 33.3%;"></div></div>
+          <div class="col-label">3</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">7</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 38.9%;"></div></div>
+          <div class="col-label">4</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">1</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 5.6%;"></div></div>
+          <div class="col-label">5</div>
+        </div>
+
+      </div>
+      <div class="legend-row">
+        <span><span class="swatch swatch-accent"></span>median bucket (2 enabled reminders)</span>
+        <span><span class="swatch swatch-muted"></span>all other buckets</span>
+        <span style="margin-left: auto;">x-axis: enabled reminders per person &middot; y: number of participants</span>
+      </div>
+    </div>
+
+    <p class="section-note" style="margin-top: -6px;">
+      Across all 99 enabled reminders &mdash; what time of day they're set for, bucketed by
+      hour: early morning 4&ndash;7am, morning 7&ndash;10am, midday 10am&ndash;2pm, afternoon
+      2&ndash;6pm, evening 6&ndash;9pm, night 9pm&ndash;4am:
+    </p>
+
+    <div class="chart">
+      <div class="col-chart" role="group" aria-label="Number of enabled reminders by time-of-day bucket">
+
+        <div class="col-item is-median" tabindex="0">
+          <div class="col-tag">Most common</div>
+          <div class="col-value tnum">40</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 100%;"></div></div>
+          <div class="col-label">Early&nbsp;AM</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">4</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 10%;"></div></div>
+          <div class="col-label">Morning</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">9</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 22.5%;"></div></div>
+          <div class="col-label">Midday</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">3</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 7.5%;"></div></div>
+          <div class="col-label">Afternoon</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">39</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 97.5%;"></div></div>
+          <div class="col-label">Evening</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">4</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 10%;"></div></div>
+          <div class="col-label">Night</div>
+        </div>
+
+      </div>
+      <div class="legend-row">
+        <span><span class="swatch swatch-accent"></span>early morning, 4&ndash;7am (largest bucket)</span>
+        <span><span class="swatch swatch-muted"></span>all other buckets</span>
+        <span style="margin-left: auto;">x-axis: hour-of-day bucket &middot; y: number of enabled reminders</span>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        <strong>44 of the 50</strong> people who ever opened the reminders screen actually
+        turned one on &mdash; setup friction here looks low once someone engages with it at
+        all. Nobody runs a huge reminder stack: the median is <strong>2</strong>, and only
+        one person (<strong>Pushpa&nbsp;Belagali</strong>, at 5) exceeds the product's
+        nominal 3-per-practice ceiling, by combining generic slots with a per-practice
+        reminder. Timing is sharply bimodal rather than spread through the day:
+        <strong>40 reminders (40.4%)</strong> sit in the early-morning 4&ndash;7am window
+        (mostly clustered at 06:00) and <strong>39 (39.4%)</strong> in the 6&ndash;9pm evening
+        window (mostly clustered at 18:00 and 18:15) &mdash; together <strong>80% of all
+        enabled reminders</strong>. Midday, afternoon, and late-night reminders are rare by
+        comparison, each under 10%. That pattern reads as "practice at the edges of the
+        day" &mdash; before the day starts and after it winds down &mdash; rather than
+        reminders scattered opportunistically throughout waking hours.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Gap trend &middot; early vs late half</div>
+      <h2>Are gaps between logs getting shorter or longer?</h2>
+      <p class="section-note">
+        For each participant with at least 4 distinct logging days (&ge;3 gaps,
+        enough to split into a real early half and late half), this compares
+        the mean gap length in the first half of their chronological gap
+        sequence to the second half. Shortening/lengthening requires the
+        late-half mean to differ from the early-half mean by 20% or more,
+        relative; anything closer counts as steady. For odd counts the middle
+        gap is dropped, so at the 3-gap minimum this compares one gap with one
+        &mdash; read the small-count cases as anecdote, not trend.
+      </p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-value tnum">62%</div>
+        <div class="stat-label">held a steady gap length</div>
+      </div>
+      <div class="stat-meta">
+        <div>shortening <strong class="tnum">3</strong> <span style="color: var(--ink-faint);">(9%)</span></div>
+        <div>lengthening <strong class="tnum">10</strong> <span style="color: var(--ink-faint);">(29%)</span></div>
+        <div>n = <strong class="tnum">34</strong> eligible</div>
+      </div>
+    </div>
+
+    <div class="chart">
+      <div
+        class="stack-bar"
+        role="group"
+        aria-label="Participants split by whether their gap-length trend shortened, held steady, or lengthened"
+      >
+        <div class="stack-seg stack-seg--3" style="width: 8.8%;" tabindex="0" aria-label="Shortening: 3 participants"></div>
+        <div class="stack-seg stack-seg--1" style="width: 61.8%;" tabindex="0" aria-label="Steady: 21 participants"></div>
+        <div class="stack-seg stack-seg--2" style="width: 29.4%;" tabindex="0" aria-label="Lengthening: 10 participants"></div>
+      </div>
+
+      <div class="legend-list">
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--cat-3);"></span>Shortening &mdash; late-half mean gap &le; 80% of early-half mean</span>
+          <span class="legend-count tnum">3 <span class="share">&middot; 9%</span></span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--accent);"></span>Steady &mdash; within &plusmn;20% of early-half mean</span>
+          <span class="legend-count tnum">21 <span class="share">&middot; 62%</span></span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--cat-2);"></span>Lengthening &mdash; late-half mean gap &ge; 120% of early-half mean</span>
+          <span class="legend-count tnum">10 <span class="share">&middot; 29%</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        Most people (<strong>21 of 34</strong>, 62%) keep a roughly consistent
+        gap length across the study, and the aggregate <strong>median</strong>
+        barely moves &mdash; 1.00 day early-half vs 1.11 days late-half. But the
+        <strong>mean</strong> nearly doubles (1.36 &rarr; 2.73 days), because a
+        handful of low-gap-count participants had one late blowup dominate
+        their late half: <strong>Minakshi</strong> (gaps of 1, 2, then 23
+        days), <strong>Deepthi Rajashekar Johal</strong> (1, 1, 2, then 13),
+        and <strong>Srinidhi</strong> (1, 1, then 6) all show lengthening of
+        400&ndash;2200% &mdash; dramatic on paper, but each is really "one big
+        late gap" rather than a steady drift. The clearest shortening case is
+        <strong>Anu Sharma</strong>, whose gaps fell from an early mean of 6.0
+        days to a late mean of 3.5. Participants with the longest track
+        records &mdash; <strong>Suneel</strong>, <strong>Neha Sharma</strong>, and
+        <strong>Swami Gana</strong> among them, each with 30+ gaps that are
+        nearly all length 1 &mdash; are steady almost by construction: with
+        that much day-to-day consistency there's little room left to drift
+        either way.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Terminal lapse &middot; stopped for good</div>
+      <h2>Who stopped logging and never came back?</h2>
+      <p class="section-note">
+        A participant is in "terminal lapse" once <strong>14 or more days</strong>
+        have passed since their last log, as of Sep 15 &mdash; long enough that a
+        genuine break becomes unlikely to still be mid-gap rather than gone
+        for good. For each, "day of use they stopped on" is (last log date
+        &minus; first log date) + 1 &mdash; which day of their own usage
+        lifecycle their final log landed on, regardless of how many days in
+        between were actually active.
+      </p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-value tnum">13</div>
+        <div class="stat-label">in terminal lapse (&ge;14 days silent)</div>
+      </div>
+      <div class="stat-meta">
+        <div>of <strong class="tnum">44</strong> named loggers <strong class="tnum">(30%)</strong></div>
+        <div>still plausibly active <strong class="tnum">31</strong> <span style="color: var(--ink-faint);">(70%)</span></div>
+        <div>median day stopped on <strong class="tnum">2</strong></div>
+      </div>
+    </div>
+
+    <div class="chart">
+      <div class="col-chart" role="group" aria-label="Number of terminal-lapse participants by which day of their own usage lifecycle they stopped on">
+
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">6</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 100%;"></div></div>
+          <div class="col-label">1</div>
+        </div>
+        <div class="col-item is-median" tabindex="0">
+          <div class="col-tag">Median</div>
+          <div class="col-value tnum">2</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 33.3%;"></div></div>
+          <div class="col-label">2-3</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">2</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 33.3%;"></div></div>
+          <div class="col-label">4-7</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">1</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 16.7%;"></div></div>
+          <div class="col-label">8-14</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">2</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 33.3%;"></div></div>
+          <div class="col-label">15-21</div>
+        </div>
+        <div class="col-item" tabindex="0">
+          <div class="col-value tnum">0</div>
+          <div class="col-bar-wrap"><div class="col-bar" style="height: 0%;"></div></div>
+          <div class="col-label">22+</div>
+        </div>
+
+      </div>
+      <div class="legend-row">
+        <span><span class="swatch swatch-accent"></span>median bucket (day 2&ndash;3)</span>
+        <span><span class="swatch swatch-muted"></span>all other buckets</span>
+        <span style="margin-left: auto;">x-axis: day of use stopped on &middot; y: number of terminal-lapse participants</span>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        <strong>6 of the 13</strong> terminal-lapse participants &mdash; nearly
+        half &mdash; logged exactly once, on day 1, and never returned:
+        <strong>Vijayaruban</strong>, <strong>Kirti</strong>,
+        <strong>Practices of Neha Sharma</strong>, <strong>Mradul</strong>,
+        <strong>Yuyu</strong>, and <strong>Shrabanti Mazumdar</strong>. That's
+        by far the single most common terminal-lapse pattern &mdash; a one-time
+        try, not a habit that formed and then broke. A smaller group stuck
+        around much longer before dropping off: <strong>Shweta Sharma</strong>
+        (day 16) and <strong>Saminder Paul</strong> (day 15) both logged
+        across two-plus weeks before going silent 15&ndash;19 days ago. For
+        contrast, the larger group &mdash; <strong>31 of 44</strong> named
+        loggers (70%) &mdash; logged within the last 14 days and are still
+        plausibly active, so terminal lapse so far describes a minority,
+        concentrated heavily among one-and-done first tries rather than
+        people who built a routine and then quit it.
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    analysis/funnel.py &middot; analysis/distinct_practices_21d.py &middot; analysis/added_never_logged.py &middot; analysis/recovery_rate.py &middot; analysis/weekly_frequency.py &middot; analysis/reminder_conversion.py &middot; analysis/log_mode_mix.py &middot; analysis/reminder_usage.py &middot; analysis/gap_trend.py &middot; analysis/terminal_lapse.py &middot; supabase db query --linked &middot; environment = study
+  </footer>
+
+</div>

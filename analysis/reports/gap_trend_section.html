@@ -1,0 +1,76 @@
+  <div class="section">
+    <div class="section-head">
+      <div class="section-eyebrow">Gap trend &middot; early vs late half</div>
+      <h2>Are gaps between logs getting shorter or longer?</h2>
+      <p class="section-note">
+        For each participant with at least 4 distinct logging days (&ge;3 gaps,
+        enough to split into a real early half and late half), this compares
+        the mean gap length in the first half of their chronological gap
+        sequence to the second half. Shortening/lengthening requires the
+        late-half mean to differ from the early-half mean by 20% or more,
+        relative; anything closer counts as steady.
+      </p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-value tnum">62%</div>
+        <div class="stat-label">held a steady gap length</div>
+      </div>
+      <div class="stat-meta">
+        <div>shortening <strong class="tnum">3</strong> <span style="color: var(--ink-faint);">(9%)</span></div>
+        <div>lengthening <strong class="tnum">10</strong> <span style="color: var(--ink-faint);">(29%)</span></div>
+        <div>n = <strong class="tnum">34</strong> eligible</div>
+      </div>
+    </div>
+
+    <div class="chart">
+      <div
+        class="stack-bar"
+        role="group"
+        aria-label="Participants split by whether their gap-length trend shortened, held steady, or lengthened"
+      >
+        <div class="stack-seg stack-seg--3" style="width: 8.8%;" tabindex="0" aria-label="Shortening: 3 participants"></div>
+        <div class="stack-seg stack-seg--1" style="width: 61.8%;" tabindex="0" aria-label="Steady: 21 participants"></div>
+        <div class="stack-seg stack-seg--2" style="width: 29.4%;" tabindex="0" aria-label="Lengthening: 10 participants"></div>
+      </div>
+
+      <div class="legend-list">
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--cat-3);"></span>Shortening &mdash; late-half mean gap &le; 80% of early-half mean</span>
+          <span class="legend-count tnum">3 <span class="share">&middot; 9%</span></span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--accent);"></span>Steady &mdash; within &plusmn;20% of early-half mean</span>
+          <span class="legend-count tnum">21 <span class="share">&middot; 62%</span></span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-key"><span class="swatch" style="background: var(--cat-2);"></span>Lengthening &mdash; late-half mean gap &ge; 120% of early-half mean</span>
+          <span class="legend-count tnum">10 <span class="share">&middot; 29%</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <div class="footnote-title">Reading this chart</div>
+      <div>
+        Most people (<strong>21 of 34</strong>, 62%) keep a roughly consistent
+        gap length across the study, and the aggregate <strong>median</strong>
+        barely moves &mdash; 1.00 day early-half vs 1.11 days late-half. But the
+        <strong>mean</strong> nearly doubles (1.36 &rarr; 2.73 days), because a
+        handful of low-gap-count participants had one late blowup dominate
+        their late half: <strong>Minakshi</strong> (gaps of 1, 2, then 23
+        days), <strong>Deepthi Rajashekar Johal</strong> (1, 1, 2, then 13),
+        and <strong>Srinidhi</strong> (1, 1, then 6) all show lengthening of
+        400&ndash;2200% &mdash; dramatic on paper, but each is really "one big
+        late gap" rather than a steady drift. The clearest shortening case is
+        <strong>Anu Sharma</strong>, whose gaps fell from an early mean of 6.0
+        days to a late mean of 3.5. Participants with the longest track
+        records &mdash; <strong>Suneel</strong>, <strong>Neha Sharma</strong>, and
+        <strong>Swami Gana</strong> among them, each with 30+ gaps that are
+        nearly all length 1 &mdash; are steady almost by construction: with
+        that much day-to-day consistency there's little room left to drift
+        either way.
+      </div>
+    </div>
+  </div>
