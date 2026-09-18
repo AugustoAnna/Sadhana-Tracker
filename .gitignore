@@ -10,3 +10,8 @@ tsconfig.tsbuildinfo
 supabase/.temp/
 .vercel
 .env*
+
+# Local data-science scratch (venv + pulled data, never commit participant PII)
+analysis/.venv/
+analysis/data/
+
