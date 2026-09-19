@@ -13,6 +13,16 @@ function detectPlatform(): string {
   return 'web';
 }
 
+// The edge function skips any reminder whose participant has no timezone, so
+// it is refreshed on every open rather than only when a device subscribes.
+function detectTimezone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function isStandalone(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches
     || ('standalone' in navigator && (navigator as Navigator & { standalone?: boolean }).standalone === true);
@@ -26,6 +36,7 @@ export async function initAppLifecycle(): Promise<void> {
     const permission = getNotificationPermission();
     await updateParticipantFields({
       platform: detectPlatform(),
+      timezone: detectTimezone(),
       ...(standalone ? { installed_standalone: true } : {}),
       notification_permission: permission === 'unsupported' ? 'default' : permission,
     });

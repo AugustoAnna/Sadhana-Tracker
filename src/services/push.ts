@@ -86,10 +86,3 @@ export async function syncTimezone(): Promise<void> {
     // Intl not available — ignore
   }
 }
-
-export async function isPushSubscribed(
-  registration: ServiceWorkerRegistration,
-): Promise<boolean> {
-  const subscription = await registration.pushManager.getSubscription();
-  return subscription !== null;
-}

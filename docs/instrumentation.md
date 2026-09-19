@@ -15,9 +15,13 @@ No event may be added, renamed, removed, or have its properties changed without 
 | `practice_quit` | Leave session confirmed | `practice_id`, `instance`, `elapsed_seconds`, `total_seconds` |
 | `reminder_set` | Set time confirmed | `slot` int\|null, `kind`, `practice_id`\|null, `time_local`, `was_enabled_before` bool |
 | `reminder_disabled` | Reminder toggled off | `slot`\|null, `kind`, `time_local` |
-| `reminder_delivered` | SW shows notification | `slot`\|null, `kind` |
+| `reminder_delivered` | SW shows notification **and an app window is open** — undercounts; use `reminder_sends.delivered_at` for the real number | `slot`\|null, `kind` |
 | `reminder_tapped` | SW notificationclick | `slot`\|null, `minutes_since_delivered` int |
 | `sync_failed` | Queue flush fails after retries | `queued_count` int, `error` string |
+
+## Reminder delivery (not an event)
+
+Every push attempt is a row in `reminder_sends`, written by the `send-reminders` edge function: `status` (`sent` / `failed` / `expired`), `local_date`, and a snapshot of the reminder. The service worker reports back through two anon-key RPCs, `mark_reminder_delivered` and `mark_reminder_tapped`, keyed by the `send_id` carried in the push payload, so `delivered_at` and `tapped_at` are filled in even when the app is closed. Receipts that fail to post are queued in the worker's IndexedDB and retried on the next push or app open.
 
 ## Not tracked
 

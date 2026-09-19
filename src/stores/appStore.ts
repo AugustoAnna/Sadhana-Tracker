@@ -9,7 +9,6 @@ import { queueSync, getParticipantName, fetchBannerTargets } from '@/services/sy
 import { enterDemoMode as enterDemoModeService, exitDemoMode as exitDemoModeService, type DemoStateId } from '@/services/demoMode';
 import { syncPracticeReminders } from '@/utils/practiceReminders';
 import { precachePracticeAudio } from '@/services/audio';
-import { scheduleReminders } from '@/services/notifications';
 import { getResolvedKind } from '@/data/practiceAssets';
 
 interface AppStore {
@@ -250,10 +249,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
     await queueSync({ table: 'participant_practices', operation: 'insert', payload: instance });
     if (kind === 'guided') {
       void precachePracticeAudio(practiceId);
-    }
-    const presenceReminder = reminders.find((r) => r.id === 'sadhguru-presence');
-    if (presenceReminder?.enabled) {
-      void scheduleReminders();
     }
     return instance;
   },

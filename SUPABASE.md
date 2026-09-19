@@ -23,7 +23,9 @@ Fill from **Project Settings → API** in the [Supabase dashboard](https://supab
 | `practices` | Read-only practice catalogue (seeded — see below) |
 | `participant_practices` | Practices added to the participant's list |
 | `practice_completed` | Every logged practice session |
-| `reminders` | Reminder slots |
+| `reminders` | Reminder slots (current state only — no history) |
+| `push_subscriptions` | One row per device that granted Web Push |
+| `reminder_sends` | One row per push attempt: status from the push service, plus `delivered_at` / `tapped_at` reported back by the service worker. `reminder_sends_daily` view rolls it up. |
 | `events` | Instrumentation events |
 
 Analysis views: `study_participants`, `study_practice_completed`, `study_practices_added`, `study_events`, `study_participant_profile`.

@@ -14,7 +14,6 @@ vi.mock('@/services/sync', () => ({
   fetchBannerTargets: async () => new Set<string>(),
 }));
 vi.mock('@/services/audio', () => ({ precachePracticeAudio: () => {} }));
-vi.mock('@/services/notifications', () => ({ scheduleReminders: async () => {} }));
 vi.mock('@/utils/practiceReminders', () => ({ syncPracticeReminders: async () => [] }));
 
 import { useAppStore } from '@/stores/appStore';

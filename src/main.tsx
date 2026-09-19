@@ -17,6 +17,12 @@ registerSW({ immediate: true });
 initServiceWorkerUpdates();
 
 if ('serviceWorker' in navigator) {
+  // Delivery receipts the worker could not post (offline when the push
+  // arrived) wait in its IndexedDB queue; ask it to retry now that we're up.
+  void navigator.serviceWorker.ready.then((registration) => {
+    registration.active?.postMessage({ type: 'FLUSH_RECEIPTS' });
+  });
+
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data?.type === 'REMINDER_DELIVERED') {
       track('reminder_delivered', {
