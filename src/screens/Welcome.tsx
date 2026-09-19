@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button, PracticeIllustration } from '@/components';
+import { useAuthStore } from '@/stores/authStore';
+import { REQUIRE_EMAIL_SIGN_IN } from '@/config/environment';
 
 /** Ring layout — central illustration larger, six around in a circle. */
 const CENTER_ID = 'isha-kriya';
@@ -22,6 +24,8 @@ function polarPosition(angleDeg: number, radius: number) {
 
 export function Welcome() {
   const navigate = useNavigate();
+  const signedIn = useAuthStore((s) => s.state === 'signed-in');
+  const nextStep = REQUIRE_EMAIL_SIGN_IN && !signedIn ? '/sign-in' : '/welcome/name';
 
   return (
     <div className="flex flex-col h-full bg-page">
@@ -50,7 +54,7 @@ export function Welcome() {
       </div>
 
       <div className="px-4 pb-4 safe-bottom">
-        <Button fullWidth onClick={() => navigate('/welcome/name')}>
+        <Button fullWidth onClick={() => navigate(nextStep)}>
           Get started
         </Button>
       </div>

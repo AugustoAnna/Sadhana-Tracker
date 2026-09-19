@@ -18,7 +18,7 @@ Open http://localhost:5173 on a mobile viewport (portrait).
 - Dexie (IndexedDB) for offline persistence
 - Zustand for state
 - vite-plugin-pwa for service worker
-- Supabase (anonymous auth, RLS, offline sync queue)
+- Supabase (anonymous sessions with optional passwordless email sign-in — see `VITE_REQUIRE_EMAIL_SIGN_IN` in SUPABASE.md; RLS, offline sync queue)
 
 ## Docs
 

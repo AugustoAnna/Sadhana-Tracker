@@ -3,7 +3,58 @@
 **Project:** `sadhana tracker`  
 **URL:** https://mmzzcigydnelnxdhmoqw.supabase.co
 
-V3 schema (participants, practices, participant_practices, practice_completed, reminders, events) with anonymous auth and per-user RLS.
+V3 schema (participants, practices, participant_practices, practice_completed, reminders, events) with passwordless email sign-in and per-user RLS.
+
+## Auth
+
+Participants can sign in with their email and a 6-digit code (Supabase email OTP). There are no passwords. Whether email is *required* is a build-time switch:
+
+| `VITE_REQUIRE_EMAIL_SIGN_IN` | Behaviour |
+|---|---|
+| unset / `false` (current) | Same as the original build: a new install gets an anonymous session and onboarding starts straight away. Email is offered in Reminders → *Keep your progress → Add email*. Sign-out is hidden for anonymous users (it would orphan their history). |
+| `true` | Email code required before the app opens. Existing anonymous sessions are asked to link an email on next open. Sign-out available in Reminders → *Account*. |
+
+Set it in the Vercel project's environment variables and redeploy; it is read at build time. Flip it only once code emails are known to deliver (custom SMTP verified, templates updated) — with the flag on and no working email, nobody new can get in.
+
+The client flow lives in `src/services/auth.ts` and `src/stores/authStore.ts`:
+
+- `signInWithOtp({ email, shouldCreateUser: true })` → `verifyOtp({ type: 'email' })` for a fresh or returning participant.
+- Devices still holding a pre-email **anonymous** session are asked to add an email instead: `updateUser({ email })` → `verifyOtp({ type: 'email_change' })`. The auth user id does not change, so every row they already have stays attached.
+- On sign-in the app records the account as the owner of the local IndexedDB (`localStorage.sadhana_owner_user_id`). If a different account later signs in on the same device the local database is wiped, then `restoreFromServer()` pulls that account's history down.
+- Sign out (Reminders → Account) drains the sync queue, drops the session on this device only, and wipes the local database.
+
+### Dashboard checklist
+
+Everything below is in **Authentication** on the Supabase dashboard and has to be done once per project.
+
+1. **Sign In / Providers → Email**: keep the provider enabled. Set *Email OTP expiration* (default 1 hour; 10–15 minutes is plenty).
+2. **Sign In / Providers → Anonymous sign-ins**: leave **enabled** while `VITE_REQUIRE_EMAIL_SIGN_IN` is off — the app still creates anonymous sessions for new installs. Disable it only after a build with the flag on is deployed. Existing anonymous sessions keep working either way until they link an email.
+3. **Emails → Templates → Magic Link**: the body must contain `{{ .Token }}` — that is what makes Supabase send a code instead of a link, e.g.
+
+   ```html
+   <h2>Your Sadhana Tracker code</h2>
+   <p>Enter this code in the app: <strong>{{ .Token }}</strong></p>
+   <p>It expires in 15 minutes. If you didn’t request it, ignore this email.</p>
+   ```
+
+   Do the same for **Change Email Address** (used when a pre-email participant links their address).
+4. **Emails → SMTP Settings**: enable custom SMTP. The built-in mailer is limited to 2 emails/hour and only delivers to your own team — it is not usable for participants. Any provider works (Resend, Postmark, SES…); the free Resend tier covers a study comfortably. Once custom SMTP is on, raise **Rate Limits → Emails sent** as needed.
+5. **URL Configuration**: not needed for codes (no redirect), but keep *Site URL* pointing at the production domain for future passkey work.
+
+### Existing anonymous users
+
+Participants from the anonymous build are **kept**, not deleted. Their session
+stays valid after anonymous sign-ins are disabled; the app offers (flag off) or
+requires (flag on) "Keep your progress", which attaches an email to the same
+auth user, so all their rows stay where they are. Nothing needs to be run against `auth.users`.
+(Deleting a row there would cascade through `participants` into every practice,
+reminder and event row for that person.)
+
+### SDK version
+
+`@supabase/supabase-js` is pinned to an exact version in `package.json` — see
+the comment in `src/services/supabase.ts`. Bump it on purpose and re-run
+`npm test`; don't let a caret or Dependabot move it.
 
 ## Local config
 
@@ -102,4 +153,4 @@ Verify: `select count(*) from practices;` → `47`.
 
 ## Security note
 
-RLS restricts each user to their own rows (`auth_user_id = auth.uid()`); clients authenticate via anonymous sign-in. Never expose the service role key to the client.
+RLS restricts each user to their own rows (`auth_user_id = auth.uid()`); clients authenticate via email OTP. Never expose the service role key to the client.

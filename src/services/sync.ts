@@ -1,7 +1,7 @@
 import { APP_ENV } from '@/config/environment';
 import { getDb, isDemoDatabaseActive } from '@/db';
 import type { PracticeInstance, PracticeLog, Profile, Reminder } from '@/types';
-import { ensureAnonymousAuth } from './auth';
+import { getAuthUserId } from './auth';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { isFeatureEnabled } from '@/features';
 
@@ -26,6 +26,15 @@ let syncInProgress = false;
 let drainRequestedAgain = false;
 let participantId: string | null = null;
 
+/**
+ * Forget the cached participant row. Must run whenever the signed-in account
+ * changes, otherwise the next account's rows are written under the previous
+ * participant_id and RLS rejects every one of them.
+ */
+export function resetParticipantCache() {
+  participantId = null;
+}
+
 function logModeFromSource(source: PracticeLog['source']): 'logged' | 'minutes_added' | 'guided' {
   if (source === 'checkbox') return 'logged';
   if (source === 'minutes') return 'minutes_added';
@@ -36,7 +45,7 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
   const supabase = getSupabase();
   if (!supabase) return null;
 
-  const authUserId = await ensureAnonymousAuth();
+  const authUserId = await getAuthUserId();
   if (!authUserId) return null;
 
   const { data: existing } = await supabase
@@ -104,7 +113,7 @@ export async function restoreFromServer(): Promise<number> {
   const supabase = getSupabase();
   if (!supabase || isDemoDatabaseActive()) return 0;
 
-  const authUserId = await ensureAnonymousAuth();
+  const authUserId = await getAuthUserId();
   if (!authUserId) return 0;
 
   const { data: participant } = await supabase
@@ -207,7 +216,7 @@ export async function updateParticipantFields(
 ): Promise<void> {
   const supabase = getSupabase();
   if (!supabase) return;
-  const authUserId = await ensureAnonymousAuth();
+  const authUserId = await getAuthUserId();
   if (!authUserId) return;
 
   // initAppLifecycle calls this before anything has queued a sync, so on a first
@@ -452,7 +461,7 @@ export function initSyncListener() {
 export async function getParticipantName(): Promise<string | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
-  const authUserId = await ensureAnonymousAuth();
+  const authUserId = await getAuthUserId();
   if (!authUserId) return null;
   const { data } = await supabase
     .from('participants')

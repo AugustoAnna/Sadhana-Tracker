@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, TextInput } from '@/components';
 import { useAppStore } from '@/stores/appStore';
+import { useKeyboardInset } from '@/hooks';
 import { track } from '@/services/instrumentation';
 
 export function EditName() {
@@ -10,23 +11,7 @@ export function EditName() {
   const navigate = useNavigate();
   const [name, setName] = useState(profile?.name ?? '');
 
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const root = document.documentElement;
-    const update = () => {
-      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      root.style.setProperty('--keyboard-inset', `${inset}px`);
-    };
-    vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
-    update();
-    return () => {
-      vv.removeEventListener('resize', update);
-      vv.removeEventListener('scroll', update);
-      root.style.removeProperty('--keyboard-inset');
-    };
-  }, []);
+  useKeyboardInset();
 
   const handleSave = async () => {
     const previousName = profile?.name ?? null;
