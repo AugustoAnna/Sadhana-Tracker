@@ -14,6 +14,8 @@ let devicePasskey: { userId: string; passkeyId: string } | null = null;
 let passkeySignIn: { session: { user: { id: string; email?: string } } | null; error: string | null; cancelled: boolean } =
   { session: { user: { id: 'user-b', email: 'b@x.co' } }, error: null, cancelled: false };
 let passkeyRegister: { error: string | null; cancelled: boolean } = { error: null, cancelled: false };
+let anonTokens: { access_token: string; refresh_token: string } | null = { access_token: 'anon-at', refresh_token: 'anon-rt' };
+let mergeResult: { error: string | null } = { error: null };
 
 vi.mock('@/services/auth', () => ({
   getOwnerUserId: () => ownerId,
@@ -40,6 +42,9 @@ vi.mock('@/services/auth', () => ({
     return passkeyRegister;
   },
   removeDevicePasskey: async () => { calls.push('removeDevicePasskey'); devicePasskey = null; return { error: null }; },
+  captureSession: async () => { calls.push('captureSession'); return anonTokens; },
+  restoreSession: async (t: { access_token: string }) => { calls.push(`restoreSession:${t.access_token}`); },
+  mergeAnonymousAccount: async (token: string) => { calls.push(`merge:${token}`); return mergeResult; },
 }));
 
 vi.mock('@/services/sync', () => ({
@@ -74,6 +79,8 @@ beforeEach(() => {
   devicePasskey = null;
   passkeySignIn = { session: { user: { id: 'user-b', email: 'b@x.co' } }, error: null, cancelled: false };
   passkeyRegister = { error: null, cancelled: false };
+  anonTokens = { access_token: 'anon-at', refresh_token: 'anon-rt' };
+  mergeResult = { error: null };
   resolveImpl = async () => ({ state: 'signed-out', userId: null, email: null });
   verifyResult = { session: { user: { id: 'user-b', email: 'b@x.co' } }, error: null };
   useAuthStore.setState({ state: 'signed-out', userId: null, email: null, passkeyOnDevice: false });
@@ -154,6 +161,50 @@ describe('verifyCode', () => {
     expect(err).toBe('bad code');
     expect(useAuthStore.getState().state).toBe('signed-out');
     expect(calls).toEqual([]);
+  });
+});
+
+describe('verifyCodeAndMerge', () => {
+  beforeEach(() => {
+    useAuthStore.setState({ state: 'anonymous', userId: 'anon-1', email: null });
+  });
+
+  it('captures the anonymous session, signs in, merges, then restores and applies the name', async () => {
+    const err = await useAuthStore.getState().verifyCodeAndMerge('b@x.co', '123456', 'Priya');
+    expect(err).toBeNull();
+    const i = (c: string) => calls.findIndex((x) => x.startsWith(c));
+    expect(i('captureSession')).toBeLessThan(i('merge:anon-at'));
+    expect(i('merge:anon-at')).toBeLessThan(i('restoreFromServer'));
+    expect(i('restoreFromServer')).toBeLessThan(i('hydrate'));
+    expect(calls).toContain('setName:Priya');
+    expect(calls).not.toContain('wipe');
+    expect(useAuthStore.getState()).toMatchObject({ state: 'signed-in', userId: 'user-b' });
+  });
+
+  it('puts the anonymous session back and stays anonymous when the merge fails', async () => {
+    mergeResult = { error: 'merge down' };
+    const err = await useAuthStore.getState().verifyCodeAndMerge('b@x.co', '123456', 'Priya');
+    expect(err).toBe('merge down');
+    expect(calls).toContain('restoreSession:anon-at');
+    expect(calls).not.toContain('restoreFromServer');
+    expect(calls).not.toContain('wipe');
+    expect(ownerId).toBeNull();
+    expect(useAuthStore.getState().state).toBe('anonymous');
+  });
+
+  it('refuses when there is no anonymous session to merge from', async () => {
+    anonTokens = null;
+    const err = await useAuthStore.getState().verifyCodeAndMerge('b@x.co', '123456', 'Priya');
+    expect(err).toMatch(/previous session is gone/);
+    expect(calls).toEqual(['captureSession']);
+  });
+
+  it('does not merge when the code itself is wrong', async () => {
+    verifyResult = { session: null, error: 'bad code' };
+    const err = await useAuthStore.getState().verifyCodeAndMerge('b@x.co', '000000', 'Priya');
+    expect(err).toBe('bad code');
+    expect(calls.some((c) => c.startsWith('merge:'))).toBe(false);
+    expect(useAuthStore.getState().state).toBe('anonymous');
   });
 });
 

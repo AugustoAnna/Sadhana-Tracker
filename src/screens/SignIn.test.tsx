@@ -4,8 +4,9 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { SignIn } from '@/screens/SignIn';
 import { EMAIL_TAKEN_MESSAGE } from '@/services/auth';
 
-const requestCode = vi.fn<(email: string) => Promise<string | null>>();
+const requestCode = vi.fn<(email: string, opts?: { mode?: string }) => Promise<string | null>>();
 const verifyCode = vi.fn<(email: string, code: string, name: string) => Promise<string | null>>();
+const verifyCodeAndMerge = vi.fn<(email: string, code: string, name: string) => Promise<string | null>>();
 const signOut = vi.fn(async () => { authState.state = 'signed-out'; });
 const signInWithPasskey = vi.fn<() => Promise<string | null>>();
 const enablePasskey = vi.fn<() => Promise<string | null>>();
@@ -13,7 +14,7 @@ const authState = {
   state: 'signed-out' as string,
   passkeySupported: false,
   passkeyOnDevice: false,
-  requestCode, verifyCode, signOut, signInWithPasskey, enablePasskey,
+  requestCode, verifyCode, verifyCodeAndMerge, signOut, signInWithPasskey, enablePasskey,
 };
 const setName = vi.fn(async (_name: string) => undefined);
 const appState = { profile: { name: '' } as { name: string } | null, setName };
@@ -50,6 +51,7 @@ function fillDetails(name = 'Priya', email = 'a@b.co') {
 beforeEach(() => {
   requestCode.mockReset().mockResolvedValue(null);
   verifyCode.mockReset().mockResolvedValue(null);
+  verifyCodeAndMerge.mockReset().mockResolvedValue(null);
   signOut.mockClear();
   setName.mockClear();
   signInWithPasskey.mockReset().mockResolvedValue(null);
@@ -138,26 +140,45 @@ describe('SignIn', () => {
     expect((screen.getByLabelText('Your name') as HTMLInputElement).value).toBe('Neha');
   });
 
-  it('offers to switch to the existing account when the email is already taken while linking', async () => {
+  it('merges into the existing account when the email is already taken while linking — no sign-out, no wipe', async () => {
     authState.state = 'anonymous';
     requestCode.mockResolvedValueOnce(EMAIL_TAKEN_MESSAGE).mockResolvedValueOnce(null);
     renderSignIn();
     fillDetails();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Use my existing account' }));
-
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue with that account' }));
     await screen.findByText('Check your email');
-    expect(signOut).toHaveBeenCalledTimes(1);
-    expect(requestCode).toHaveBeenCalledTimes(2);
-    expect(signOut.mock.invocationCallOrder[0]).toBeLessThan(requestCode.mock.invocationCallOrder[1]);
+    expect(signOut).not.toHaveBeenCalled();
+    // second request is a sign-in code for the existing account, not a link attempt
+    expect(requestCode).toHaveBeenLastCalledWith('a@b.co', { mode: 'sign-in' });
+
+    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(verifyCodeAndMerge).toHaveBeenCalledWith('a@b.co', '123456', 'Priya'));
+    expect(verifyCode).not.toHaveBeenCalled();
+    await screen.findByText('landed home');
   });
 
-  it('does not offer the switch for a plain sign-in error', async () => {
+  it('shows the merge error and stays on the code step when the merge fails', async () => {
+    authState.state = 'anonymous';
+    requestCode.mockResolvedValueOnce(EMAIL_TAKEN_MESSAGE).mockResolvedValueOnce(null);
+    verifyCodeAndMerge.mockResolvedValueOnce('We couldn’t bring this phone’s history over.');
+    renderSignIn();
+    fillDetails();
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue with that account' }));
+    await screen.findByText('Check your email');
+    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/history over/);
+    expect(screen.queryByText('landed home')).toBeNull();
+  });
+
+  it('does not offer the merge for a plain sign-in error', async () => {
     requestCode.mockResolvedValueOnce(EMAIL_TAKEN_MESSAGE);
     renderSignIn();
     fillDetails();
     await screen.findByRole('alert');
-    expect(screen.queryByRole('button', { name: 'Use my existing account' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Continue with that account' })).toBeNull();
   });
 
   it('only asks for a name when already signed in without one', async () => {

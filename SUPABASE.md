@@ -17,6 +17,7 @@ Flow: Welcome → *Get started* → name + email → code → straight into onbo
 - Devices still holding a pre-email **anonymous** session see the same screen as "Keep your progress": `updateUser({ email })` → `verifyOtp({ type: 'email_change' })`. The auth user id does not change, so every row they already have stays attached.
 - The name typed at sign-in is applied after the server restore, so it wins over a stale local or placeholder name.
 - On sign-in the app records the account as the owner of the local IndexedDB (`localStorage.sadhana_owner_user_id`). If a different account later signs in on the same device the local database is wiped, then `restoreFromServer()` pulls that account's history down.
+- **Two accounts for one person** (the email already has a permanent account because it was used on another device before the anonymous phone linked it): the app offers *Continue with that account*. It sends a sign-in code for the existing account and, once verified, calls the **`merge-anonymous-account`** Edge Function with the anonymous session's token; the function verifies both tokens and runs `merge_participants()` (migration 007) to move every row onto the permanent participant, stamping the old row `merged_into`. If the merge fails the anonymous session is restored and nothing changes. Deploy with `supabase functions deploy merge-anonymous-account`.
 - Sign out (Reminders → Account) drains the sync queue, drops the session on this device only, and wipes the local database.
 - **Passkeys**: right after a code sign-in the app offers "Sign in faster next time?" once per device (`registerPasskey()`); the sign-in screen shows a "Sign in with Face ID / fingerprint" button where the browser supports it (`signInWithPasskey()`), which goes through the same restore/hydrate completion as a code; Reminders → Account has *Set up / Turn off* for this device. The passkey never replaces email — it is the fast door, email is identity and recovery.
 
@@ -101,6 +102,7 @@ supabase/migrations/002_v3_schema.sql
 supabase/migrations/003_seed_practices.sql
 supabase/migrations/004_push_subscriptions.sql
 supabase/migrations/006_participant_email.sql          (participants.email + view refresh)
+supabase/migrations/007_merge_participants.sql         (merge_participants() + participants.merged_into)
 supabase/migrations/20260807100000_initial_schema.sql   (v2, superseded)
 ```
 
