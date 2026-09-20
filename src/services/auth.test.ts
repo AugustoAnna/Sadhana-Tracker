@@ -29,6 +29,8 @@ const signInWithPasskey = vi.fn(async () => ({
 }));
 const passkeyUpdate = vi.fn(async () => ({ data: null, error: null }));
 const passkeyDelete = vi.fn(async () => ({ data: null, error: null as { message: string } | null }));
+const invoke = vi.fn(async () => ({ data: { ok: true } as { ok?: boolean; error?: string } | null, error: null as { message: string } | null }));
+const setSession = vi.fn(async () => ({ data: {}, error: null }));
 
 vi.mock('./supabase', () => ({
   getSupabase: () => ({
@@ -40,7 +42,9 @@ vi.mock('./supabase', () => ({
       registerPasskey,
       signInWithPasskey,
       passkey: { update: passkeyUpdate, delete: passkeyDelete },
+      setSession,
     },
+    functions: { invoke },
   }),
 }));
 
@@ -58,6 +62,10 @@ import {
   getDevicePasskey,
   setDevicePasskey,
   isPasskeyCancelled,
+  captureSession,
+  restoreSession,
+  mergeAnonymousAccount,
+  MERGE_FAILED_MESSAGE,
 } from './auth';
 
 beforeEach(() => {
@@ -70,6 +78,8 @@ beforeEach(() => {
   signInWithPasskey.mockClear();
   passkeyUpdate.mockClear();
   passkeyDelete.mockClear();
+  invoke.mockClear();
+  setSession.mockClear();
 });
 
 describe('resolveAuthState', () => {
@@ -195,5 +205,27 @@ describe('passkeys', () => {
   it('recognises the browser\'s own cancel errors too', () => {
     expect(isPasskeyCancelled({ name: 'NotAllowedError' })).toBe(true);
     expect(isPasskeyCancelled({ code: 'ERROR_INVALID_RP_ID' })).toBe(false);
+  });
+});
+
+describe('anonymous account merge', () => {
+  it('captures the current session tokens and can put them back', async () => {
+    sessionResult = { data: { session: { user: { id: 'anon-1', is_anonymous: true }, access_token: 'at', refresh_token: 'rt' } as never }, error: null };
+    const tokens = await captureSession();
+    expect(tokens).toEqual({ access_token: 'at', refresh_token: 'rt' });
+    await restoreSession(tokens!);
+    expect(setSession).toHaveBeenCalledWith({ access_token: 'at', refresh_token: 'rt' });
+  });
+
+  it('calls the merge function with the anonymous token', async () => {
+    expect(await mergeAnonymousAccount('anon-at')).toEqual({ error: null });
+    expect(invoke).toHaveBeenCalledWith('merge-anonymous-account', { body: { anonymous_access_token: 'anon-at' } });
+  });
+
+  it('reports a failure without leaking server details', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: { message: 'FunctionsHttpError' } });
+    expect(await mergeAnonymousAccount('anon-at')).toEqual({ error: MERGE_FAILED_MESSAGE });
+    invoke.mockResolvedValueOnce({ data: { ok: false, error: 'merge failed' }, error: null });
+    expect(await mergeAnonymousAccount('anon-at')).toEqual({ error: MERGE_FAILED_MESSAGE });
   });
 });

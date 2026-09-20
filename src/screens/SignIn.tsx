@@ -44,11 +44,11 @@ export function SignIn() {
   const authState = useAuthStore((s) => s.state);
   const requestCode = useAuthStore((s) => s.requestCode);
   const verifyCode = useAuthStore((s) => s.verifyCode);
+  const verifyCodeAndMerge = useAuthStore((s) => s.verifyCodeAndMerge);
   const signInWithPasskey = useAuthStore((s) => s.signInWithPasskey);
   const enablePasskey = useAuthStore((s) => s.enablePasskey);
   const passkeySupported = useAuthStore((s) => s.passkeySupported);
   const passkeyOnDevice = useAuthStore((s) => s.passkeyOnDevice);
-  const signOut = useAuthStore((s) => s.signOut);
   const profile = useAppStore((s) => s.profile);
   const setNameStore = useAppStore((s) => s.setName);
   const linking = authState === 'anonymous';
@@ -61,6 +61,9 @@ export function SignIn() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  // Set when the anonymous device's email already has an account: the code
+  // is a sign-in to that account and the server merges this history into it.
+  const [merging, setMerging] = useState(false);
   const codeRef = useRef<HTMLInputElement>(null);
 
   useKeyboardInset();
@@ -110,7 +113,7 @@ export function SignIn() {
   const resendCode = async () => {
     setBusy(true);
     setError(null);
-    const err = await requestCode(email);
+    const err = await requestCode(email, merging ? { mode: 'sign-in' } : undefined);
     setBusy(false);
     if (err) {
       setError(err);
@@ -123,17 +126,27 @@ export function SignIn() {
 
   /**
    * The anonymous device's owner already has a permanent account (they signed
-   * in with this email elsewhere first). Linking can't merge two auth users, so
-   * switch this device to the existing account: signOut() flushes whatever is
-   * still queued under the anonymous session and wipes the local copy; the
-   * verify that follows restores the account's history from the server.
+   * in with this email elsewhere first). Supabase can't attach the email to a
+   * second user, so: keep everything as it is, send a sign-in code for the
+   * existing account, and on verification the server moves this device's
+   * history onto that account.
    */
-  const switchToExistingAccount = async () => {
+  const continueWithExistingAccount = async () => {
     setBusy(true);
     setError(null);
-    await signOut();
+    const err = await requestCode(trimmedEmail, { mode: 'sign-in' });
     setBusy(false);
-    await continueWithDetails();
+    if (err) {
+      setError(err);
+      return;
+    }
+    setMerging(true);
+    setEmail(trimmedEmail);
+    setCode('');
+    setCooldown(RESEND_COOLDOWN_S);
+    setStep('code');
+    void track('sign_in_code_sent', { linking: false, merging: true });
+    setTimeout(() => codeRef.current?.focus(), 0);
   };
 
   const finish = () => {
@@ -147,7 +160,9 @@ export function SignIn() {
     if (!isCompleteCode(code)) return;
     setBusy(true);
     setError(null);
-    const err = await verifyCode(email, code, trimmedName);
+    const err = merging
+      ? await verifyCodeAndMerge(email, code, trimmedName)
+      : await verifyCode(email, code, trimmedName);
     if (err) {
       setBusy(false);
       setError(err);
@@ -155,7 +170,7 @@ export function SignIn() {
       codeRef.current?.focus();
       return;
     }
-    void track('sign_in_completed', { linking, method: 'code' });
+    void track('sign_in_completed', { linking, merged: merging, method: 'code' });
     // Offer the faster door for next time — once per device, only where the
     // browser can actually do it. Anonymous users can't register one; they've
     // just been linked, so by now they can.
@@ -283,10 +298,10 @@ export function SignIn() {
           {linking && error === EMAIL_TAKEN_MESSAGE && (
             <div className="bg-card rounded-[14px] p-4 mt-6">
               <p className="text-body mb-3">
-                Looks like you already signed in with this email on another device. You can continue with that account here instead.
+                This email already has an account — you may have signed in with it on another device. Continue with that account and this phone’s history comes along with you.
               </p>
-              <Button fullWidth variant="secondary" disabled={busy} onClick={() => void switchToExistingAccount()}>
-                Use my existing account
+              <Button fullWidth variant="secondary" disabled={busy} onClick={() => void continueWithExistingAccount()}>
+                Continue with that account
               </Button>
             </div>
           )}
@@ -344,7 +359,7 @@ export function SignIn() {
             variant="text"
             className="px-0"
             disabled={busy}
-            onClick={() => { setStep('details'); setError(null); setCode(''); }}
+            onClick={() => { setStep('details'); setError(null); setCode(''); setMerging(false); }}
           >
             Change details
           </Button>

@@ -121,6 +121,50 @@ export async function verifyEmailCode(
   return { session, error: null };
 }
 
+export interface SessionTokens {
+  access_token: string;
+  refresh_token: string;
+}
+
+/** The current session's tokens, so it can be put back if a later step fails. */
+export async function captureSession(): Promise<SessionTokens | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  // getSession refreshes an expiring token first, so what we capture is valid
+  // for the next hour — long enough for the merge call that follows.
+  const { data } = await supabase.auth.getSession();
+  const s = data.session;
+  return s ? { access_token: s.access_token, refresh_token: s.refresh_token } : null;
+}
+
+export async function restoreSession(tokens: SessionTokens): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+  await supabase.auth.setSession(tokens).catch(() => undefined);
+}
+
+export const MERGE_FAILED_MESSAGE =
+  'We couldn’t bring this phone’s history over, so nothing has changed. Please try again in a moment.';
+
+/**
+ * Ask the server to move the anonymous account's rows into the account that
+ * is now signed in. Proof of ownership of both is the two tokens: the current
+ * session (sent automatically) and the anonymous one passed in the body.
+ */
+export async function mergeAnonymousAccount(anonymousAccessToken: string): Promise<{ error: string | null }> {
+  const supabase = getSupabase();
+  if (!supabase) return { error: 'Sign-in is not configured.' };
+  const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>(
+    'merge-anonymous-account',
+    { body: { anonymous_access_token: anonymousAccessToken } },
+  );
+  if (error || !data?.ok) {
+    console.error('merge-anonymous-account failed:', error?.message ?? data?.error);
+    return { error: MERGE_FAILED_MESSAGE };
+  }
+  return { error: null };
+}
+
 export async function signOutSupabase(): Promise<void> {
   const supabase = getSupabase();
   setOwnerUserId(null);

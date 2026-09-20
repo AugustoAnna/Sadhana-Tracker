@@ -1,8 +1,11 @@
 import { create } from 'zustand';
 import { importDatabase, initDB, realDb } from '@/db';
 import {
+  captureSession,
   getDevicePasskey,
   getOwnerUserId,
+  mergeAnonymousAccount,
+  restoreSession,
   isPasskeySupported,
   onSignedOut,
   registerDevicePasskey,
@@ -38,7 +41,12 @@ interface AuthStore {
    */
   init: () => Promise<void>;
   whenSettled: () => Promise<void>;
-  requestCode: (email: string) => Promise<string | null>;
+  /**
+   * Email a code. The mode follows the session (anonymous → link the email to
+   * it, otherwise a plain sign-in) unless overridden — the merge path sends a
+   * sign-in code while still holding an anonymous session.
+   */
+  requestCode: (email: string, opts?: { mode?: SignInMode }) => Promise<string | null>;
   /**
    * Verify the code, then make the local database match the account: a
    * different owner's data is wiped, the account's history is pulled down,
@@ -46,6 +54,14 @@ interface AuthStore {
    * re-reads. Resolves once the app can route on real data.
    */
   verifyCode: (email: string, code: string, name: string) => Promise<string | null>;
+  /**
+   * The anonymous device's email already belongs to a permanent account
+   * (signed in elsewhere first). Sign into that account with the code and have
+   * the server move this device's anonymous history onto it, so nothing is
+   * lost and there is one participant. If the merge fails the anonymous
+   * session is put back untouched.
+   */
+  verifyCodeAndMerge: (email: string, code: string, name: string) => Promise<string | null>;
   /**
    * Sign in with a passkey on (or synced to) this device. Same completion as a
    * code, minus the typed name — a returning account already has one on the
@@ -138,10 +154,33 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   whenSettled: () => settled,
 
-  requestCode: async (email) => {
-    const mode: SignInMode = get().state === 'anonymous' ? 'link' : 'sign-in';
+  requestCode: async (email, opts) => {
+    const mode: SignInMode = opts?.mode ?? (get().state === 'anonymous' ? 'link' : 'sign-in');
     const { error } = await requestEmailCode(email, mode);
     return error;
+  },
+
+  verifyCodeAndMerge: async (email, code, name) => {
+    const anonymous = await captureSession();
+    if (!anonymous) return 'Your previous session is gone — sign in with your email instead.';
+    const previousOwner = getOwnerUserId();
+
+    const { session, error } = await verifyEmailCode(email, code, 'sign-in');
+    if (error || !session) return error ?? 'Something went wrong. Please try again.';
+
+    const merge = await mergeAnonymousAccount(anonymous.access_token);
+    if (merge.error) {
+      // Back to exactly where they were: anonymous session, local history intact.
+      await restoreSession(anonymous);
+      setOwnerUserId(previousOwner);
+      return merge.error;
+    }
+
+    // Rows now live under the permanent participant with the same ids, so the
+    // usual restore simply reconciles; a wipe (different previous owner) is
+    // harmless because everything is on the server.
+    await completeSignIn(session, { mode: 'sign-in', previousOwner, name, fallbackEmail: email });
+    return null;
   },
 
   verifyCode: async (email, code, name) => {
