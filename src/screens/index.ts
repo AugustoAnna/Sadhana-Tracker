@@ -1,5 +1,4 @@
 export { Welcome } from './Welcome';
-export { WelcomeName } from './WelcomeName';
 export { PracticeHome } from './PracticeHome';
 export { EditPractices } from './EditPractices';
 export { Reminders } from './Reminders';
@@ -10,3 +9,4 @@ export { PostPractice } from './PostPractice';
 export { LevelUp } from './LevelUp';
 export { Journey } from './Journey';
 export { EditName } from './EditName';
+export { SignIn } from './SignIn';

@@ -50,7 +50,8 @@ export function Welcome() {
       </div>
 
       <div className="px-4 pb-4 safe-bottom">
-        <Button fullWidth onClick={() => navigate('/welcome/name')}>
+        {/* One door for everyone: new and returning participants both give name + email next. */}
+        <Button fullWidth onClick={() => navigate('/sign-in')}>
           Get started
         </Button>
       </div>

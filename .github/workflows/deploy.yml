@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Vercel's Git integration only deploys commits from the project owner (Hobby
+# plan), so this workflow is how every contributor's push gets deployed.
+permissions:
+  contents: read
+  pull-requests: write # to post the preview URL on the PR
+
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -28,4 +34,36 @@ jobs:
         run: vercel build ${{ github.ref == 'refs/heads/main' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy project artifacts to Vercel
-        run: vercel deploy --prebuilt ${{ github.ref == 'refs/heads/main' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt ${{ github.ref == 'refs/heads/main' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }})
+          echo "Deployed: $url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      # One comment per PR, edited in place on every push, so the latest
+      # preview is always at the same spot. PRs opened from a fork get a
+      # read-only token and this step fails harmlessly — the URL is still in
+      # the deploy step's log above.
+      - name: Post the preview URL on the PR
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          marker='<!-- vercel-preview -->'
+          body=$(printf '%s\n**Vercel preview** for `%s`: %s\n\n_Posted by the deploy workflow; updated on every push to this PR._' \
+            "$marker" "${SHA:0:7}" "$URL")
+          existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" >/dev/null
+            echo "Updated preview comment $existing"
+          else
+            gh pr comment "$PR" --repo "$REPO" --body "$body"
+            echo "Posted preview comment"
+          fi

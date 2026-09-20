@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  BackHeader, PracticeCard, BottomSheet, MinutePicker, Button,
+  PracticeCard, BottomSheet, MinutePicker, Button,
   PracticeCalendar, ProgressStatBoxes, NameBanner,
 } from '@/components';
 import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
@@ -22,7 +22,6 @@ export function PracticeHome() {
   const logPractice = useAppStore((s) => s.logPractice);
   const setPlayerSession = useAppStore((s) => s.setPlayerSession);
   const profile = useAppStore((s) => s.profile);
-  const headerTitle = profile?.name?.trim() ? `Practices of ${profile.name}` : 'Practices'
   const markFirstRecordReassuranceShown = useAppStore((s) => s.markFirstRecordReassuranceShown);
   const playerSession = useAppStore((s) => s.playerSession);
   const haptic = useHaptic();
@@ -124,7 +123,10 @@ export function PracticeHome() {
 
   return (
     <div className="h-full overflow-y-auto pb-8 bg-page">
-      <BackHeader dark title={headerTitle} hideBack rightAction={bellAction} />
+      {/* No title bar: just the reminders bell, top right. */}
+      <div className="flex justify-end px-4 pt-8 -mb-2 text-ink">
+        {bellAction}
+      </div>
 
       <div className="px-4">
         <NameBanner />

@@ -2,6 +2,7 @@ import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppRouter } from '@/app/router';
 import { useAppStore } from '@/stores/appStore';
+import { useAuthStore } from '@/stores/authStore';
 import { initSyncListener, restoreFromServer, syncFullState } from '@/services/sync';
 import { initAppLifecycle } from '@/services/appLifecycle';
 import { initDayRollover } from '@/services/dayRollover';
@@ -43,17 +44,23 @@ if ('serviceWorker' in navigator) {
 function Bootstrap() {
   const [ready, setReady] = useState(false);
   const hydrate = useAppStore((s) => s.hydrate);
+  const initAuth = useAuthStore((s) => s.init);
 
   useEffect(() => {
     async function init() {
       await ensureDatabasesReady();
       await recoverFromInterruptedDemo();
-      await hydrate();
+      // Reads the stored session; offline it falls back to the recorded owner
+      // rather than the network, so this does not hold up first render.
+      await Promise.all([hydrate(), initAuth()]);
       initDayRollover();
       initSyncListener();
-      // Auth and sync are network-bound and must never block first render —
-      // the app works from local data and syncs in the background.
-      initAppLifecycle()
+      // Sync is network-bound and must never block first render — the app
+      // works from local data and syncs in the background. Wait for the
+      // session question to be fully answered so the first sync runs under
+      // the right user.
+      useAuthStore.getState().whenSettled()
+        .then(() => initAppLifecycle())
         .then(async () => {
           // Before pushing local state up, pull down anything this device lost
           // to storage eviction — otherwise an evicted participant uploads an
@@ -67,7 +74,7 @@ function Bootstrap() {
     init()
       .catch((err) => console.error('Bootstrap failed:', err))
       .finally(() => setReady(true));
-  }, [hydrate]);
+  }, [hydrate, initAuth]);
 
   if (!ready) {
     return (

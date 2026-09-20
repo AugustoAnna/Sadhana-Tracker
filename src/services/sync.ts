@@ -1,7 +1,7 @@
 import { APP_ENV } from '@/config/environment';
 import { getDb, isDemoDatabaseActive } from '@/db';
 import type { PracticeInstance, PracticeLog, Profile, Reminder } from '@/types';
-import { ensureAnonymousAuth } from './auth';
+import { getAuthUser, getAuthUserId } from './auth';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { isFeatureEnabled } from '@/features';
 
@@ -26,6 +26,15 @@ let syncInProgress = false;
 let drainRequestedAgain = false;
 let participantId: string | null = null;
 
+/**
+ * Forget the cached participant row. Must run whenever the signed-in account
+ * changes, otherwise the next account's rows are written under the previous
+ * participant_id and RLS rejects every one of them.
+ */
+export function resetParticipantCache() {
+  participantId = null;
+}
+
 function logModeFromSource(source: PracticeLog['source']): 'logged' | 'minutes_added' | 'guided' {
   if (source === 'checkbox') return 'logged';
   if (source === 'minutes') return 'minutes_added';
@@ -36,8 +45,9 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
   const supabase = getSupabase();
   if (!supabase) return null;
 
-  const authUserId = await ensureAnonymousAuth();
-  if (!authUserId) return null;
+  const authUser = await getAuthUser();
+  if (!authUser) return null;
+  const authUserId = authUser.id;
 
   const { data: existing } = await supabase
     .from('participants')
@@ -50,10 +60,15 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
     // A device whose local database was evicted comes back with a blank profile
     // name. Writing that over the stored copy erases the only human-readable
     // record of whose row this is, so leave it alone until there is a real name.
-    if (profile.name) {
+    // The email is the account's identity; write it whenever the session has one
+    // (it appears the moment a pre-email participant links their address).
+    const patch: { name?: string; email?: string } = {};
+    if (profile.name) patch.name = profile.name;
+    if (authUser.email) patch.email = authUser.email;
+    if (Object.keys(patch).length) {
       await supabase
         .from('participants')
-        .update({ name: profile.name })
+        .update(patch)
         .eq('auth_user_id', authUserId);
     }
     return existing.id;
@@ -63,6 +78,7 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
     .from('participants')
     .insert({
       auth_user_id: authUserId,
+      email: authUser.email,
       name: profile.name || 'Anonymous',
       environment: APP_ENV,
     })
@@ -104,7 +120,7 @@ export async function restoreFromServer(): Promise<number> {
   const supabase = getSupabase();
   if (!supabase || isDemoDatabaseActive()) return 0;
 
-  const authUserId = await ensureAnonymousAuth();
+  const authUserId = await getAuthUserId();
   if (!authUserId) return 0;
 
   const { data: participant } = await supabase
@@ -207,7 +223,7 @@ export async function updateParticipantFields(
 ): Promise<void> {
   const supabase = getSupabase();
   if (!supabase) return;
-  const authUserId = await ensureAnonymousAuth();
+  const authUserId = await getAuthUserId();
   if (!authUserId) return;
 
   // initAppLifecycle calls this before anything has queued a sync, so on a first
@@ -452,7 +468,7 @@ export function initSyncListener() {
 export async function getParticipantName(): Promise<string | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
-  const authUserId = await ensureAnonymousAuth();
+  const authUserId = await getAuthUserId();
   if (!authUserId) return null;
   const { data } = await supabase
     .from('participants')

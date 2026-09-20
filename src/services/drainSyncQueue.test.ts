@@ -21,7 +21,10 @@ vi.mock('@/db', () => ({
   isDemoDatabaseActive: () => false,
 }));
 
-vi.mock('./auth', () => ({ ensureAnonymousAuth: async () => 'auth-user-1' }));
+vi.mock('./auth', () => ({
+  getAuthUserId: async () => 'auth-user-1',
+  getAuthUser: async () => ({ id: 'auth-user-1', email: null }),
+}));
 
 vi.mock('./supabase', () => ({
   getSupabase: () => ({

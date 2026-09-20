@@ -5,7 +5,6 @@ import { isFeatureEnabled } from '@/features';
 import { NotFound } from './NotFound';
 import {
   Welcome,
-  WelcomeName,
   PracticeHome,
   EditPractices,
   Reminders,
@@ -15,10 +14,13 @@ import {
   LevelUp,
   Journey,
   EditName,
+  SignIn,
 } from '@/screens';
 import { InstrumentationPage } from '@/screens/InstrumentationPage';
 import {
   LandingRedirect,
+  AuthGuard,
+  SignInGuard,
   WelcomeGuard,
   PostOnboardingGuard,
   SetupGuard,
@@ -35,48 +37,49 @@ export function AppRouter() {
           <Route path="/welcome" element={
             <WelcomeGuard><Welcome /></WelcomeGuard>
           } />
-          <Route path="/welcome/name" element={
-            <WelcomeGuard><WelcomeName /></WelcomeGuard>
+          <Route path="/sign-in" element={
+            <SignInGuard><SignIn /></SignInGuard>
           } />
+          <Route path="/welcome/name" element={<Navigate to="/sign-in" replace />} />
 
           <Route path="/practice-home" element={
-            <PostOnboardingGuard><PracticeHome /></PostOnboardingGuard>
+            <AuthGuard><PostOnboardingGuard><PracticeHome /></PostOnboardingGuard></AuthGuard>
           } />
           <Route path="/practices/edit" element={
-            <SetupGuard><EditPractices /></SetupGuard>
+            <AuthGuard><SetupGuard><EditPractices /></SetupGuard></AuthGuard>
           } />
           <Route path="/reminders" element={
-            <SetupGuard><Reminders /></SetupGuard>
+            <AuthGuard><SetupGuard><Reminders /></SetupGuard></AuthGuard>
           } />
           <Route path="/name" element={
-            <PostOnboardingGuard><EditName /></PostOnboardingGuard>
+            <AuthGuard><PostOnboardingGuard><EditName /></PostOnboardingGuard></AuthGuard>
           } />
 
           {isFeatureEnabled('sessions') && (
             <>
               <Route path="/session/select" element={
-                <PostOnboardingGuard><SessionSelect /></PostOnboardingGuard>
+                <AuthGuard><PostOnboardingGuard><SessionSelect /></PostOnboardingGuard></AuthGuard>
               } />
               <Route path="/session/review" element={
-                <PostOnboardingGuard><SessionReview /></PostOnboardingGuard>
+                <AuthGuard><PostOnboardingGuard><SessionReview /></PostOnboardingGuard></AuthGuard>
               } />
             </>
           )}
 
           <Route path="/player" element={
-            <PostOnboardingGuard><PracticePlayer /></PostOnboardingGuard>
+            <AuthGuard><PostOnboardingGuard><PracticePlayer /></PostOnboardingGuard></AuthGuard>
           } />
           <Route path="/post-practice" element={
-            <PostOnboardingGuard><Navigate to="/practice-home" replace /></PostOnboardingGuard>
+            <AuthGuard><PostOnboardingGuard><Navigate to="/practice-home" replace /></PostOnboardingGuard></AuthGuard>
           } />
 
           {isFeatureEnabled('journey') && (
             <>
               <Route path="/level-up" element={
-                <PostOnboardingGuard><LevelUp /></PostOnboardingGuard>
+                <AuthGuard><PostOnboardingGuard><LevelUp /></PostOnboardingGuard></AuthGuard>
               } />
               <Route path="/journey" element={
-                <PostOnboardingGuard><Journey /></PostOnboardingGuard>
+                <AuthGuard><PostOnboardingGuard><Journey /></PostOnboardingGuard></AuthGuard>
               } />
             </>
           )}

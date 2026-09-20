@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           id: string;
           auth_user_id: string;
+          email: string | null;
           name: string;
           platform: string | null;
           installed_standalone: boolean;
@@ -25,6 +26,7 @@ export type Database = {
         Insert: {
           id?: string;
           auth_user_id: string;
+          email?: string | null;
           name: string;
           platform?: string | null;
           installed_standalone?: boolean;
@@ -37,6 +39,7 @@ export type Database = {
         Update: {
           id?: string;
           auth_user_id?: string;
+          email?: string | null;
           name?: string;
           platform?: string | null;
           installed_standalone?: boolean;
