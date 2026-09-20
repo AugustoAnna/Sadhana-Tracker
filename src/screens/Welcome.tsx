@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, PracticeIllustration } from '@/components';
 import { useAuthStore } from '@/stores/authStore';
@@ -24,8 +25,30 @@ function polarPosition(angleDeg: number, radius: number) {
 
 export function Welcome() {
   const navigate = useNavigate();
-  const signedIn = useAuthStore((s) => s.state === 'signed-in');
+  const authState = useAuthStore((s) => s.state);
+  const signOut = useAuthStore((s) => s.signOut);
+  const ensureSession = useAuthStore((s) => s.ensureSession);
+  const [switching, setSwitching] = useState(false);
+  const signedIn = authState === 'signed-in';
   const nextStep = REQUIRE_EMAIL_SIGN_IN && !signedIn ? '/sign-in' : '/welcome/name';
+
+  const getStarted = () => {
+    // A tap on "Sign in" below may have dropped the fresh anonymous session;
+    // re-create it so onboarding syncs from the start.
+    if (!REQUIRE_EMAIL_SIGN_IN) void ensureSession();
+    navigate(nextStep);
+  };
+
+  /**
+   * Returning participant on a new phone (anonymous build). This device only
+   * has the empty anonymous session boot just created; drop it so the code
+   * flow is a real sign-in rather than an attempt to link that empty user.
+   */
+  const signInInstead = async () => {
+    setSwitching(true);
+    await signOut({ thenAnonymous: false });
+    navigate('/sign-in');
+  };
 
   return (
     <div className="flex flex-col h-full bg-page">
@@ -54,9 +77,14 @@ export function Welcome() {
       </div>
 
       <div className="px-4 pb-4 safe-bottom">
-        <Button fullWidth onClick={() => navigate(nextStep)}>
+        <Button fullWidth disabled={switching} onClick={getStarted}>
           Get started
         </Button>
+        {!REQUIRE_EMAIL_SIGN_IN && !signedIn && (
+          <Button variant="text" className="w-full mt-2" disabled={switching} onClick={() => void signInInstead()}>
+            Already added your email? Sign in
+          </Button>
+        )}
       </div>
     </div>
   );
