@@ -7,19 +7,13 @@ V3 schema (participants, practices, participant_practices, practice_completed, r
 
 ## Auth
 
-Participants can sign in with their email and a 6-digit code (Supabase email OTP). There are no passwords. Whether email is *required* is a build-time switch:
+Everyone signs in with their name, their email and a code (Supabase email OTP). There are no passwords and no anonymous sign-in. The `participants.email` column mirrors `auth.users.email` and is the account's human-readable identity; `participants.id` stays the uuid the other tables reference.
 
-| `VITE_REQUIRE_EMAIL_SIGN_IN` | Behaviour |
-|---|---|
-| unset / `false` (current) | Same as the original build: a new install gets an anonymous session and onboarding starts straight away. Email is offered in Reminders → *Keep your progress → Add email*. Sign-out is hidden for anonymous users (it would orphan their history). |
-| `true` | Email code required before the app opens. Existing anonymous sessions are asked to link an email on next open. Sign-out available in Reminders → *Account*. |
-
-Set it in the Vercel project's environment variables and redeploy; it is read at build time. Flip it only once code emails are known to deliver (custom SMTP verified, templates updated) — with the flag on and no working email, nobody new can get in.
-
-The client flow lives in `src/services/auth.ts` and `src/stores/authStore.ts`:
+Flow: Welcome → *Get started* → name + email → code → straight into onboarding (new participant) or home with history restored (returning participant). The client lives in `src/services/auth.ts`, `src/stores/authStore.ts` and `src/screens/SignIn.tsx`:
 
 - `signInWithOtp({ email, shouldCreateUser: true })` → `verifyOtp({ type: 'email' })` for a fresh or returning participant.
-- Devices still holding a pre-email **anonymous** session are asked to add an email instead: `updateUser({ email })` → `verifyOtp({ type: 'email_change' })`. The auth user id does not change, so every row they already have stays attached.
+- Devices still holding a pre-email **anonymous** session see the same screen as "Keep your progress": `updateUser({ email })` → `verifyOtp({ type: 'email_change' })`. The auth user id does not change, so every row they already have stays attached.
+- The name typed at sign-in is applied after the server restore, so it wins over a stale local or placeholder name.
 - On sign-in the app records the account as the owner of the local IndexedDB (`localStorage.sadhana_owner_user_id`). If a different account later signs in on the same device the local database is wiped, then `restoreFromServer()` pulls that account's history down.
 - Sign out (Reminders → Account) drains the sync queue, drops the session on this device only, and wipes the local database.
 
@@ -28,7 +22,7 @@ The client flow lives in `src/services/auth.ts` and `src/stores/authStore.ts`:
 Everything below is in **Authentication** on the Supabase dashboard and has to be done once per project.
 
 1. **Sign In / Providers → Email**: keep the provider enabled. Set *Email OTP expiration* (default 1 hour; 30 minutes is plenty). *Email OTP Length* can stay at whatever it is (6–10) — the app accepts any length in that range; just keep the template text honest about it.
-2. **Sign In / Providers → Anonymous sign-ins**: leave **enabled** while `VITE_REQUIRE_EMAIL_SIGN_IN` is off — the app still creates anonymous sessions for new installs. Disable it only after a build with the flag on is deployed. Existing anonymous sessions keep working either way until they link an email.
+2. **Sign In / Providers → Anonymous sign-ins**: **disable once this build is in production** (the previous build creates anonymous sessions for new installs, so not before). Existing anonymous sessions keep working until they link an email.
 3. **Emails → Templates**: three templates must contain `{{ .Token }}` — that is what makes Supabase send a code instead of a link. Supabase picks the template from the account's state, so all three carry the same body:
 
    | Template | Fires when |
@@ -50,8 +44,8 @@ Everything below is in **Authentication** on the Supabase dashboard and has to b
 ### Existing anonymous users
 
 Participants from the anonymous build are **kept**, not deleted. Their session
-stays valid after anonymous sign-ins are disabled; the app offers (flag off) or
-requires (flag on) "Keep your progress", which attaches an email to the same
+stays valid after anonymous sign-ins are disabled; on next open the app asks
+for name + email ("Keep your progress") and attaches the email to the same
 auth user, so all their rows stay where they are. Nothing needs to be run against `auth.users`.
 (Deleting a row there would cascade through `participants` into every practice,
 reminder and event row for that person.)
@@ -93,6 +87,8 @@ Applied via the Supabase SQL editor. Local SQL mirror:
 supabase/migrations/001_study_build.sql
 supabase/migrations/002_v3_schema.sql
 supabase/migrations/003_seed_practices.sql
+supabase/migrations/004_push_subscriptions.sql
+supabase/migrations/006_participant_email.sql          (participants.email + view refresh)
 supabase/migrations/20260807100000_initial_schema.sql   (v2, superseded)
 ```
 

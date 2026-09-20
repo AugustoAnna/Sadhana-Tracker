@@ -10,7 +10,11 @@ vi.mock('@/db', () => ({
   isDemoDatabaseActive: () => false,
 }));
 
-vi.mock('./auth', () => ({ getAuthUserId: async () => 'auth-user-1' }));
+let authEmail: string | null = null;
+vi.mock('./auth', () => ({
+  getAuthUserId: async () => 'auth-user-1',
+  getAuthUser: async () => ({ id: 'auth-user-1', email: authEmail }),
+}));
 
 vi.mock('./supabase', () => ({
   getSupabase: () => ({
@@ -37,6 +41,7 @@ beforeEach(() => {
   updates.length = 0;
   inserts.length = 0;
   existingRow = { id: 'p1' };
+  authEmail = null;
 });
 
 describe('ensureParticipant', () => {
@@ -54,5 +59,18 @@ describe('ensureParticipant', () => {
     existingRow = null;
     await ensureParticipant(profile(''));
     expect(inserts[0]).toMatchObject({ name: 'Anonymous' });
+  });
+
+  it('mirrors the account email onto the row once the session has one', async () => {
+    authEmail = 'priya@example.org';
+    await ensureParticipant(profile(''));
+    expect(updates).toEqual([{ email: 'priya@example.org' }]);
+  });
+
+  it('stores the email on a brand new row', async () => {
+    existingRow = null;
+    authEmail = 'priya@example.org';
+    await ensureParticipant(profile('Priya'));
+    expect(inserts[0]).toMatchObject({ name: 'Priya', email: 'priya@example.org' });
   });
 });

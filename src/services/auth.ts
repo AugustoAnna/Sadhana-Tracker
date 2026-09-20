@@ -40,10 +40,16 @@ export function setOwnerUserId(id: string | null) {
  * when it gets null.
  */
 export async function getAuthUserId(): Promise<string | null> {
+  return (await getAuthUser())?.id ?? null;
+}
+
+/** Current session's user id and email, or null. Same no-side-effects rule as getAuthUserId. */
+export async function getAuthUser(): Promise<{ id: string; email: string | null } | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
   const { data } = await supabase.auth.getSession();
-  return data.session?.user.id ?? null;
+  const user = data.session?.user;
+  return user ? { id: user.id, email: user.email ?? null } : null;
 }
 
 /**
@@ -76,21 +82,6 @@ export async function resolveAuthState(): Promise<ResolvedAuth> {
 
   setOwnerUserId(null);
   return { state: 'signed-out', userId: null, email: null };
-}
-
-/**
- * Create an anonymous session for a device that has none. Only the auth store
- * calls this, and only while REQUIRE_EMAIL_SIGN_IN is off.
- */
-export async function startAnonymousSession(): Promise<string | null> {
-  const supabase = getSupabase();
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error || !data.user) {
-    console.error('Anonymous auth failed:', error?.message);
-    return null;
-  }
-  return data.user.id;
 }
 
 export type SignInMode = 'sign-in' | 'link';
@@ -164,7 +155,8 @@ export function friendlyAuthError(message: string): string {
   if (m.includes('rate limit') || m.includes('security purposes') || m.includes('too many')) {
     return 'Too many attempts. Please wait a minute and try again.';
   }
-  if (m.includes('fetch') || m.includes('network') || m.includes('failed to')) {
+  // "Failed to fetch" (Chrome), "Load failed" (Safari), "NetworkError" (Firefox).
+  if (m.includes('fetch') || m.includes('network') || m.includes('load failed')) {
     return 'You’re offline. Connect to the internet to sign in.';
   }
   if (m.includes('already') && (m.includes('registered') || m.includes('exists'))) {

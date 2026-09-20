@@ -65,7 +65,6 @@ export function Reminders() {
   const profile = useAppStore((s) => s.profile);
   const setReminder = useAppStore((s) => s.setReminder);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
-  const authState = useAuthStore((s) => s.state);
   const accountEmail = useAuthStore((s) => s.email);
   const signOut = useAuthStore((s) => s.signOut);
   const [signingOut, setSigningOut] = useState(false);
@@ -274,7 +273,7 @@ export function Reminders() {
           );
         })}
 
-        {!inSetup && authState === 'signed-in' && (
+        {!inSetup && (
           <div className="mt-10 pb-8 safe-bottom">
             <p className="section-header mb-2">Account</p>
             {accountEmail && (
@@ -282,19 +281,6 @@ export function Reminders() {
             )}
             <Button variant="text" className="px-0" disabled={signingOut} onClick={() => void handleSignOut()}>
               {signingOut ? 'Signing out…' : 'Sign out'}
-            </Button>
-          </div>
-        )}
-
-        {/* Anonymous build: no sign-out (it would orphan the history), offer to attach an email instead. */}
-        {!inSetup && authState === 'anonymous' && (
-          <div className="mt-10 pb-8 safe-bottom">
-            <p className="section-header mb-2">Keep your progress</p>
-            <p className="text-label text-secondary mb-3">
-              Add your email so your practice history stays with you if you change phones.
-            </p>
-            <Button fullWidth variant="secondary" onClick={() => navigate('/sign-in')}>
-              Add email
             </Button>
           </div>
         )}

@@ -5,7 +5,6 @@ import { isFeatureEnabled } from '@/features';
 import { NotFound } from './NotFound';
 import {
   Welcome,
-  WelcomeName,
   PracticeHome,
   EditPractices,
   Reminders,
@@ -41,9 +40,7 @@ export function AppRouter() {
           <Route path="/sign-in" element={
             <SignInGuard><SignIn /></SignInGuard>
           } />
-          <Route path="/welcome/name" element={
-            <AuthGuard><WelcomeGuard><WelcomeName /></WelcomeGuard></AuthGuard>
-          } />
+          <Route path="/welcome/name" element={<Navigate to="/sign-in" replace />} />
 
           <Route path="/practice-home" element={
             <AuthGuard><PostOnboardingGuard><PracticeHome /></PostOnboardingGuard></AuthGuard>

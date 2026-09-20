@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, TextInput } from '@/components';
 import { useKeyboardInset } from '@/hooks';
+import { useAppStore } from '@/stores/appStore';
 import { useAuthStore } from '@/stores/authStore';
 import { EMAIL_TAKEN_MESSAGE, isValidEmail } from '@/services/auth';
 import { track } from '@/services/instrumentation';
 import { reportAppOpen } from '@/services/appLifecycle';
-import { REQUIRE_EMAIL_SIGN_IN } from '@/config/environment';
 
 /** Supabase refuses a second code to the same address inside this window. */
 const RESEND_COOLDOWN_S = 60;
@@ -19,7 +19,7 @@ const MIN_CODE_LENGTH = 6;
 const MAX_CODE_LENGTH = 10;
 const isCompleteCode = (value: string) => value.length >= MIN_CODE_LENGTH;
 
-type Step = 'email' | 'code' | 'restoring';
+type Step = 'details' | 'code' | 'restoring';
 
 /** Enter / the keyboard's Go key submits; the visible button lives in the footer. */
 function submitOnEnter(action: () => Promise<void>) {
@@ -30,15 +30,28 @@ function submitOnEnter(action: () => Promise<void>) {
   };
 }
 
+/**
+ * The one entry point for everyone: name + email, then the emailed code.
+ *
+ * Three situations share the screen and differ only in copy and in what the
+ * store does with the code:
+ * - fresh device / new or returning participant → sign-in (`signInWithOtp`)
+ * - pre-email anonymous session → link (`updateUser({ email })`, same user id)
+ * - signed in but nameless (setName failed mid sign-in) → name-only, no code
+ */
 export function SignIn() {
   const navigate = useNavigate();
   const authState = useAuthStore((s) => s.state);
   const requestCode = useAuthStore((s) => s.requestCode);
   const verifyCode = useAuthStore((s) => s.verifyCode);
   const signOut = useAuthStore((s) => s.signOut);
+  const profile = useAppStore((s) => s.profile);
+  const setNameStore = useAppStore((s) => s.setName);
   const linking = authState === 'anonymous';
+  const nameOnly = authState === 'signed-in';
 
-  const [step, setStep] = useState<Step>('email');
+  const [step, setStep] = useState<Step>('details');
+  const [name, setName] = useState(profile?.name ?? '');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -54,51 +67,76 @@ export function SignIn() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  const sendCode = async () => {
-    const trimmed = email.trim().toLowerCase();
-    if (!isValidEmail(trimmed)) {
+  const trimmedName = name.trim();
+  const trimmedEmail = email.trim().toLowerCase();
+  const detailsComplete = trimmedName.length > 0 && (nameOnly || trimmedEmail.length > 0);
+
+  const continueWithDetails = async () => {
+    if (!trimmedName) {
+      setError('Please enter your name.');
+      return;
+    }
+    if (nameOnly) {
+      setBusy(true);
+      await setNameStore(trimmedName);
+      navigate('/', { replace: true });
+      return;
+    }
+    if (!isValidEmail(trimmedEmail)) {
       setError('Please enter a valid email address.');
       return;
     }
     setBusy(true);
     setError(null);
-    const err = await requestCode(trimmed);
+    const err = await requestCode(trimmedEmail);
     setBusy(false);
     if (err) {
       setError(err);
       return;
     }
-    setEmail(trimmed);
+    setEmail(trimmedEmail);
     setCode('');
     setCooldown(RESEND_COOLDOWN_S);
     setStep('code');
-    setError(null);
     void track('sign_in_code_sent', { linking });
     // autoFocus only fires on mount; the input is already mounted on resend.
     setTimeout(() => codeRef.current?.focus(), 0);
+  };
+
+  const resendCode = async () => {
+    setBusy(true);
+    setError(null);
+    const err = await requestCode(email);
+    setBusy(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setCode('');
+    setCooldown(RESEND_COOLDOWN_S);
+    codeRef.current?.focus();
   };
 
   /**
    * The anonymous device's owner already has a permanent account (they signed
    * in with this email elsewhere first). Linking can't merge two auth users, so
    * switch this device to the existing account: signOut() flushes whatever is
-   * still queued under the anonymous session, wipes the local copy, and the
-   * next verify restores the account's history from the server.
+   * still queued under the anonymous session and wipes the local copy; the
+   * verify that follows restores the account's history from the server.
    */
   const switchToExistingAccount = async () => {
     setBusy(true);
     setError(null);
-    // No fresh anonymous session in between — the next request must be a real sign-in.
-    await signOut({ thenAnonymous: false });
+    await signOut();
     setBusy(false);
-    await sendCode();
+    await continueWithDetails();
   };
 
   const submitCode = async () => {
     if (!isCompleteCode(code)) return;
     setBusy(true);
     setError(null);
-    const err = await verifyCode(email, code);
+    const err = await verifyCode(email, code, trimmedName);
     if (err) {
       setBusy(false);
       setError(err);
@@ -123,42 +161,47 @@ export function SignIn() {
   }
 
   const footerStyle = { paddingBottom: 'calc(1rem + var(--keyboard-inset, 0px))' };
-  // Optional in the anonymous build: the screen is reached from inside the app
-  // and must offer a way back. Required mode has nowhere else to go.
-  const dismiss = REQUIRE_EMAIL_SIGN_IN ? null : (
-    <Button variant="text" className="w-full mt-2" disabled={busy} onClick={() => navigate(-1)}>
-      Not now
-    </Button>
-  );
 
-  if (step === 'email') {
+  if (step === 'details') {
+    const heading = linking ? 'Keep your progress' : nameOnly ? 'What should we call you?' : 'Let’s get you set up';
+    const intro = linking
+      ? 'Add your email so your practice history stays with you if you change phones. We’ll email you a code to enter here.'
+      : nameOnly
+        ? 'Your name is shown on your practices.'
+        : 'Your name is shown on your practices. We’ll email you a code to confirm your address — no password needed.';
+
     return (
       <div className="flex flex-col h-full bg-page">
         <div className="flex-1 overflow-y-auto px-4 pt-14">
-          <h1 className="font-serif text-display mb-6">
-            {linking ? 'Keep your progress' : 'Sign in'}
-          </h1>
-          <p className="text-label text-secondary mb-6">
-            {linking
-              ? 'Add your email so your practice history stays with you if you change phones. We’ll email you a code to enter here.'
-              : 'Enter your email and we’ll send you a code to enter here. No password needed.'}
-          </p>
-          {/* noValidate: our own message instead of the browser's tooltip for a bad address. */}
-          <form noValidate onSubmit={(e) => { e.preventDefault(); void sendCode(); }}>
+          <h1 className="font-serif text-display mb-6">{heading}</h1>
+          <p className="text-label text-secondary mb-6">{intro}</p>
+          {/* noValidate: our own messages instead of the browser's tooltips. */}
+          <form noValidate className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); void continueWithDetails(); }}>
             <TextInput
-              label="Email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setError(null); }}
-              onKeyDown={submitOnEnter(sendCode)}
-              autoFocus
+              label="Your name"
+              autoComplete="name"
+              autoCapitalize="words"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setError(null); }}
+              onKeyDown={submitOnEnter(continueWithDetails)}
+              autoFocus={!name}
             />
-            {error && <p className="text-label text-error mt-3" role="alert">{error}</p>}
+            {!nameOnly && (
+              <TextInput
+                label="Email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(null); }}
+                onKeyDown={submitOnEnter(continueWithDetails)}
+                autoFocus={!!name}
+              />
+            )}
+            {error && <p className="text-label text-error" role="alert">{error}</p>}
           </form>
           {linking && error === EMAIL_TAKEN_MESSAGE && (
             <div className="bg-card rounded-[14px] p-4 mt-6">
@@ -172,10 +215,9 @@ export function SignIn() {
           )}
         </div>
         <div className="shrink-0 px-4 pb-4 safe-bottom border-t border-hairline pt-3" style={footerStyle}>
-          <Button fullWidth disabled={busy || email.trim().length === 0} onClick={() => void sendCode()}>
-            {busy ? 'Sending…' : 'Send code'}
+          <Button fullWidth disabled={busy || !detailsComplete} onClick={() => void continueWithDetails()}>
+            {busy ? (nameOnly ? 'Saving…' : 'Sending…') : nameOnly ? 'Continue' : 'Send code'}
           </Button>
-          {dismiss}
         </div>
       </div>
     );
@@ -212,7 +254,7 @@ export function SignIn() {
             variant="text"
             className="px-0"
             disabled={busy || cooldown > 0}
-            onClick={() => void sendCode()}
+            onClick={() => void resendCode()}
           >
             {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
           </Button>
@@ -220,9 +262,9 @@ export function SignIn() {
             variant="text"
             className="px-0"
             disabled={busy}
-            onClick={() => { setStep('email'); setError(null); setCode(''); }}
+            onClick={() => { setStep('details'); setError(null); setCode(''); }}
           >
-            Change email
+            Change details
           </Button>
         </div>
       </div>

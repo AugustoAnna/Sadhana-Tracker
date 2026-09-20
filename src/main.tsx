@@ -49,11 +49,10 @@ function Bootstrap() {
       await Promise.all([hydrate(), initAuth()]);
       initDayRollover();
       initSyncListener();
-      window.addEventListener('online', () => void useAuthStore.getState().ensureSession());
       // Sync is network-bound and must never block first render — the app
       // works from local data and syncs in the background. Wait for the
-      // session question to be fully answered (including a fresh anonymous
-      // sign-in) so the first sync runs under the right user.
+      // session question to be fully answered so the first sync runs under
+      // the right user.
       useAuthStore.getState().whenSettled()
         .then(() => initAppLifecycle())
         .then(async () => {
