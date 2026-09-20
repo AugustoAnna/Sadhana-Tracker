@@ -1,38 +1,9 @@
-import { getDb } from '@/db';
-import type { Reminder } from '@/types';
-import { subscribeToPush, syncPushSubscription, syncTimezone, isPushSubscribed } from './push';
+import { subscribeToPush, syncPushSubscription, syncTimezone } from './push';
 
-export async function scheduleReminders(): Promise<void> {
-  if (!('serviceWorker' in navigator)) return;
-
-  const registration = await navigator.serviceWorker.ready;
-
-  // When a push subscription is active the server delivers reminders, and
-  // local SW timers would duplicate every notification. Keep timers only as
-  // a fallback when push is unavailable (demo mode, missing VAPID key).
-  if (await isPushSubscribed(registration)) {
-    registration.active?.postMessage({ type: 'SCHEDULE_REMINDERS', reminders: [] });
-    return;
-  }
-
-  const reminders = await getDb().reminders.filter((r) => r.enabled).toArray();
-
-  registration.active?.postMessage({
-    type: 'SCHEDULE_REMINDERS',
-    reminders: reminders.map(serializeReminder),
-  });
-}
-
-function serializeReminder(r: Reminder) {
-  return {
-    id: r.id,
-    kind: r.kind,
-    slot: r.slot ?? null,
-    practiceId: r.practiceId ?? null,
-    time: r.time,
-    enabled: r.enabled,
-  };
-}
+// Reminders are delivered only by the send-reminders edge function over Web
+// Push. The former service-worker setTimeout fallback is gone: browsers stop
+// an idle worker within seconds, so its hours-long timers never fired, and
+// when they did the participant got the same reminder twice.
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) return 'denied';
@@ -57,10 +28,9 @@ export async function enablePushNotifications(): Promise<void> {
   const subscription = await subscribeToPush(registration);
   if (subscription) {
     await syncPushSubscription(subscription);
-    // The permission-grant flow schedules timers before the subscription
-    // exists — re-run now that it does, so the fallback timers are cleared.
-    await scheduleReminders();
   }
 
+  // The edge function cannot send without a timezone, so it is synced here
+  // (and on every app open) rather than only alongside the subscription.
   await syncTimezone();
 }

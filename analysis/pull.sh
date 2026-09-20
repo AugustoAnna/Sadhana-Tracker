@@ -13,10 +13,16 @@ mkdir -p "$OUT"
 run() {
   local name="$1" sql="$2"
   echo "pulling $name..."
-  supabase db query --linked --output json "$sql" \
+  supabase db query --linked --output json "$sql" 2>/dev/null \
     | python3 -c "
 import json, sys, csv
-data = json.load(sys.stdin)
+raw = sys.stdin.read()
+try:
+    data = json.loads(raw)
+except ValueError:
+    # The CLI prints errors to stderr (hidden); fail this run() cleanly.
+    print('  -> query failed')
+    sys.exit(1)
 rows = data['rows']
 path = 'analysis/data/${name}.csv'
 if not rows:
@@ -39,5 +45,12 @@ run reminders "select participant_id, kind, slot, practice_id, time_local, enabl
 run practice_completed "select participant_id, practice_id, instance, minutes, mode, was_offline, local_date, occurred_at from practice_completed where environment = 'study'"
 
 run events "select participant_id, name, properties, occurred_at, local_date from events where environment = 'study'"
+
+# Device rows only — never the endpoint or keys, which are all a sender needs.
+run push_subscriptions "select id, participant_id, created_at from push_subscriptions where environment = 'study'"
+
+# Written by the send-reminders function once migration 005 is applied.
+run reminder_sends "select id, participant_id, reminder_id, subscription_id, kind, slot, practice_id, time_local, local_date, status, status_code, sent_at, delivered_at, tapped_at from reminder_sends where environment = 'study'" \
+  || echo "  (reminder_sends not migrated yet - skipped)"
 
 echo "done -> $OUT"

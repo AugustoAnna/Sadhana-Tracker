@@ -6,7 +6,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { formatTimeDisplay } from '@/utils/dates';
 import {
   getNotificationPermission,
-  scheduleReminders,
   enablePushNotifications,
 } from '@/services/notifications';
 import { precacheInvocation } from '@/services/audio';
@@ -36,7 +35,6 @@ function applyPermissionResult(
   void updateParticipantFields({ notification_permission: result });
   if (result === 'granted') {
     setShowConfirmation(true);
-    void scheduleReminders();
     void enablePushNotifications();
     setTimeout(() => setShowConfirmation(false), 2500);
   }
@@ -128,7 +126,6 @@ export function Reminders() {
         time_local: config.time,
         was_enabled_before: !enabled,
       });
-      await scheduleReminders();
       return;
     }
 
@@ -142,7 +139,6 @@ export function Reminders() {
         kind: 'generic',
         time_local: existing?.time,
       });
-      await scheduleReminders();
     }
   };
 
@@ -157,7 +153,6 @@ export function Reminders() {
       was_enabled_before: existing?.enabled ?? false,
     });
     setSheetOpen(false);
-    await scheduleReminders();
   };
 
   const handleDismissSheet = async () => {
