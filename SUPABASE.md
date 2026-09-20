@@ -29,15 +29,21 @@ Everything below is in **Authentication** on the Supabase dashboard and has to b
 
 1. **Sign In / Providers → Email**: keep the provider enabled. Set *Email OTP expiration* (default 1 hour; 10–15 minutes is plenty).
 2. **Sign In / Providers → Anonymous sign-ins**: leave **enabled** while `VITE_REQUIRE_EMAIL_SIGN_IN` is off — the app still creates anonymous sessions for new installs. Disable it only after a build with the flag on is deployed. Existing anonymous sessions keep working either way until they link an email.
-3. **Emails → Templates → Magic Link**: the body must contain `{{ .Token }}` — that is what makes Supabase send a code instead of a link, e.g.
+3. **Emails → Templates**: three templates must contain `{{ .Token }}` — that is what makes Supabase send a code instead of a link. Supabase picks the template from the account's state, so all three carry the same body:
+
+   | Template | Fires when |
+   |---|---|
+   | **Confirm signup** | a brand-new email signs in for the first time (`signInWithOtp` creates the user and routes through the signup path) |
+   | **Magic Link** | an existing email signs in again (new device, after sign-out) |
+   | **Change Email Address** | an anonymous participant attaches an email (`updateUser({ email })`) |
 
    ```html
    <h2>Your Sadhana Tracker code</h2>
    <p>Enter this code in the app: <strong>{{ .Token }}</strong></p>
-   <p>It expires in 15 minutes. If you didn’t request it, ignore this email.</p>
+   <p>It expires in 30 minutes. If you didn’t request it, you can ignore this email.</p>
    ```
 
-   Do the same for **Change Email Address** (used when a pre-email participant links their address).
+   Leave `{{ .ConfirmationURL }}` out — a link opens Safari rather than the installed app.
 4. **Emails → SMTP Settings**: enable custom SMTP. The built-in mailer is limited to 2 emails/hour and only delivers to your own team — it is not usable for participants. Any provider works (Resend, Postmark, SES…); the free Resend tier covers a study comfortably. Once custom SMTP is on, raise **Rate Limits → Emails sent** as needed.
 5. **URL Configuration**: not needed for codes (no redirect), but keep *Site URL* pointing at the production domain for future passkey work.
 
