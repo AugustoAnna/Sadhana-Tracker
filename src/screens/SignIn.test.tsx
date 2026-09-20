@@ -4,7 +4,9 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { SignIn } from '@/screens/SignIn';
 import { EMAIL_TAKEN_MESSAGE } from '@/services/auth';
 
-const requestCode = vi.fn<(email: string, opts?: { mode?: string }) => Promise<string | null>>();
+type CodeResult = { error: string | null; retryAfter: number | null };
+const ok: CodeResult = { error: null, retryAfter: null };
+const requestCode = vi.fn<(email: string, opts?: { mode?: string }) => Promise<CodeResult>>();
 const verifyCode = vi.fn<(email: string, code: string, name: string) => Promise<string | null>>();
 const verifyCodeAndMerge = vi.fn<(email: string, code: string, name: string) => Promise<string | null>>();
 const signOut = vi.fn(async () => { authState.state = 'signed-out'; });
@@ -49,7 +51,7 @@ function fillDetails(name = 'Priya', email = 'a@b.co') {
 }
 
 beforeEach(() => {
-  requestCode.mockReset().mockResolvedValue(null);
+  requestCode.mockReset().mockResolvedValue(ok);
   verifyCode.mockReset().mockResolvedValue(null);
   verifyCodeAndMerge.mockReset().mockResolvedValue(null);
   signOut.mockClear();
@@ -132,6 +134,40 @@ describe('SignIn', () => {
     expect((resend as HTMLButtonElement).disabled).toBe(true);
   });
 
+  describe('cooldown after Change details', () => {
+    it('keeps counting down for the same address and offers the code already received', async () => {
+      renderSignIn();
+      fillDetails('Priya', 'a@b.co');
+      await screen.findByText('Check your email');
+      fireEvent.click(screen.getByRole('button', { name: 'Change details' }));
+
+      const send = screen.getByRole('button', { name: /Send code \(\d+s\)/ }) as HTMLButtonElement;
+      expect(send.disabled).toBe(true);
+      fireEvent.click(screen.getByRole('button', { name: 'Enter the code I already received' }));
+      await screen.findByText('Check your email');
+      expect(requestCode).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets a different address send straight away', async () => {
+      renderSignIn();
+      fillDetails('Priya', 'a@b.co');
+      await screen.findByText('Check your email');
+      fireEvent.click(screen.getByRole('button', { name: 'Change details' }));
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'other@b.co' } });
+      const send = screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement;
+      expect(send.disabled).toBe(false);
+      expect(screen.queryByRole('button', { name: 'Enter the code I already received' })).toBeNull();
+    });
+
+    it('counts down exactly what the server asked for when it refuses a send', async () => {
+      requestCode.mockResolvedValueOnce({ error: 'A code was sent recently — you can request another in 42s.', retryAfter: 42 });
+      renderSignIn();
+      fillDetails('Priya', 'a@b.co');
+      expect((await screen.findByRole('alert')).textContent).toMatch(/42s/);
+      expect(screen.getByRole('button', { name: /Send code \(4[12]s\)/ })).toBeTruthy();
+    });
+  });
+
   it('shows the linking copy with the existing name prefilled for a pre-email anonymous session', () => {
     authState.state = 'anonymous';
     appState.profile = { name: 'Neha' };
@@ -142,7 +178,7 @@ describe('SignIn', () => {
 
   it('merges into the existing account when the email is already taken while linking — no sign-out, no wipe', async () => {
     authState.state = 'anonymous';
-    requestCode.mockResolvedValueOnce(EMAIL_TAKEN_MESSAGE).mockResolvedValueOnce(null);
+    requestCode.mockResolvedValueOnce({ error: EMAIL_TAKEN_MESSAGE, retryAfter: null }).mockResolvedValueOnce(ok);
     renderSignIn();
     fillDetails();
 
@@ -161,7 +197,7 @@ describe('SignIn', () => {
 
   it('shows the merge error and stays on the code step when the merge fails', async () => {
     authState.state = 'anonymous';
-    requestCode.mockResolvedValueOnce(EMAIL_TAKEN_MESSAGE).mockResolvedValueOnce(null);
+    requestCode.mockResolvedValueOnce({ error: EMAIL_TAKEN_MESSAGE, retryAfter: null }).mockResolvedValueOnce(ok);
     verifyCodeAndMerge.mockResolvedValueOnce('We couldn’t bring this phone’s history over.');
     renderSignIn();
     fillDetails();
@@ -174,7 +210,7 @@ describe('SignIn', () => {
   });
 
   it('does not offer the merge for a plain sign-in error', async () => {
-    requestCode.mockResolvedValueOnce(EMAIL_TAKEN_MESSAGE);
+    requestCode.mockResolvedValueOnce({ error: EMAIL_TAKEN_MESSAGE, retryAfter: null });
     renderSignIn();
     fillDetails();
     await screen.findByRole('alert');

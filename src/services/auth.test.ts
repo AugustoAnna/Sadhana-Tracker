@@ -55,6 +55,7 @@ import {
   getOwnerUserId,
   setOwnerUserId,
   friendlyAuthError,
+  retryAfterSeconds,
   isValidEmail,
   registerDevicePasskey,
   signInWithDevicePasskey,
@@ -115,6 +116,11 @@ describe('resolveAuthState', () => {
 });
 
 describe('requestEmailCode', () => {
+  it('reports the server wait when the per-address interval refuses a send', async () => {
+    signInWithOtp.mockResolvedValueOnce({ data: {}, error: { message: 'For security purposes, you can only request this after 17 seconds.' } as never });
+    expect(await requestEmailCode('a@b.co', 'sign-in')).toEqual({ error: expect.stringMatching(/17s/), retryAfter: 17 });
+  });
+
   it('sends an OTP and creates the user for a fresh sign-in', async () => {
     await requestEmailCode('a@b.co', 'sign-in');
     expect(signInWithOtp).toHaveBeenCalledWith({ email: 'a@b.co', options: { shouldCreateUser: true } });
@@ -160,7 +166,9 @@ describe('helpers', () => {
   });
 
   it('maps common Supabase messages', () => {
-    expect(friendlyAuthError('For security purposes, you can only request this after 42 seconds.')).toMatch(/wait a minute/);
+    expect(friendlyAuthError('For security purposes, you can only request this after 42 seconds.')).toMatch(/another in 42s/);
+    expect(retryAfterSeconds('For security purposes, you can only request this after 42 seconds.')).toBe(42);
+    expect(retryAfterSeconds('Token has expired')).toBeNull();
     expect(friendlyAuthError('Failed to fetch')).toMatch(/offline/);
     expect(friendlyAuthError('Something unexpected')).toBe('Something unexpected');
   });

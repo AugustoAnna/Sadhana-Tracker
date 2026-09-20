@@ -86,16 +86,31 @@ export async function resolveAuthState(): Promise<ResolvedAuth> {
 
 export type SignInMode = 'sign-in' | 'link';
 
-/** Email a 6-digit code. In link mode the code attaches the email to the current anonymous user. */
-export async function requestEmailCode(email: string, mode: SignInMode): Promise<{ error: string | null }> {
+/** Seconds Supabase asks us to wait, parsed from "…you can only request this after 42 seconds". */
+export function retryAfterSeconds(message: string): number | null {
+  const m = /after (\d+) seconds?/i.exec(message);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Email a code. In link mode the code attaches the email to the current
+ * anonymous user. A new code always replaces the previous one for that
+ * address; `retryAfter` is set when the server's per-address interval refused
+ * the send, so the UI can count down exactly that long.
+ */
+export async function requestEmailCode(
+  email: string,
+  mode: SignInMode,
+): Promise<{ error: string | null; retryAfter: number | null }> {
   const supabase = getSupabase();
-  if (!supabase) return { error: 'Sign-in is not configured.' };
+  if (!supabase) return { error: 'Sign-in is not configured.', retryAfter: null };
 
   const { error } = mode === 'link'
     ? await supabase.auth.updateUser({ email })
     : await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
 
-  return { error: error ? friendlyAuthError(error.message) : null };
+  if (!error) return { error: null, retryAfter: null };
+  return { error: friendlyAuthError(error.message), retryAfter: retryAfterSeconds(error.message) };
 }
 
 export async function verifyEmailCode(
@@ -196,7 +211,13 @@ export function friendlyAuthError(message: string): string {
   if (m.includes('expired') || (m.includes('invalid') && m.includes('token'))) {
     return 'That code didn’t work. Check it and try again, or request a new one.';
   }
-  if (m.includes('rate limit') || m.includes('security purposes') || m.includes('too many')) {
+  if (m.includes('security purposes')) {
+    const wait = retryAfterSeconds(message);
+    return wait
+      ? `A code was sent recently — you can request another in ${wait}s.`
+      : 'A code was sent recently — please wait a moment before requesting another.';
+  }
+  if (m.includes('rate limit') || m.includes('too many')) {
     return 'Too many attempts. Please wait a minute and try again.';
   }
   // "Failed to fetch" (Chrome), "Load failed" (Safari), "NetworkError" (Firefox).
