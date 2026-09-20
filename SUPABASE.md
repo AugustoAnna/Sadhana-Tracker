@@ -27,7 +27,7 @@ The client flow lives in `src/services/auth.ts` and `src/stores/authStore.ts`:
 
 Everything below is in **Authentication** on the Supabase dashboard and has to be done once per project.
 
-1. **Sign In / Providers → Email**: keep the provider enabled. Set *Email OTP expiration* (default 1 hour; 10–15 minutes is plenty).
+1. **Sign In / Providers → Email**: keep the provider enabled. Set *Email OTP expiration* (default 1 hour; 30 minutes is plenty). *Email OTP Length* can stay at whatever it is (6–10) — the app accepts any length in that range; just keep the template text honest about it.
 2. **Sign In / Providers → Anonymous sign-ins**: leave **enabled** while `VITE_REQUIRE_EMAIL_SIGN_IN` is off — the app still creates anonymous sessions for new installs. Disable it only after a build with the flag on is deployed. Existing anonymous sessions keep working either way until they link an email.
 3. **Emails → Templates**: three templates must contain `{{ .Token }}` — that is what makes Supabase send a code instead of a link. Supabase picks the template from the account's state, so all three carry the same body:
 

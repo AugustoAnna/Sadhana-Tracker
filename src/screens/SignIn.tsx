@@ -10,7 +10,14 @@ import { REQUIRE_EMAIL_SIGN_IN } from '@/config/environment';
 
 /** Supabase refuses a second code to the same address inside this window. */
 const RESEND_COOLDOWN_S = 60;
-const CODE_LENGTH = 6;
+/**
+ * Supabase's "Email OTP Length" setting is 6–10 digits and lives in the
+ * dashboard, so don't hard-wire one value: accept anything in that range and
+ * let the server judge it.
+ */
+const MIN_CODE_LENGTH = 6;
+const MAX_CODE_LENGTH = 10;
+const isCompleteCode = (value: string) => value.length >= MIN_CODE_LENGTH;
 
 type Step = 'email' | 'code' | 'restoring';
 
@@ -88,7 +95,7 @@ export function SignIn() {
   };
 
   const submitCode = async () => {
-    if (code.length !== CODE_LENGTH) return;
+    if (!isCompleteCode(code)) return;
     setBusy(true);
     setError(null);
     const err = await verifyCode(email, code);
@@ -133,8 +140,8 @@ export function SignIn() {
           </h1>
           <p className="text-label text-secondary mb-6">
             {linking
-              ? 'Add your email so your practice history stays with you if you change phones. We’ll send you a 6‑digit code.'
-              : 'Enter your email and we’ll send you a 6‑digit code. No password needed.'}
+              ? 'Add your email so your practice history stays with you if you change phones. We’ll email you a code to enter here.'
+              : 'Enter your email and we’ll send you a code to enter here. No password needed.'}
           </p>
           {/* noValidate: our own message instead of the browser's tooltip for a bad address. */}
           <form noValidate onSubmit={(e) => { e.preventDefault(); void sendCode(); }}>
@@ -184,14 +191,14 @@ export function SignIn() {
         <form noValidate onSubmit={(e) => { e.preventDefault(); void submitCode(); }}>
           <TextInput
             ref={codeRef}
-            label="6-digit code"
+            label="Code from the email"
             inputMode="numeric"
             pattern="[0-9]*"
             autoComplete="one-time-code"
-            maxLength={CODE_LENGTH}
+            maxLength={MAX_CODE_LENGTH}
             value={code}
             onChange={(e) => {
-              setCode(e.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH));
+              setCode(e.target.value.replace(/\D/g, '').slice(0, MAX_CODE_LENGTH));
               setError(null);
             }}
             onKeyDown={submitOnEnter(submitCode)}
@@ -220,7 +227,7 @@ export function SignIn() {
         </div>
       </div>
       <div className="shrink-0 px-4 pb-4 safe-bottom border-t border-hairline pt-3" style={footerStyle}>
-        <Button fullWidth disabled={busy || code.length !== CODE_LENGTH} onClick={() => void submitCode()}>
+        <Button fullWidth disabled={busy || !isCompleteCode(code)} onClick={() => void submitCode()}>
           {busy ? 'Checking…' : 'Continue'}
         </Button>
       </div>

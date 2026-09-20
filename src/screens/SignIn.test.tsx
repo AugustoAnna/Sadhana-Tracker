@@ -50,7 +50,7 @@ describe('SignIn', () => {
     expect(requestCode).not.toHaveBeenCalled();
   });
 
-  it('normalises the address, moves to the code step and verifies a 6-digit code', async () => {
+  it('normalises the address, moves to the code step and verifies the code', async () => {
     renderSignIn();
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: '  Someone@Example.org ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
@@ -59,13 +59,14 @@ describe('SignIn', () => {
     expect(requestCode).toHaveBeenCalledWith('someone@example.org');
     expect(screen.getByText('someone@example.org')).toBeTruthy();
 
-    const codeInput = screen.getByLabelText('6-digit code');
-    // Non-digits are stripped and the field is capped at six characters.
-    fireEvent.change(codeInput, { target: { value: '12a34567' } });
-    expect((codeInput as HTMLInputElement).value).toBe('123456');
+    const codeInput = screen.getByLabelText('Code from the email');
+    // Non-digits are stripped; length follows the project's OTP setting (6–10),
+    // so an 8-digit code must survive intact.
+    fireEvent.change(codeInput, { target: { value: '12a345678' } });
+    expect((codeInput as HTMLInputElement).value).toBe('12345678');
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await waitFor(() => expect(verifyCode).toHaveBeenCalledWith('someone@example.org', '123456'));
+    await waitFor(() => expect(verifyCode).toHaveBeenCalledWith('someone@example.org', '12345678'));
     await screen.findByText('landed home');
   });
 
@@ -76,12 +77,24 @@ describe('SignIn', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
     await screen.findByText('Check your email');
 
-    fireEvent.change(screen.getByLabelText('6-digit code'), { target: { value: '000000' } });
+    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/didn’t work/);
-    expect((screen.getByLabelText('6-digit code') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Code from the email') as HTMLInputElement).value).toBe('');
     expect(screen.queryByText('landed home')).toBeNull();
+  });
+
+  it('keeps Continue disabled until at least six digits are entered', async () => {
+    renderSignIn();
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    await screen.findByText('Check your email');
+    const cont = () => screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement;
+    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '12345' } });
+    expect(cont().disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+    expect(cont().disabled).toBe(false);
   });
 
   it('holds the resend button for the cooldown window', async () => {
