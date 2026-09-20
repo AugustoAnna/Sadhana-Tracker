@@ -9,6 +9,8 @@ V3 schema (participants, practices, participant_practices, practice_completed, r
 
 Everyone signs in with their name, their email and a code (Supabase email OTP). There are no passwords and no anonymous sign-in. The `participants.email` column mirrors `auth.users.email` and is the account's human-readable identity; `participants.id` stays the uuid the other tables reference.
 
+Full setup runbook (services, DNS records, templates, keep-alive, troubleshooting): [`docs/email-otp-setup.md`](docs/email-otp-setup.md).
+
 Flow: Welcome → *Get started* → name + email → code → straight into onboarding (new participant) or home with history restored (returning participant). The client lives in `src/services/auth.ts`, `src/stores/authStore.ts` and `src/screens/SignIn.tsx`:
 
 - `signInWithOtp({ email, shouldCreateUser: true })` → `verifyOtp({ type: 'email' })` for a fresh or returning participant.

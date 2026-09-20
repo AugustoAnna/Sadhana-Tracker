@@ -25,6 +25,7 @@ Open http://localhost:5173 on a mobile viewport (portrait).
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) — architecture and data model
 - [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) — build progress
 - [DESIGN.md](./DESIGN.md) — design tokens and component inventory
+- [docs/email-otp-setup.md](./docs/email-otp-setup.md) — email sign-in: Supabase + Resend + deSEC setup and operations
 
 ## Placeholders (awaiting assets)
 

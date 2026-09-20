@@ -1,0 +1,70 @@
+# Keeps the OTP sending domain from expiring and watches its DNS records.
+#
+# sadhana-tracker.dedyn.io is a free deSEC name. deSEC deletes dedyn.io names
+# that see no DNS writes for six months (after a 4-week warning email); any
+# record change resets that clock. Once a month this job:
+#   1. checks from public DNS that the three records Resend needs still resolve,
+#      failing the run (GitHub emails the repo owner) if one is gone;
+#   2. writes a `_keepalive` TXT record with today's date through deSEC's API.
+#
+# Needs the DESEC_TOKEN repository secret (deSEC → Token management).
+# See docs/email-otp-setup.md.
+name: Keep deSEC domain alive
+
+on:
+  schedule:
+    - cron: '17 6 1 * *' # 1st of every month, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOMAIN: sadhana-tracker.dedyn.io
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the Resend DNS records still resolve publicly
+        run: |
+          set -euo pipefail
+          fail=0
+          check() { # name type expected-substring
+            answer=$(curl -fsS "https://dns.google/resolve?name=$1&type=$2" \
+              | jq -r '[.Answer[]?.data] | join(" ")')
+            echo "$1 $2 -> ${answer:-<none>}"
+            case "$answer" in *"$3"*) ;; *) fail=1 ;; esac
+          }
+          check "send.$DOMAIN"               CNAME "forge.rmta.net"
+          check "rsend.$DOMAIN"              CNAME "forge.rmta.net"
+          check "resend._domainkey.$DOMAIN"  TXT   "p="
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::A Resend DNS record for $DOMAIN is missing — sign-in code emails will fail. See docs/email-otp-setup.md."
+            exit 1
+          fi
+
+      - name: Touch the keep-alive record so deSEC sees the domain in use
+        env:
+          DESEC_TOKEN: ${{ secrets.DESEC_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DESEC_TOKEN:-}" ]; then
+            echo "::error::DESEC_TOKEN secret is not set (repo → Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          stamp=$(date -u +%Y-%m-%d)
+          # deSEC wants TXT contents quoted; build the JSON with jq to keep the escaping sane.
+          body=$(jq -nc --arg txt "\"last-touched $stamp\"" \
+            '[{subname:"_keepalive", type:"TXT", ttl:3600, records:[$txt]}]')
+          status=$(curl -sS -o /tmp/desec.json -w '%{http_code}' -X PUT \
+            "https://desec.io/api/v1/domains/$DOMAIN/rrsets/" \
+            -H "Authorization: Token $DESEC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$body")
+          cat /tmp/desec.json; echo
+          if [ "$status" != "200" ]; then
+            echo "::error::deSEC API returned HTTP $status"
+            exit 1
+          fi
+          echo "Keep-alive record updated: last-touched $stamp"
