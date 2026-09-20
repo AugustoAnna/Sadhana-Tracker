@@ -156,6 +156,35 @@ It needs one repository secret, **`DESEC_TOKEN`**: deSEC → *Token management*
 Secrets and variables → Actions → *New repository secret*. Run the workflow
 once by hand (*Actions → Keep deSEC domain alive → Run workflow*) to confirm.
 
+#### Checking that the keep-alive is actually working
+
+The workflow leaves a visible trace: the `_keepalive` TXT record holds the date
+of the last successful run. Three ways to look, from quickest to most thorough.
+
+1. **deSEC dashboard** — desec.io → Domains → `sadhana-tracker.dedyn.io`. Find
+   the row with subname `_keepalive`, type TXT. Its content should read
+   `"last-touched YYYY-MM-DD"` with a date no older than the 1st of the current
+   month. If the date is stale, the workflow has not run successfully since then.
+2. **Public DNS** — from any terminal:
+
+   ```bash
+   dig +short @1.1.1.1 TXT _keepalive.sadhana-tracker.dedyn.io
+   ```
+
+   Expected: `"last-touched 2026-10-01"` (or whatever the last run date was). No
+   answer means the record is gone or the domain no longer resolves — check the
+   Resend records the same way (see *Verify* above).
+3. **GitHub** — repo → **Actions** → *Keep deSEC domain alive*. Each run should be
+   green; step 1's log lists the three Resend records and their answers, step 2
+   ends with `Keep-alive record updated: last-touched <date>`. A red run means
+   either a Resend record stopped resolving (step 1) or the deSEC API rejected
+   the write (step 2: `401` = `DESEC_TOKEN` wrong or from another account, `404` =
+   domain name mismatch). GitHub also emails the repository owner on failure.
+
+If the date in deSEC is fresh but GitHub shows no runs, someone touched the
+record by hand (the manual `curl` in the runbook does the same thing) — fine as
+a stopgap, but the schedule is what keeps it going unattended.
+
 Two caveats: GitHub pauses scheduled workflows in **public** repositories after
 60 days without commits (it emails first; re-enable from the Actions tab), and
 the deSEC warning email goes to the deSEC account's address — make sure
