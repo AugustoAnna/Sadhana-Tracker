@@ -7,7 +7,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { EMAIL_TAKEN_MESSAGE, biometricLabel, isValidEmail } from '@/services/auth';
 import { track } from '@/services/instrumentation';
 import { reportAppOpen } from '@/services/appLifecycle';
-import { OTP_RESEND_SECONDS } from '@/config/environment';
 
 /**
  * Supabase's "Email OTP Length" setting is 6–10 digits and lives in the
@@ -59,10 +58,14 @@ export function SignIn() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The per-address send interval, tracked per email so changing the address
-  // starts fresh while going back to fix a typo in the name does not.
+  // The app never imposes a wait between codes — a new code simply replaces
+  // the old one. Only when Supabase's per-address interval refuses a send do
+  // we count down, and then exactly what the server asked for.
   const [cooldown, setCooldown] = useState<{ email: string; until: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  // Address a code went to in this session, so someone who went back to fix
+  // their name can return to the code they already have.
+  const [sentTo, setSentTo] = useState<string | null>(null);
   // Set when the anonymous device's email already has an account: the code
   // is a sign-in to that account and the server merges this history into it.
   const [merging, setMerging] = useState(false);
@@ -87,7 +90,7 @@ export function SignIn() {
   const trimmedEmail = email.trim().toLowerCase();
   const detailsComplete = trimmedName.length > 0 && (nameOnly || trimmedEmail.length > 0);
   const waitForDetails = nameOnly ? 0 : secondsLeftFor(trimmedEmail);
-  const codeStillPending = waitForDetails > 0 && email !== '' && trimmedEmail === (cooldown?.email ?? '');
+  const codeStillPending = !nameOnly && sentTo !== null && trimmedEmail === sentTo;
 
   const continueWithDetails = async () => {
     if (!trimmedName) {
@@ -115,8 +118,9 @@ export function SignIn() {
       return;
     }
     setEmail(trimmedEmail);
+    setSentTo(trimmedEmail);
+    setCooldown(null);
     setCode('');
-    startCooldown(trimmedEmail, OTP_RESEND_SECONDS);
     setStep('code');
     void track('sign_in_code_sent', { linking });
     // autoFocus only fires on mount; the input is already mounted on resend.
@@ -134,7 +138,7 @@ export function SignIn() {
       return;
     }
     setCode('');
-    startCooldown(email, OTP_RESEND_SECONDS);
+    setCooldown(null);
     codeRef.current?.focus();
   };
 
@@ -157,8 +161,9 @@ export function SignIn() {
     }
     setMerging(true);
     setEmail(trimmedEmail);
+    setSentTo(trimmedEmail);
+    setCooldown(null);
     setCode('');
-    startCooldown(trimmedEmail, OTP_RESEND_SECONDS);
     setStep('code');
     void track('sign_in_code_sent', { linking: false, merging: true });
     setTimeout(() => codeRef.current?.focus(), 0);
@@ -332,7 +337,8 @@ export function SignIn() {
                   : 'Send code'}
           </Button>
           {codeStillPending && (
-            // They came back to fix the name; the code they already received is still valid.
+            // They came back to fix the name; the code already sent is still valid
+            // (until they request another, which replaces it).
             <Button variant="text" className="w-full mt-2" disabled={busy} onClick={() => { setError(null); setStep('code'); }}>
               Enter the code I already received
             </Button>

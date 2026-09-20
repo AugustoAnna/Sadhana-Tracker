@@ -126,40 +126,41 @@ describe('SignIn', () => {
     expect(cont().disabled).toBe(false);
   });
 
-  it('holds the resend button for the cooldown window', async () => {
+  it('never imposes its own wait: resend is available immediately after a send', async () => {
     renderSignIn();
     fillDetails();
     await screen.findByText('Check your email');
-    const resend = screen.getByRole('button', { name: /Resend code in \d+s/ });
-    expect((resend as HTMLButtonElement).disabled).toBe(true);
+    const resend = screen.getByRole('button', { name: 'Resend code' }) as HTMLButtonElement;
+    expect(resend.disabled).toBe(false);
+    fireEvent.click(resend);
+    await waitFor(() => expect(requestCode).toHaveBeenCalledTimes(2));
   });
 
-  describe('cooldown after Change details', () => {
-    it('keeps counting down for the same address and offers the code already received', async () => {
+  describe('after Change details', () => {
+    it('lets the same address send a fresh code at once and offers the code already received', async () => {
       renderSignIn();
       fillDetails('Priya', 'a@b.co');
       await screen.findByText('Check your email');
       fireEvent.click(screen.getByRole('button', { name: 'Change details' }));
 
-      const send = screen.getByRole('button', { name: /Send code \(\d+s\)/ }) as HTMLButtonElement;
-      expect(send.disabled).toBe(true);
+      const send = screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement;
+      expect(send.disabled).toBe(false);
       fireEvent.click(screen.getByRole('button', { name: 'Enter the code I already received' }));
       await screen.findByText('Check your email');
       expect(requestCode).toHaveBeenCalledTimes(1);
     });
 
-    it('lets a different address send straight away', async () => {
+    it('does not offer the old code for a different address', async () => {
       renderSignIn();
       fillDetails('Priya', 'a@b.co');
       await screen.findByText('Check your email');
       fireEvent.click(screen.getByRole('button', { name: 'Change details' }));
       fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'other@b.co' } });
-      const send = screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement;
-      expect(send.disabled).toBe(false);
+      expect((screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement).disabled).toBe(false);
       expect(screen.queryByRole('button', { name: 'Enter the code I already received' })).toBeNull();
     });
 
-    it('counts down exactly what the server asked for when it refuses a send', async () => {
+    it('counts down exactly what the server asked for, only when the server refuses', async () => {
       requestCode.mockResolvedValueOnce({ error: 'A code was sent recently — you can request another in 42s.', retryAfter: 42 });
       renderSignIn();
       fillDetails('Priya', 'a@b.co');
