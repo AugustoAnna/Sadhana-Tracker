@@ -7,13 +7,22 @@ import { EMAIL_TAKEN_MESSAGE } from '@/services/auth';
 const requestCode = vi.fn<(email: string) => Promise<string | null>>();
 const verifyCode = vi.fn<(email: string, code: string, name: string) => Promise<string | null>>();
 const signOut = vi.fn(async () => { authState.state = 'signed-out'; });
-const authState = { state: 'signed-out' as string, requestCode, verifyCode, signOut };
+const signInWithPasskey = vi.fn<() => Promise<string | null>>();
+const enablePasskey = vi.fn<() => Promise<string | null>>();
+const authState = {
+  state: 'signed-out' as string,
+  passkeySupported: false,
+  passkeyOnDevice: false,
+  requestCode, verifyCode, signOut, signInWithPasskey, enablePasskey,
+};
 const setName = vi.fn(async (_name: string) => undefined);
 const appState = { profile: { name: '' } as { name: string } | null, setName };
 
-vi.mock('@/stores/authStore', () => ({
-  useAuthStore: (selector: (s: typeof authState) => unknown) => selector(authState),
-}));
+vi.mock('@/stores/authStore', () => {
+  const useAuthStore = (selector: (s: typeof authState) => unknown) => selector(authState);
+  useAuthStore.getState = () => authState;
+  return { useAuthStore };
+});
 vi.mock('@/stores/appStore', () => ({
   useAppStore: (selector: (s: typeof appState) => unknown) => selector(appState),
 }));
@@ -43,7 +52,11 @@ beforeEach(() => {
   verifyCode.mockReset().mockResolvedValue(null);
   signOut.mockClear();
   setName.mockClear();
+  signInWithPasskey.mockReset().mockResolvedValue(null);
+  enablePasskey.mockReset().mockResolvedValue(null);
   authState.state = 'signed-out';
+  authState.passkeySupported = false;
+  authState.passkeyOnDevice = false;
   appState.profile = { name: '' };
 });
 
@@ -156,5 +169,78 @@ describe('SignIn', () => {
     await screen.findByText('landed home');
     expect(setName).toHaveBeenCalledWith('Priya');
     expect(requestCode).not.toHaveBeenCalled();
+  });
+
+  describe('passkeys', () => {
+    it('shows no passkey button when the browser cannot do one', () => {
+      renderSignIn();
+      expect(screen.queryByRole('button', { name: /Face ID|fingerprint/ })).toBeNull();
+    });
+
+    it('offers passkey sign-in on the details step and lands home on success', async () => {
+      authState.passkeySupported = true;
+      authState.passkeyOnDevice = true;
+      renderSignIn();
+      fireEvent.click(screen.getByRole('button', { name: /Sign in with/ }));
+      await screen.findByText('landed home');
+      expect(signInWithPasskey).toHaveBeenCalledTimes(1);
+      expect(requestCode).not.toHaveBeenCalled();
+    });
+
+    it('stays put quietly when the system prompt is dismissed', async () => {
+      authState.passkeySupported = true;
+      signInWithPasskey.mockResolvedValueOnce('cancelled');
+      renderSignIn();
+      fireEvent.click(screen.getByRole('button', { name: /Use it/ }));
+      await waitFor(() => expect(signInWithPasskey).toHaveBeenCalled());
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(screen.getByLabelText('Email')).toBeTruthy();
+    });
+
+    it('does not offer a passkey while linking an anonymous session', () => {
+      authState.passkeySupported = true;
+      authState.state = 'anonymous';
+      renderSignIn();
+      expect(screen.queryByRole('button', { name: /Face ID|fingerprint/ })).toBeNull();
+    });
+
+    it('offers to set up a passkey after a code sign-in, once per device', async () => {
+      authState.passkeySupported = true;
+      renderSignIn();
+      fillDetails();
+      await screen.findByText('Check your email');
+      fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+      await screen.findByText('Sign in faster next time?');
+      fireEvent.click(screen.getByRole('button', { name: /^Use / }));
+      await screen.findByText('landed home');
+      expect(enablePasskey).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets the offer be skipped', async () => {
+      authState.passkeySupported = true;
+      renderSignIn();
+      fillDetails();
+      await screen.findByText('Check your email');
+      fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await screen.findByText('Sign in faster next time?');
+      fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+      await screen.findByText('landed home');
+      expect(enablePasskey).not.toHaveBeenCalled();
+    });
+
+    it('skips the offer when this device already has a passkey', async () => {
+      authState.passkeySupported = true;
+      authState.passkeyOnDevice = true;
+      renderSignIn();
+      fillDetails();
+      await screen.findByText('Check your email');
+      fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await screen.findByText('landed home');
+      expect(screen.queryByText('Sign in faster next time?')).toBeNull();
+    });
   });
 });

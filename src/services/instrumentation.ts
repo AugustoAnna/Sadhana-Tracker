@@ -17,7 +17,9 @@ export type InstrumentEvent =
   | 'name_changed'
   | 'sign_in_code_sent'
   | 'sign_in_completed'
-  | 'sign_out';
+  | 'sign_out'
+  | 'passkey_registered'
+  | 'passkey_removed';
 
 interface TrackPayload {
   [key: string]: unknown;

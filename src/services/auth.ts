@@ -167,3 +167,118 @@ export function friendlyAuthError(message: string): string {
   }
   return message;
 }
+
+// ---------------------------------------------------------------------------
+// Passkeys (WebAuthn). Face ID / Touch ID on Apple, fingerprint or screen lock
+// elsewhere. Supabase runs the ceremony end to end; the browser never gives us
+// biometric data, only a signature. A passkey is bound to the app's origin
+// (the Relying Party configured in the Supabase dashboard), not to the email
+// sending domain.
+// ---------------------------------------------------------------------------
+
+/** Which passkey this device registered, keyed so a different account signing in does not inherit it. */
+const DEVICE_PASSKEY_KEY = 'sadhana_device_passkey';
+
+export interface DevicePasskey {
+  userId: string;
+  passkeyId: string;
+}
+
+export function getDevicePasskey(): DevicePasskey | null {
+  try {
+    const raw = localStorage.getItem(DEVICE_PASSKEY_KEY);
+    return raw ? (JSON.parse(raw) as DevicePasskey) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setDevicePasskey(value: DevicePasskey | null) {
+  if (value) localStorage.setItem(DEVICE_PASSKEY_KEY, JSON.stringify(value));
+  else localStorage.removeItem(DEVICE_PASSKEY_KEY);
+}
+
+/** Can this browser do a platform (built-in biometric) passkey at all? */
+export async function isPasskeySupported(): Promise<boolean> {
+  if (typeof window === 'undefined' || !('PublicKeyCredential' in window)) return false;
+  if (!window.isSecureContext) return false;
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch {
+    return false;
+  }
+}
+
+/** What to call it in the UI. */
+export function biometricLabel(): string {
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+  if (/iPhone|iPad|iPod|Macintosh/i.test(ua)) return 'Face ID or Touch ID';
+  return 'fingerprint or screen lock';
+}
+
+/** The person dismissed the system prompt — not an error worth showing. */
+export function isPasskeyCancelled(error: unknown): boolean {
+  const e = error as { code?: string; name?: string } | null;
+  return e?.code === 'ERROR_CEREMONY_ABORTED' || e?.name === 'NotAllowedError' || e?.name === 'AbortError';
+}
+
+export function friendlyPasskeyError(error: unknown): string {
+  const e = error as { code?: string; message?: string } | null;
+  switch (e?.code) {
+    case 'ERROR_INVALID_DOMAIN':
+    case 'ERROR_INVALID_RP_ID':
+      return 'Passkeys aren’t set up for this address yet. Please sign in with your email.';
+    case 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED':
+      return 'This device already has a passkey for your account.';
+    default:
+      return friendlyAuthError(e?.message ?? 'Something went wrong. Please try again.');
+  }
+}
+
+/** Register a passkey for the signed-in user and remember it for this device. */
+export async function registerDevicePasskey(userId: string): Promise<{ error: string | null; cancelled: boolean }> {
+  const supabase = getSupabase();
+  if (!supabase) return { error: 'Sign-in is not configured.', cancelled: false };
+  const { data, error } = await supabase.auth.registerPasskey();
+  if (error) {
+    return { error: isPasskeyCancelled(error) ? null : friendlyPasskeyError(error), cancelled: isPasskeyCancelled(error) };
+  }
+  setDevicePasskey({ userId, passkeyId: data.id });
+  // Best effort label so the account's passkey list reads sensibly.
+  void supabase.auth.passkey.update({ passkeyId: data.id, friendlyName: deviceLabel() }).catch(() => undefined);
+  return { error: null, cancelled: false };
+}
+
+/** Sign in with a passkey already on this device (or synced to it). */
+export async function signInWithDevicePasskey(): Promise<{ session: Session | null; error: string | null; cancelled: boolean }> {
+  const supabase = getSupabase();
+  if (!supabase) return { session: null, error: 'Sign-in is not configured.', cancelled: false };
+  const { data, error } = await supabase.auth.signInWithPasskey();
+  if (error) {
+    return { session: null, error: isPasskeyCancelled(error) ? null : friendlyPasskeyError(error), cancelled: isPasskeyCancelled(error) };
+  }
+  if (!data.session) return { session: null, error: 'Something went wrong. Please try again.', cancelled: false };
+  setOwnerUserId(data.session.user.id);
+  return { session: data.session, error: null, cancelled: false };
+}
+
+/** Remove this device's passkey from the account. */
+export async function removeDevicePasskey(): Promise<{ error: string | null }> {
+  const supabase = getSupabase();
+  const device = getDevicePasskey();
+  setDevicePasskey(null);
+  if (!supabase || !device) return { error: null };
+  const { error } = await supabase.auth.passkey.delete({ passkeyId: device.passkeyId });
+  // A passkey already deleted elsewhere is fine — the local record is gone either way.
+  return { error: error && !/not found|404/i.test(error.message) ? friendlyAuthError(error.message) : null };
+}
+
+function deviceLabel(): string {
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+  if (/iPhone/i.test(ua)) return 'iPhone';
+  if (/iPad/i.test(ua)) return 'iPad';
+  if (/Android/i.test(ua)) return 'Android phone';
+  if (/Macintosh/i.test(ua)) return 'Mac';
+  if (/Windows/i.test(ua)) return 'Windows PC';
+  return 'This device';
+}

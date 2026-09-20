@@ -16,7 +16,12 @@ let client: SupabaseClient<Database> | null = null;
 export function getSupabase(): SupabaseClient<Database> | null {
   if (!url || !anonKey || url.includes('your-project')) return null;
   if (!client) {
-    client = createClient<Database>(url, anonKey);
+    client = createClient<Database>(url, anonKey, {
+      // Passkeys (Face ID / Touch ID / fingerprint) — see services/auth.ts.
+      // Experimental in supabase-js; the exact version pin above is what
+      // keeps this call shape stable.
+      auth: { experimental: { passkey: true } },
+    });
   }
   return client;
 }
