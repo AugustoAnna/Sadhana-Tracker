@@ -22,6 +22,13 @@ const verifyOtp = vi.fn(async () => ({
   data: { session: { user: { id: 'user-new', email: 'a@b.co' } } },
   error: null as { message: string } | null,
 }));
+const registerPasskey = vi.fn(async () => ({ data: { id: 'pk-9', created_at: '' }, error: null as unknown }));
+const signInWithPasskey = vi.fn(async () => ({
+  data: { session: { user: { id: 'user-pk', email: 'a@b.co' } }, user: null },
+  error: null as unknown,
+}));
+const passkeyUpdate = vi.fn(async () => ({ data: null, error: null }));
+const passkeyDelete = vi.fn(async () => ({ data: null, error: null as { message: string } | null }));
 
 vi.mock('./supabase', () => ({
   getSupabase: () => ({
@@ -30,6 +37,9 @@ vi.mock('./supabase', () => ({
       signInWithOtp,
       updateUser,
       verifyOtp,
+      registerPasskey,
+      signInWithPasskey,
+      passkey: { update: passkeyUpdate, delete: passkeyDelete },
     },
   }),
 }));
@@ -42,6 +52,12 @@ import {
   setOwnerUserId,
   friendlyAuthError,
   isValidEmail,
+  registerDevicePasskey,
+  signInWithDevicePasskey,
+  removeDevicePasskey,
+  getDevicePasskey,
+  setDevicePasskey,
+  isPasskeyCancelled,
 } from './auth';
 
 beforeEach(() => {
@@ -50,6 +66,10 @@ beforeEach(() => {
   signInWithOtp.mockClear();
   updateUser.mockClear();
   verifyOtp.mockClear();
+  registerPasskey.mockClear();
+  signInWithPasskey.mockClear();
+  passkeyUpdate.mockClear();
+  passkeyDelete.mockClear();
 });
 
 describe('resolveAuthState', () => {
@@ -133,5 +153,47 @@ describe('helpers', () => {
     expect(friendlyAuthError('For security purposes, you can only request this after 42 seconds.')).toMatch(/wait a minute/);
     expect(friendlyAuthError('Failed to fetch')).toMatch(/offline/);
     expect(friendlyAuthError('Something unexpected')).toBe('Something unexpected');
+  });
+});
+
+describe('passkeys', () => {
+  it('registers, remembers the passkey for this device and account, and labels it', async () => {
+    const result = await registerDevicePasskey('user-1');
+    expect(result).toEqual({ error: null, cancelled: false });
+    expect(getDevicePasskey()).toEqual({ userId: 'user-1', passkeyId: 'pk-9' });
+    expect(passkeyUpdate).toHaveBeenCalledWith(expect.objectContaining({ passkeyId: 'pk-9' }));
+  });
+
+  it('treats a dismissed prompt as cancelled and leaves no device record', async () => {
+    registerPasskey.mockResolvedValueOnce({ data: null as never, error: { code: 'ERROR_CEREMONY_ABORTED', message: 'aborted' } });
+    const result = await registerDevicePasskey('user-1');
+    expect(result).toEqual({ error: null, cancelled: true });
+    expect(getDevicePasskey()).toBeNull();
+  });
+
+  it('explains a relying-party mismatch instead of leaking the raw error', async () => {
+    registerPasskey.mockResolvedValueOnce({ data: null as never, error: { code: 'ERROR_INVALID_RP_ID', message: 'rp' } });
+    const { error } = await registerDevicePasskey('user-1');
+    expect(error).toMatch(/aren’t set up for this address/);
+  });
+
+  it('signs in with a passkey and records the owner', async () => {
+    const { session, error, cancelled } = await signInWithDevicePasskey();
+    expect(error).toBeNull();
+    expect(cancelled).toBe(false);
+    expect(session?.user.id).toBe('user-pk');
+    expect(getOwnerUserId()).toBe('user-pk');
+  });
+
+  it('removes this device\'s passkey from the account and forgets it locally', async () => {
+    setDevicePasskey({ userId: 'user-1', passkeyId: 'pk-9' });
+    expect(await removeDevicePasskey()).toEqual({ error: null });
+    expect(passkeyDelete).toHaveBeenCalledWith({ passkeyId: 'pk-9' });
+    expect(getDevicePasskey()).toBeNull();
+  });
+
+  it('recognises the browser\'s own cancel errors too', () => {
+    expect(isPasskeyCancelled({ name: 'NotAllowedError' })).toBe(true);
+    expect(isPasskeyCancelled({ code: 'ERROR_INVALID_RP_ID' })).toBe(false);
   });
 });

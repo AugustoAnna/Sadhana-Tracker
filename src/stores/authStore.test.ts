@@ -10,6 +10,11 @@ let resolveImpl: () => Promise<{ state: string; userId: string | null; email: st
   async () => ({ state: 'signed-out', userId: null, email: null });
 let profileName = '';
 
+let devicePasskey: { userId: string; passkeyId: string } | null = null;
+let passkeySignIn: { session: { user: { id: string; email?: string } } | null; error: string | null; cancelled: boolean } =
+  { session: { user: { id: 'user-b', email: 'b@x.co' } }, error: null, cancelled: false };
+let passkeyRegister: { error: string | null; cancelled: boolean } = { error: null, cancelled: false };
+
 vi.mock('@/services/auth', () => ({
   getOwnerUserId: () => ownerId,
   setOwnerUserId: (id: string | null) => { ownerId = id; },
@@ -21,6 +26,20 @@ vi.mock('@/services/auth', () => ({
     return verifyResult;
   },
   signOutSupabase: async () => { calls.push('signOutSupabase'); ownerId = null; },
+  isPasskeySupported: async () => true,
+  getDevicePasskey: () => devicePasskey,
+  setDevicePasskey: (v: { userId: string; passkeyId: string } | null) => { devicePasskey = v; },
+  signInWithDevicePasskey: async () => {
+    calls.push('signInWithDevicePasskey');
+    if (passkeySignIn.session) ownerId = passkeySignIn.session.user.id;
+    return passkeySignIn;
+  },
+  registerDevicePasskey: async (userId: string) => {
+    calls.push('registerDevicePasskey');
+    if (!passkeyRegister.error && !passkeyRegister.cancelled) devicePasskey = { userId, passkeyId: 'pk-1' };
+    return passkeyRegister;
+  },
+  removeDevicePasskey: async () => { calls.push('removeDevicePasskey'); devicePasskey = null; return { error: null }; },
 }));
 
 vi.mock('@/services/sync', () => ({
@@ -52,9 +71,12 @@ beforeEach(() => {
   calls.length = 0;
   ownerId = null;
   profileName = '';
+  devicePasskey = null;
+  passkeySignIn = { session: { user: { id: 'user-b', email: 'b@x.co' } }, error: null, cancelled: false };
+  passkeyRegister = { error: null, cancelled: false };
   resolveImpl = async () => ({ state: 'signed-out', userId: null, email: null });
   verifyResult = { session: { user: { id: 'user-b', email: 'b@x.co' } }, error: null };
-  useAuthStore.setState({ state: 'signed-out', userId: null, email: null });
+  useAuthStore.setState({ state: 'signed-out', userId: null, email: null, passkeyOnDevice: false });
 });
 
 describe('init', () => {
@@ -135,11 +157,65 @@ describe('verifyCode', () => {
   });
 });
 
+describe('passkeys', () => {
+  it('signs in with a passkey through the same completion as a code (restore, hydrate, sync)', async () => {
+    const result = await useAuthStore.getState().signInWithPasskey();
+    expect(result).toBeNull();
+    expect(calls.indexOf('signInWithDevicePasskey')).toBeLessThan(calls.indexOf('restoreFromServer'));
+    expect(calls.indexOf('restoreFromServer')).toBeLessThan(calls.indexOf('hydrate'));
+    expect(calls).toContain('resetParticipantCache');
+    expect(calls.some((c) => c.startsWith('setName:'))).toBe(false);
+    expect(useAuthStore.getState()).toMatchObject({ state: 'signed-in', userId: 'user-b' });
+  });
+
+  it('reports a dismissed system prompt as cancelled, not as an error', async () => {
+    passkeySignIn = { session: null, error: null, cancelled: true };
+    expect(await useAuthStore.getState().signInWithPasskey()).toBe('cancelled');
+    expect(useAuthStore.getState().state).toBe('signed-out');
+  });
+
+  it('knows a passkey is on this device only for the account that registered it', async () => {
+    devicePasskey = { userId: 'user-a', passkeyId: 'pk-a' };
+    await useAuthStore.getState().signInWithPasskey(); // user-b
+    expect(useAuthStore.getState().passkeyOnDevice).toBe(false);
+  });
+
+  it('drops the previous account\'s passkey note when a different account wipes the device', async () => {
+    ownerId = 'user-a';
+    devicePasskey = { userId: 'user-a', passkeyId: 'pk-a' };
+    await useAuthStore.getState().verifyCode('b@x.co', '123456', 'Priya');
+    expect(calls).toContain('wipe');
+    expect(devicePasskey).toBeNull();
+  });
+
+  it('registers a passkey for the signed-in account and flags the device', async () => {
+    useAuthStore.setState({ state: 'signed-in', userId: 'user-b', email: 'b@x.co' });
+    expect(await useAuthStore.getState().enablePasskey()).toBeNull();
+    expect(devicePasskey).toEqual({ userId: 'user-b', passkeyId: 'pk-1' });
+    expect(useAuthStore.getState().passkeyOnDevice).toBe(true);
+  });
+
+  it('passes a registration cancel through without flagging the device', async () => {
+    useAuthStore.setState({ state: 'signed-in', userId: 'user-b', email: 'b@x.co' });
+    passkeyRegister = { error: null, cancelled: true };
+    expect(await useAuthStore.getState().enablePasskey()).toBe('cancelled');
+    expect(useAuthStore.getState().passkeyOnDevice).toBe(false);
+  });
+
+  it('turns the device passkey off', async () => {
+    useAuthStore.setState({ state: 'signed-in', userId: 'user-b', email: 'b@x.co', passkeyOnDevice: true });
+    devicePasskey = { userId: 'user-b', passkeyId: 'pk-1' };
+    expect(await useAuthStore.getState().disablePasskey()).toBeNull();
+    expect(calls).toContain('removeDevicePasskey');
+    expect(useAuthStore.getState().passkeyOnDevice).toBe(false);
+  });
+});
+
 describe('signOut', () => {
   it('flushes the queue, drops the session, wipes local data and re-hydrates', async () => {
     useAuthStore.setState({ state: 'signed-in', userId: 'user-b', email: 'b@x.co' });
     await useAuthStore.getState().signOut();
     expect(calls).toEqual(['drainSyncQueue', 'signOutSupabase', 'resetParticipantCache', 'wipe', 'reseed', 'hydrate']);
-    expect(useAuthStore.getState()).toMatchObject({ state: 'signed-out', userId: null, email: null });
+    expect(useAuthStore.getState()).toMatchObject({ state: 'signed-out', userId: null, email: null, passkeyOnDevice: false });
   });
 });

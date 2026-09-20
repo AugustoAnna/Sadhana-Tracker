@@ -4,7 +4,7 @@ import { Button, TextInput } from '@/components';
 import { useKeyboardInset } from '@/hooks';
 import { useAppStore } from '@/stores/appStore';
 import { useAuthStore } from '@/stores/authStore';
-import { EMAIL_TAKEN_MESSAGE, isValidEmail } from '@/services/auth';
+import { EMAIL_TAKEN_MESSAGE, biometricLabel, isValidEmail } from '@/services/auth';
 import { track } from '@/services/instrumentation';
 import { reportAppOpen } from '@/services/appLifecycle';
 
@@ -19,7 +19,7 @@ const MIN_CODE_LENGTH = 6;
 const MAX_CODE_LENGTH = 10;
 const isCompleteCode = (value: string) => value.length >= MIN_CODE_LENGTH;
 
-type Step = 'details' | 'code' | 'restoring';
+type Step = 'details' | 'code' | 'passkey-offer' | 'restoring';
 
 /** Enter / the keyboard's Go key submits; the visible button lives in the footer. */
 function submitOnEnter(action: () => Promise<void>) {
@@ -44,6 +44,10 @@ export function SignIn() {
   const authState = useAuthStore((s) => s.state);
   const requestCode = useAuthStore((s) => s.requestCode);
   const verifyCode = useAuthStore((s) => s.verifyCode);
+  const signInWithPasskey = useAuthStore((s) => s.signInWithPasskey);
+  const enablePasskey = useAuthStore((s) => s.enablePasskey);
+  const passkeySupported = useAuthStore((s) => s.passkeySupported);
+  const passkeyOnDevice = useAuthStore((s) => s.passkeyOnDevice);
   const signOut = useAuthStore((s) => s.signOut);
   const profile = useAppStore((s) => s.profile);
   const setNameStore = useAppStore((s) => s.setName);
@@ -132,6 +136,13 @@ export function SignIn() {
     await continueWithDetails();
   };
 
+  const finish = () => {
+    setStep('restoring');
+    // Boot skipped this while signed out; the participant row exists now.
+    void reportAppOpen();
+    navigate('/', { replace: true });
+  };
+
   const submitCode = async () => {
     if (!isCompleteCode(code)) return;
     setBusy(true);
@@ -144,11 +155,52 @@ export function SignIn() {
       codeRef.current?.focus();
       return;
     }
-    setStep('restoring');
-    void track('sign_in_completed', { linking });
-    // Boot skipped this while signed out; the participant row exists now.
-    void reportAppOpen();
-    navigate('/', { replace: true });
+    void track('sign_in_completed', { linking, method: 'code' });
+    // Offer the faster door for next time — once per device, only where the
+    // browser can actually do it. Anonymous users can't register one; they've
+    // just been linked, so by now they can.
+    if (passkeySupported && !useAuthStore.getState().passkeyOnDevice) {
+      setBusy(false);
+      setError(null);
+      setStep('passkey-offer');
+      return;
+    }
+    finish();
+  };
+
+  const usePasskey = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await signInWithPasskey();
+    if (result === 'cancelled') {
+      setBusy(false);
+      return;
+    }
+    if (result) {
+      setBusy(false);
+      setError(result);
+      return;
+    }
+    void track('sign_in_completed', { linking: false, method: 'passkey' });
+    finish();
+  };
+
+  const acceptPasskeyOffer = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await enablePasskey();
+    if (result === 'cancelled') {
+      setBusy(false);
+      return;
+    }
+    if (result) {
+      // Don't hold the sign-in hostage to this; they can retry from Reminders.
+      setBusy(false);
+      setError(result);
+      return;
+    }
+    void track('passkey_registered', { where: 'sign_in' });
+    finish();
   };
 
   if (step === 'restoring') {
@@ -161,6 +213,31 @@ export function SignIn() {
   }
 
   const footerStyle = { paddingBottom: 'calc(1rem + var(--keyboard-inset, 0px))' };
+
+  if (step === 'passkey-offer') {
+    return (
+      <div className="flex flex-col h-full bg-page">
+        <div className="flex-1 overflow-y-auto px-4 pt-14">
+          <h1 className="font-serif text-display mb-6">Sign in faster next time?</h1>
+          <p className="text-label text-secondary mb-3">
+            Use {biometricLabel()} instead of an emailed code whenever you need to sign in again on this device.
+          </p>
+          <p className="text-label text-secondary">
+            Your fingerprint or face never leaves your device. You can turn this off any time under Reminders → Account.
+          </p>
+          {error && <p className="text-label text-error mt-4" role="alert">{error}</p>}
+        </div>
+        <div className="shrink-0 px-4 pb-4 safe-bottom border-t border-hairline pt-3" style={footerStyle}>
+          <Button fullWidth disabled={busy} onClick={() => void acceptPasskeyOffer()}>
+            {busy ? 'Setting up…' : `Use ${biometricLabel()}`}
+          </Button>
+          <Button variant="text" className="w-full mt-2" disabled={busy} onClick={finish}>
+            Not now
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 'details') {
     const heading = linking ? 'Keep your progress' : nameOnly ? 'What should we call you?' : 'Let’s get you set up';
@@ -218,6 +295,11 @@ export function SignIn() {
           <Button fullWidth disabled={busy || !detailsComplete} onClick={() => void continueWithDetails()}>
             {busy ? (nameOnly ? 'Saving…' : 'Sending…') : nameOnly ? 'Continue' : 'Send code'}
           </Button>
+          {passkeySupported && !linking && !nameOnly && (
+            <Button variant="secondary" fullWidth className="mt-3" disabled={busy} onClick={() => void usePasskey()}>
+              {passkeyOnDevice ? `Sign in with ${biometricLabel()}` : `Already set up ${biometricLabel()}? Use it`}
+            </Button>
+          )}
         </div>
       </div>
     );

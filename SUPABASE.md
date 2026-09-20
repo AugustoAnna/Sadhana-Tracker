@@ -18,6 +18,7 @@ Flow: Welcome → *Get started* → name + email → code → straight into onbo
 - The name typed at sign-in is applied after the server restore, so it wins over a stale local or placeholder name.
 - On sign-in the app records the account as the owner of the local IndexedDB (`localStorage.sadhana_owner_user_id`). If a different account later signs in on the same device the local database is wiped, then `restoreFromServer()` pulls that account's history down.
 - Sign out (Reminders → Account) drains the sync queue, drops the session on this device only, and wipes the local database.
+- **Passkeys**: right after a code sign-in the app offers "Sign in faster next time?" once per device (`registerPasskey()`); the sign-in screen shows a "Sign in with Face ID / fingerprint" button where the browser supports it (`signInWithPasskey()`), which goes through the same restore/hydrate completion as a code; Reminders → Account has *Set up / Turn off* for this device. The passkey never replaces email — it is the fast door, email is identity and recovery.
 
 ### Dashboard checklist
 
@@ -41,7 +42,14 @@ Everything below is in **Authentication** on the Supabase dashboard and has to b
 
    Leave `{{ .ConfirmationURL }}` out — a link opens Safari rather than the installed app.
 4. **Emails → SMTP Settings**: enable custom SMTP. The built-in mailer is limited to 2 emails/hour and only delivers to your own team — it is not usable for participants. Any provider works (Resend, Postmark, SES…); the free Resend tier covers a study comfortably. Once custom SMTP is on, raise **Rate Limits → Emails sent** as needed.
-5. **URL Configuration**: not needed for codes (no redirect), but keep *Site URL* pointing at the production domain for future passkey work.
+5. **URL Configuration**: not needed for codes (no redirect).
+6. **Passkeys** (Face ID / Touch ID / fingerprint sign-in) — **Authentication → Passkeys**:
+   - *Enable Passkey authentication*: on.
+   - *Relying Party Display Name*: `Sadhana Tracker`.
+   - *Relying Party ID*: the **bare hostname participants use**, e.g. `sadhana-tracker-preview.vercel.app` (no `https://`, no path).
+   - *Relying Party Origins*: `https://<that hostname>` — up to five, each must be that hostname or a subdomain of it.
+
+   Constraints worth knowing: a passkey is bound to the origin it was registered on, so **changing the production hostname later invalidates every passkey** (email codes still work). Because `vercel.app` is a public suffix, `sadhana-tracker-lab.vercel.app` and `sadhana-tracker-preview.vercel.app` are *not* subdomains of each other — one Supabase project can serve passkeys for one of them at a time. Per-deployment preview URLs (`…-lr5gz47k4-….vercel.app`) will never match; test passkeys on the hostname set as RP ID. Supabase marks the feature experimental; the exact `@supabase/supabase-js` pin is what keeps the client calls stable. Anonymous users cannot register a passkey — the app only offers one after the email step.
 
 ### Existing anonymous users
 

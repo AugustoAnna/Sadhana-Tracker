@@ -217,6 +217,15 @@ sign-ins resume.
 | Code arrives late or in spam | Sending-domain reputation / DMARC lookups | Add the `_dmarc` record; tell participants to check spam; long term, move to a real domain |
 | "Too many attempts" | 60 s per-address limit or the hourly rate limit | Wait; raise *Rate Limits* if it is the hourly cap |
 
+## Passkeys (Phase 2)
+
+Face ID / Touch ID / fingerprint sign-in sits on top of the email flow — email
+stays the identity and the recovery path; the passkey just skips the code on
+devices that have one. Configuration is in Supabase → **Authentication →
+Passkeys** (see SUPABASE.md, step 6): Relying Party ID = the production
+hostname, Origins = `https://` + that hostname. The email sending domain plays
+no part in passkeys, and a passkey survives anything that happens to deSEC.
+
 ## Moving to a real domain later
 
 Verify the new domain in Resend (same four records, on that domain's DNS),
