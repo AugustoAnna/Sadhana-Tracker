@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BackHeader, Toggle, BottomSheet, TimePicker, Button } from '@/components';
 import { useAppStore } from '@/stores/appStore';
+import { useAuthStore } from '@/stores/authStore';
 import { formatTimeDisplay } from '@/utils/dates';
 import {
   getNotificationPermission,
@@ -64,6 +65,9 @@ export function Reminders() {
   const profile = useAppStore((s) => s.profile);
   const setReminder = useAppStore((s) => s.setReminder);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+  const accountEmail = useAuthStore((s) => s.email);
+  const signOut = useAuthStore((s) => s.signOut);
+  const [signingOut, setSigningOut] = useState(false);
 
   const inSetup = firstSetup || !profile?.onboardingComplete;
 
@@ -171,6 +175,14 @@ export function Reminders() {
     navigate('/practice-home', { replace: true });
   };
 
+  const handleSignOut = async () => {
+    if (!window.confirm('Sign out on this device? Your practice history stays in your account.')) return;
+    setSigningOut(true);
+    await track('sign_out');
+    await signOut();
+    navigate('/', { replace: true });
+  };
+
   return (
     <div className="h-full flex flex-col bg-page">
       <BackHeader
@@ -183,7 +195,7 @@ export function Reminders() {
           }
         }}
       />
-      <div className="px-4 flex-1">
+      <div className="px-4 flex-1 overflow-y-auto">
         <p className="text-label text-secondary mb-6">
           Set up to three reminders for your practice.
         </p>
@@ -260,6 +272,18 @@ export function Reminders() {
             </div>
           );
         })}
+
+        {!inSetup && (
+          <div className="mt-10 pb-8 safe-bottom">
+            <p className="section-header mb-2">Account</p>
+            {accountEmail && (
+              <p className="text-label text-secondary mb-3">Signed in as {accountEmail}</p>
+            )}
+            <Button variant="text" className="px-0" disabled={signingOut} onClick={() => void handleSignOut()}>
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {inSetup && (

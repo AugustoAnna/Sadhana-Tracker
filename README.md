@@ -18,13 +18,14 @@ Open http://localhost:5173 on a mobile viewport (portrait).
 - Dexie (IndexedDB) for offline persistence
 - Zustand for state
 - vite-plugin-pwa for service worker
-- Supabase (anonymous auth, RLS, offline sync queue)
+- Supabase (passwordless email-code sign-in, RLS, offline sync queue)
 
 ## Docs
 
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) — architecture and data model
 - [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) — build progress
 - [DESIGN.md](./DESIGN.md) — design tokens and component inventory
+- [docs/email-otp-setup.md](./docs/email-otp-setup.md) — email sign-in: Supabase + Resend + deSEC setup and operations
 
 ## Placeholders (awaiting assets)
 

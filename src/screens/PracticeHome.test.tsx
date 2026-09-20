@@ -93,4 +93,15 @@ describe('PracticeHome entry points (study build)', () => {
     );
     expect(container.innerHTML).not.toContain('practice-so-far');
   });
+
+  it('shows only the reminders bell at the top — no title bar', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <PracticeHome />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector('header')).toBeNull();
+    expect(container.textContent).not.toMatch(/Practices of|My Practices/);
+    expect(container.querySelector('button[aria-label="Reminders"]')).not.toBeNull();
+  });
 });

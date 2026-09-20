@@ -14,7 +14,10 @@ export type InstrumentEvent =
   | 'reminder_delivered'
   | 'reminder_tapped'
   | 'sync_failed'
-  | 'name_changed';
+  | 'name_changed'
+  | 'sign_in_code_sent'
+  | 'sign_in_completed'
+  | 'sign_out';
 
 interface TrackPayload {
   [key: string]: unknown;
