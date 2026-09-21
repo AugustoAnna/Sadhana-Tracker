@@ -7,7 +7,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { EMAIL_TAKEN_MESSAGE, biometricLabel, isValidEmail } from '@/services/auth';
 import { track } from '@/services/instrumentation';
 import { reportAppOpen } from '@/services/appLifecycle';
-import { OTP_RESEND_SECONDS } from '@/config/environment';
 
 /**
  * Supabase's "Email OTP Length" setting is 6–10 digits and lives in the
@@ -59,11 +58,10 @@ export function SignIn() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Countdown shown on the code step after a send, sized to Supabase's
-  // per-address interval so "Resend" is never tapped into a refusal. "Change
-  // details" clears it — the next send goes out immediately (a new code
-  // replaces the old one). If the server refuses anyway, we count down exactly
-  // the wait it reports.
+  // There is no "resend" on the code step: a fresh code is requested by going
+  // back through Change details → Send code, and the new code replaces the
+  // old one. The only countdown that can appear is when Supabase's
+  // per-address interval refuses a send — then exactly the wait it reports.
   const [cooldown, setCooldown] = useState<{ email: string; until: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   // Address a code went to in this session, so someone who went back to fix
@@ -122,27 +120,11 @@ export function SignIn() {
     }
     setEmail(trimmedEmail);
     setSentTo(trimmedEmail);
-    startCooldown(trimmedEmail, OTP_RESEND_SECONDS);
+    setCooldown(null);
     setCode('');
     setStep('code');
     void track('sign_in_code_sent', { linking });
-    // autoFocus only fires on mount; the input is already mounted on resend.
     setTimeout(() => codeRef.current?.focus(), 0);
-  };
-
-  const resendCode = async () => {
-    setBusy(true);
-    setError(null);
-    const { error: err, retryAfter } = await requestCode(email, merging ? { mode: 'sign-in' } : undefined);
-    setBusy(false);
-    if (err) {
-      if (retryAfter) startCooldown(email, retryAfter);
-      setError(err);
-      return;
-    }
-    setCode('');
-    startCooldown(email, OTP_RESEND_SECONDS);
-    codeRef.current?.focus();
   };
 
   /**
@@ -165,7 +147,7 @@ export function SignIn() {
     setMerging(true);
     setEmail(trimmedEmail);
     setSentTo(trimmedEmail);
-    startCooldown(trimmedEmail, OTP_RESEND_SECONDS);
+    setCooldown(null);
     setCode('');
     setStep('code');
     void track('sign_in_code_sent', { linking: false, merging: true });
@@ -361,7 +343,8 @@ export function SignIn() {
       <div className="flex-1 overflow-y-auto px-4 pt-14">
         <h1 className="font-serif text-display mb-6">Check your email</h1>
         <p className="text-label text-secondary mb-6">
-          We sent a code to <span className="text-ink">{email}</span>. It may take a minute to arrive.
+          We sent a code to <span className="text-ink">{email}</span>. It may take a minute to arrive — check your spam folder too.
+          Didn’t get it? Go back to <span className="text-ink">Change details</span> and send it again.
         </p>
         <form noValidate onSubmit={(e) => { e.preventDefault(); void submitCode(); }}>
           <TextInput
@@ -382,15 +365,7 @@ export function SignIn() {
           />
           {error && <p className="text-label text-error mt-3" role="alert">{error}</p>}
         </form>
-        <div className="flex items-center justify-between mt-6">
-          <Button
-            variant="text"
-            className="px-0"
-            disabled={busy || secondsLeftFor(email) > 0}
-            onClick={() => void resendCode()}
-          >
-            {secondsLeftFor(email) > 0 ? `Resend code in ${secondsLeftFor(email)}s` : 'Resend code'}
-          </Button>
+        <div className="flex items-center justify-end mt-6">
           <Button
             variant="text"
             className="px-0"

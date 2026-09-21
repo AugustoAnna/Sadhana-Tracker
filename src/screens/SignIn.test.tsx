@@ -126,16 +126,16 @@ describe('SignIn', () => {
     expect(cont().disabled).toBe(false);
   });
 
-  it('counts down on the code step after a send so Resend is not tapped into a refusal', async () => {
+  it('has no resend on the code step — only Change details', async () => {
     renderSignIn();
     fillDetails();
     await screen.findByText('Check your email');
-    const resend = screen.getByRole('button', { name: /Resend code in \d+s/ }) as HTMLButtonElement;
-    expect(resend.disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /Resend/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Change details' })).toBeTruthy();
   });
 
   describe('after Change details', () => {
-    it('clears the countdown: the same address can send a fresh code at once, or reuse the one it has', async () => {
+    it('sends a fresh code to the same address at once', async () => {
       renderSignIn();
       fillDetails('Priya', 'a@b.co');
       await screen.findByText('Check your email');
@@ -143,7 +143,6 @@ describe('SignIn', () => {
 
       const send = screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement;
       expect(send.disabled).toBe(false);
-      expect(screen.queryByRole('button', { name: /Send code \(\d+s\)/ })).toBeNull();
       fireEvent.click(send);
       await screen.findByText('Check your email');
       expect(requestCode).toHaveBeenCalledTimes(2);
