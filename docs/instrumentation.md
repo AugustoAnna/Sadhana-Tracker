@@ -10,6 +10,7 @@ No event may be added, renamed, removed, or have its properties changed without 
 | --- | --- | --- |
 | `app_open` | App visible after cold launch or backgrounded >30 min | `standalone` bool, `platform` string |
 | `setup_completed` | First Save on add practices | `practices` slug[], `instance_count` int, `distinct_count` int |
+| `onboarding_completed` | Done on the reminders step of setup | `reminder_enabled` bool, `practice_count` int, `notification_permission` string |
 | `practices_changed` | Later Save when list changed | `added` `{practice_id, instance}[]`, `removed` same, `total_after` int |
 | `practice_started` | Play tapped | `practice_id`, `instance`, `kind` |
 | `practice_quit` | Leave session confirmed | `practice_id`, `instance`, `elapsed_seconds`, `total_seconds` |
@@ -35,4 +36,5 @@ Every push attempt is a row in `reminder_sends`, written by the `send-reminders`
 | `platform` | First `app_open` |
 | `installed_standalone` | Any `app_open` where standalone; never set false |
 | `notification_permission` | Every `app_open` |
+| `onboarding_completed_at` | Done on the reminders step of setup; written only where still null, so the first device to finish (or the migration 008 backfill) keeps the real moment. Read back on restore so a second device skips setup. |
 | `segment` | Manual in Supabase |

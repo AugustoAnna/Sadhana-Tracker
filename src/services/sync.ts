@@ -41,6 +41,13 @@ function logModeFromSource(source: PracticeLog['source']): 'logged' | 'minutes_a
   return 'guided';
 }
 
+// Profiles that finished setup before the timestamp existed have the flag but
+// no time; "now" is the best this device can offer, and the set-if-null write
+// means the migration backfill wins where it has a better answer.
+function onboardingCompletedAt(profile: Profile): string {
+  return profile.onboardingCompletedAt ?? new Date().toISOString();
+}
+
 export async function ensureParticipant(profile: Profile): Promise<string | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
@@ -71,6 +78,16 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
         .update(patch)
         .eq('auth_user_id', authUserId);
     }
+    // Only where still null: the first device to finish setup (or the
+    // migration backfill) holds the real moment, and a later device or a
+    // profile from before the timestamp existed must not overwrite it.
+    if (profile.onboardingComplete) {
+      await supabase
+        .from('participants')
+        .update({ onboarding_completed_at: onboardingCompletedAt(profile) })
+        .eq('auth_user_id', authUserId)
+        .is('onboarding_completed_at', null);
+    }
     return existing.id;
   }
 
@@ -81,6 +98,7 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
       email: authUser.email,
       name: profile.name || 'Anonymous',
       environment: APP_ENV,
+      onboarding_completed_at: profile.onboardingComplete ? onboardingCompletedAt(profile) : null,
     })
     .select('id')
     .single();
@@ -114,6 +132,9 @@ function sourceFromLogMode(mode: 'logged' | 'minutes_added' | 'guided'): Practic
  * Deletions are safe too — removePracticeInstance deletes server-side, so a
  * synced removal cannot come back.
  *
+ * Also restores the onboarding flag from the participant row, which counts as
+ * a written row so callers re-hydrate the store.
+ *
  * Returns the number of rows written, 0 when there was nothing to restore.
  */
 export async function restoreFromServer(): Promise<number> {
@@ -125,10 +146,29 @@ export async function restoreFromServer(): Promise<number> {
 
   const { data: participant } = await supabase
     .from('participants')
-    .select('id, name')
+    .select('id, name, onboarding_completed_at')
     .eq('auth_user_id', authUserId)
     .maybeSingle();
   if (!participant) return 0;
+
+  const db = getDb();
+
+  // The server's word on onboarding beats the inference below: a second device
+  // signs in with a fresh profile and no logs yet, and must not be walked
+  // through setup again. Done before the history fetch so it holds even when
+  // there is nothing else to restore.
+  let profileRestored = 0;
+  if (participant.onboarding_completed_at) {
+    const profile = await db.profile.get('profile');
+    if (profile && !profile.onboardingComplete) {
+      await db.profile.update('profile', {
+        onboardingComplete: true,
+        onboardingCompletedAt: participant.onboarding_completed_at,
+        ...(!profile.name && participant.name ? { name: participant.name } : {}),
+      });
+      profileRestored = 1;
+    }
+  }
 
   const [remoteInstances, remoteLogs] = await Promise.all([
     supabase
@@ -141,9 +181,8 @@ export async function restoreFromServer(): Promise<number> {
       .select('id, practice_id, instance, minutes, mode, was_offline, local_date, occurred_at')
       .eq('participant_id', participant.id),
   ]);
-  if (remoteInstances.error || remoteLogs.error) return 0;
+  if (remoteInstances.error || remoteLogs.error) return profileRestored;
 
-  const db = getDb();
   const localInstances = await db.practiceInstances.toArray();
   const known = new Map(localInstances.map((i) => [i.id, i]));
   // Server has no column for display order; keep whatever the device already
@@ -190,7 +229,7 @@ export async function restoreFromServer(): Promise<number> {
     });
   }
 
-  if (!instances.length && !logs.length) return 0;
+  if (!instances.length && !logs.length) return profileRestored;
 
   await db.transaction('rw', db.practiceInstances, db.practiceLogs, db.profile, async () => {
     if (instances.length) await db.practiceInstances.bulkPut(instances);
@@ -208,7 +247,7 @@ export async function restoreFromServer(): Promise<number> {
   if (unattached) {
     console.warn(`restoreFromServer: ${unattached} record(s) had no matching practice`);
   }
-  return instances.length + logs.length;
+  return instances.length + logs.length + profileRestored;
 }
 
 export async function updateParticipantFields(

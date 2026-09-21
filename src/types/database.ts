@@ -22,6 +22,7 @@ export type Database = {
           segment: string | null;
           environment: string;
           created_at: string;
+          onboarding_completed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -35,6 +36,7 @@ export type Database = {
           segment?: string | null;
           environment: string;
           created_at?: string;
+          onboarding_completed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -48,6 +50,7 @@ export type Database = {
           segment?: string | null;
           environment?: string;
           created_at?: string;
+          onboarding_completed_at?: string | null;
         };
         Relationships: [];
       };

@@ -171,6 +171,11 @@ export function Reminders() {
   const handleFinishSetup = async () => {
     const r1 = reminders.find((r) => r.id === 1);
     await completeOnboarding(r1?.enabled ?? false);
+    track('onboarding_completed', {
+      reminder_enabled: r1?.enabled ?? false,
+      practice_count: instances.length,
+      notification_permission: permission,
+    });
     if (isFeatureEnabled('invocation')) {
       await precacheInvocation();
     }

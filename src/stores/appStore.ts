@@ -184,8 +184,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   completeOnboarding: async (reminderEnabled = false) => {
     const db = getDb();
+    const current = await db.profile.get('profile');
     await db.profile.update('profile', {
       onboardingComplete: true,
+      onboardingCompletedAt: current?.onboardingCompletedAt ?? new Date().toISOString(),
       notificationPermissionAsked: true,
     });
     if (reminderEnabled) {
@@ -203,7 +205,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   completePotentialOnboarding: async () => {
     const db = getDb();
-    await db.profile.update('profile', { onboardingComplete: true });
+    const current = await db.profile.get('profile');
+    await db.profile.update('profile', {
+      onboardingComplete: true,
+      onboardingCompletedAt: current?.onboardingCompletedAt ?? new Date().toISOString(),
+    });
     const profile = await db.profile.get('profile');
     set({ profile: profile! });
     await queueSync({ table: 'participants', operation: 'update', payload: profile });

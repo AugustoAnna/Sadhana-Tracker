@@ -42,7 +42,11 @@ vi.mock('./supabase', () => ({
 
 import { restoreFromServer } from './sync';
 
-const participant = { data: { id: 'p1', name: 'Neha Sharma' }, error: null };
+const participant = { data: { id: 'p1', name: 'Neha Sharma', onboarding_completed_at: null }, error: null };
+const onboarded = {
+  data: { id: 'p1', name: 'Neha Sharma', onboarding_completed_at: '2026-09-01T06:00:00.000Z' },
+  error: null,
+};
 
 function remoteInstance(id: string, practice_id: string, created_at: string) {
   return { id, practice_id, instance: 1, created_at };
@@ -124,6 +128,45 @@ describe('restoreFromServer', () => {
     expect(updateProfile).toHaveBeenCalledWith('profile', {
       name: 'Neha Sharma', onboardingComplete: true,
     });
+  });
+
+  it('marks onboarding complete from the server row even with nothing else to restore', async () => {
+    profile = { id: 'profile', name: 'Neha Sharma', onboardingComplete: false } as Profile;
+    tables = {
+      participants: onboarded,
+      participant_practices: { data: [], error: null },
+      practice_completed: { data: [], error: null },
+    };
+
+    expect(await restoreFromServer()).toBe(1);
+    expect(updateProfile).toHaveBeenCalledWith('profile', {
+      onboardingComplete: true, onboardingCompletedAt: '2026-09-01T06:00:00.000Z',
+    });
+  });
+
+  it('restores the name alongside the flag when the local profile was wiped', async () => {
+    tables = {
+      participants: onboarded,
+      participant_practices: { data: [], error: null },
+      practice_completed: { data: [], error: null },
+    };
+
+    await restoreFromServer();
+    expect(updateProfile).toHaveBeenCalledWith('profile', {
+      onboardingComplete: true, onboardingCompletedAt: '2026-09-01T06:00:00.000Z', name: 'Neha Sharma',
+    });
+  });
+
+  it('does not touch a profile that already finished setup locally', async () => {
+    profile = { id: 'profile', name: 'Neha Sharma', onboardingComplete: true } as Profile;
+    tables = {
+      participants: onboarded,
+      participant_practices: { data: [], error: null },
+      practice_completed: { data: [], error: null },
+    };
+
+    expect(await restoreFromServer()).toBe(0);
+    expect(updateProfile).not.toHaveBeenCalled();
   });
 
   it('does nothing when this auth user has no participant row', async () => {

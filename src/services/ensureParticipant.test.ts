@@ -3,6 +3,7 @@ import type { Profile } from '@/types';
 
 const updates: Array<Record<string, unknown>> = [];
 const inserts: Array<Record<string, unknown>> = [];
+const isFilters: Array<[string, unknown]> = [];
 let existingRow: { id: string } | null = null;
 
 vi.mock('@/db', () => ({
@@ -22,6 +23,7 @@ vi.mock('./supabase', () => ({
       const b: Record<string, unknown> = {};
       b.select = () => b;
       b.eq = () => b;
+      b.is = (column: string, value: unknown) => { isFilters.push([column, value]); return b; };
       b.maybeSingle = () => Promise.resolve({ data: existingRow, error: null });
       b.single = () => Promise.resolve({ data: { id: 'new-participant' }, error: null });
       b.update = (values: Record<string, unknown>) => { updates.push(values); return b; };
@@ -40,6 +42,7 @@ const profile = (name: string) => ({ id: 'profile', name }) as Profile;
 beforeEach(() => {
   updates.length = 0;
   inserts.length = 0;
+  isFilters.length = 0;
   existingRow = { id: 'p1' };
   authEmail = null;
 });
@@ -72,5 +75,40 @@ describe('ensureParticipant', () => {
     authEmail = 'priya@example.org';
     await ensureParticipant(profile('Priya'));
     expect(inserts[0]).toMatchObject({ name: 'Priya', email: 'priya@example.org' });
+  });
+
+  it('writes onboarding_completed_at only where the row still has none', async () => {
+    await ensureParticipant({
+      ...profile('Neha Sharma'),
+      onboardingComplete: true,
+      onboardingCompletedAt: '2026-09-01T06:00:00.000Z',
+    });
+    expect(updates).toEqual([
+      { name: 'Neha Sharma' },
+      { onboarding_completed_at: '2026-09-01T06:00:00.000Z' },
+    ]);
+    expect(isFilters).toEqual([['onboarding_completed_at', null]]);
+  });
+
+  it('stamps now for a profile that finished setup before the timestamp existed', async () => {
+    await ensureParticipant({ ...profile('Neha Sharma'), onboardingComplete: true });
+    const stamped = updates[1]?.onboarding_completed_at as string;
+    expect(Date.now() - new Date(stamped).getTime()).toBeLessThan(5_000);
+  });
+
+  it('leaves onboarding_completed_at alone while setup is unfinished', async () => {
+    await ensureParticipant({ ...profile('Neha Sharma'), onboardingComplete: false });
+    expect(updates).toEqual([{ name: 'Neha Sharma' }]);
+    expect(isFilters).toEqual([]);
+  });
+
+  it('carries onboarding_completed_at onto a brand new row', async () => {
+    existingRow = null;
+    await ensureParticipant({
+      ...profile('Priya'),
+      onboardingComplete: true,
+      onboardingCompletedAt: '2026-09-01T06:00:00.000Z',
+    });
+    expect(inserts[0]).toMatchObject({ onboarding_completed_at: '2026-09-01T06:00:00.000Z' });
   });
 });
