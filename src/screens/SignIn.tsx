@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { EMAIL_TAKEN_MESSAGE, biometricLabel, isValidEmail } from '@/services/auth';
 import { track } from '@/services/instrumentation';
 import { reportAppOpen } from '@/services/appLifecycle';
+import { OTP_RESEND_SECONDS } from '@/config/environment';
 
 /**
  * Supabase's "Email OTP Length" setting is 6–10 digits and lives in the
@@ -58,9 +59,11 @@ export function SignIn() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The app never imposes a wait between codes — a new code simply replaces
-  // the old one. Only when Supabase's per-address interval refuses a send do
-  // we count down, and then exactly what the server asked for.
+  // Countdown shown on the code step after a send, sized to Supabase's
+  // per-address interval so "Resend" is never tapped into a refusal. "Change
+  // details" clears it — the next send goes out immediately (a new code
+  // replaces the old one). If the server refuses anyway, we count down exactly
+  // the wait it reports.
   const [cooldown, setCooldown] = useState<{ email: string; until: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   // Address a code went to in this session, so someone who went back to fix
@@ -119,7 +122,7 @@ export function SignIn() {
     }
     setEmail(trimmedEmail);
     setSentTo(trimmedEmail);
-    setCooldown(null);
+    startCooldown(trimmedEmail, OTP_RESEND_SECONDS);
     setCode('');
     setStep('code');
     void track('sign_in_code_sent', { linking });
@@ -138,7 +141,7 @@ export function SignIn() {
       return;
     }
     setCode('');
-    setCooldown(null);
+    startCooldown(email, OTP_RESEND_SECONDS);
     codeRef.current?.focus();
   };
 
@@ -162,7 +165,7 @@ export function SignIn() {
     setMerging(true);
     setEmail(trimmedEmail);
     setSentTo(trimmedEmail);
-    setCooldown(null);
+    startCooldown(trimmedEmail, OTP_RESEND_SECONDS);
     setCode('');
     setStep('code');
     void track('sign_in_code_sent', { linking: false, merging: true });
@@ -392,7 +395,7 @@ export function SignIn() {
             variant="text"
             className="px-0"
             disabled={busy}
-            onClick={() => { setStep('details'); setError(null); setCode(''); setMerging(false); }}
+            onClick={() => { setStep('details'); setError(null); setCode(''); setMerging(false); setCooldown(null); }}
           >
             Change details
           </Button>

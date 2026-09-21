@@ -126,18 +126,16 @@ describe('SignIn', () => {
     expect(cont().disabled).toBe(false);
   });
 
-  it('never imposes its own wait: resend is available immediately after a send', async () => {
+  it('counts down on the code step after a send so Resend is not tapped into a refusal', async () => {
     renderSignIn();
     fillDetails();
     await screen.findByText('Check your email');
-    const resend = screen.getByRole('button', { name: 'Resend code' }) as HTMLButtonElement;
-    expect(resend.disabled).toBe(false);
-    fireEvent.click(resend);
-    await waitFor(() => expect(requestCode).toHaveBeenCalledTimes(2));
+    const resend = screen.getByRole('button', { name: /Resend code in \d+s/ }) as HTMLButtonElement;
+    expect(resend.disabled).toBe(true);
   });
 
   describe('after Change details', () => {
-    it('lets the same address send a fresh code at once and offers the code already received', async () => {
+    it('clears the countdown: the same address can send a fresh code at once, or reuse the one it has', async () => {
       renderSignIn();
       fillDetails('Priya', 'a@b.co');
       await screen.findByText('Check your email');
@@ -145,6 +143,17 @@ describe('SignIn', () => {
 
       const send = screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement;
       expect(send.disabled).toBe(false);
+      expect(screen.queryByRole('button', { name: /Send code \(\d+s\)/ })).toBeNull();
+      fireEvent.click(send);
+      await screen.findByText('Check your email');
+      expect(requestCode).toHaveBeenCalledTimes(2);
+    });
+
+    it('offers the code already received instead of sending again', async () => {
+      renderSignIn();
+      fillDetails('Priya', 'a@b.co');
+      await screen.findByText('Check your email');
+      fireEvent.click(screen.getByRole('button', { name: 'Change details' }));
       fireEvent.click(screen.getByRole('button', { name: 'Enter the code I already received' }));
       await screen.findByText('Check your email');
       expect(requestCode).toHaveBeenCalledTimes(1);
