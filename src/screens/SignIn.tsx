@@ -17,6 +17,14 @@ const MIN_CODE_LENGTH = 6;
 const MAX_CODE_LENGTH = 10;
 const isCompleteCode = (value: string) => value.length >= MIN_CODE_LENGTH;
 
+/**
+ * UI-only guard against tapping "Resend" twice by accident. The server's own
+ * per-address interval is 1 s, so this is purely about the button. "Change
+ * details" clears it so a fresh code can be requested straight away — and
+ * that send starts the 60 s again.
+ */
+const RESEND_COOLDOWN_S = 60;
+
 type Step = 'details' | 'code' | 'passkey-offer' | 'restoring';
 
 /** Enter / the keyboard's Go key submits; the visible button lives in the footer. */
@@ -58,10 +66,9 @@ export function SignIn() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // There is no "resend" on the code step: a fresh code is requested by going
-  // back through Change details → Send code, and the new code replaces the
-  // old one. The only countdown that can appear is when Supabase's
-  // per-address interval refuses a send — then exactly the wait it reports.
+  // Resend countdown, keyed by address. Started after every successful send;
+  // cleared by "Change details". If the server ever refuses a send, we count
+  // down exactly the wait it reports instead.
   const [cooldown, setCooldown] = useState<{ email: string; until: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   // Address a code went to in this session, so someone who went back to fix
@@ -120,11 +127,27 @@ export function SignIn() {
     }
     setEmail(trimmedEmail);
     setSentTo(trimmedEmail);
-    setCooldown(null);
+    startCooldown(trimmedEmail, RESEND_COOLDOWN_S);
     setCode('');
     setStep('code');
     void track('sign_in_code_sent', { linking });
+    // autoFocus only fires on mount; the input is already mounted on resend.
     setTimeout(() => codeRef.current?.focus(), 0);
+  };
+
+  const resendCode = async () => {
+    setBusy(true);
+    setError(null);
+    const { error: err, retryAfter } = await requestCode(email, merging ? { mode: 'sign-in' } : undefined);
+    setBusy(false);
+    if (err) {
+      if (retryAfter) startCooldown(email, retryAfter);
+      setError(err);
+      return;
+    }
+    setCode('');
+    startCooldown(email, RESEND_COOLDOWN_S);
+    codeRef.current?.focus();
   };
 
   /**
@@ -147,7 +170,7 @@ export function SignIn() {
     setMerging(true);
     setEmail(trimmedEmail);
     setSentTo(trimmedEmail);
-    setCooldown(null);
+    startCooldown(trimmedEmail, RESEND_COOLDOWN_S);
     setCode('');
     setStep('code');
     void track('sign_in_code_sent', { linking: false, merging: true });
@@ -344,7 +367,6 @@ export function SignIn() {
         <h1 className="font-serif text-display mb-6">Check your email</h1>
         <p className="text-label text-secondary mb-6">
           We sent a code to <span className="text-ink">{email}</span>. It may take a minute to arrive — check your spam folder too.
-          Didn’t get it? Go back to <span className="text-ink">Change details</span> and send it again.
         </p>
         <form noValidate onSubmit={(e) => { e.preventDefault(); void submitCode(); }}>
           <TextInput
@@ -365,7 +387,15 @@ export function SignIn() {
           />
           {error && <p className="text-label text-error mt-3" role="alert">{error}</p>}
         </form>
-        <div className="flex items-center justify-end mt-6">
+        <div className="flex items-center justify-between mt-6">
+          <Button
+            variant="text"
+            className="px-0"
+            disabled={busy || secondsLeftFor(email) > 0}
+            onClick={() => void resendCode()}
+          >
+            {secondsLeftFor(email) > 0 ? `Resend code in ${secondsLeftFor(email)}s` : 'Resend code'}
+          </Button>
           <Button
             variant="text"
             className="px-0"

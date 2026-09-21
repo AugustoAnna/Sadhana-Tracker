@@ -126,16 +126,17 @@ describe('SignIn', () => {
     expect(cont().disabled).toBe(false);
   });
 
-  it('has no resend on the code step — only Change details', async () => {
+  it('greys out Resend for 60 s after a send', async () => {
     renderSignIn();
     fillDetails();
     await screen.findByText('Check your email');
-    expect(screen.queryByRole('button', { name: /Resend/ })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Change details' })).toBeTruthy();
+    const resend = screen.getByRole('button', { name: /Resend code in (60|59)s/ }) as HTMLButtonElement;
+    expect(resend.disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Change details' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   describe('after Change details', () => {
-    it('sends a fresh code to the same address at once', async () => {
+    it('lets the same address send a fresh code at once, then greys out Resend again', async () => {
       renderSignIn();
       fillDetails('Priya', 'a@b.co');
       await screen.findByText('Check your email');
@@ -146,6 +147,7 @@ describe('SignIn', () => {
       fireEvent.click(send);
       await screen.findByText('Check your email');
       expect(requestCode).toHaveBeenCalledTimes(2);
+      expect((screen.getByRole('button', { name: /Resend code in \d+s/ }) as HTMLButtonElement).disabled).toBe(true);
     });
 
     it('offers the code already received instead of sending again', async () => {
