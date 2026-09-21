@@ -8,8 +8,6 @@ import { EMAIL_TAKEN_MESSAGE, biometricLabel, isValidEmail } from '@/services/au
 import { track } from '@/services/instrumentation';
 import { reportAppOpen } from '@/services/appLifecycle';
 
-/** Supabase refuses a second code to the same address inside this window. */
-const RESEND_COOLDOWN_S = 60;
 /**
  * Supabase's "Email OTP Length" setting is 6–10 digits and lives in the
  * dashboard, so don't hard-wire one value: accept anything in that range and
@@ -18,6 +16,14 @@ const RESEND_COOLDOWN_S = 60;
 const MIN_CODE_LENGTH = 6;
 const MAX_CODE_LENGTH = 10;
 const isCompleteCode = (value: string) => value.length >= MIN_CODE_LENGTH;
+
+/**
+ * UI-only guard against tapping "Resend" twice by accident. The server's own
+ * per-address interval is 1 s, so this is purely about the button. "Change
+ * details" clears it so a fresh code can be requested straight away — and
+ * that send starts the 60 s again.
+ */
+const RESEND_COOLDOWN_S = 60;
 
 type Step = 'details' | 'code' | 'passkey-offer' | 'restoring';
 
@@ -60,7 +66,14 @@ export function SignIn() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cooldown, setCooldown] = useState(0);
+  // Resend countdown, keyed by address. Started after every successful send;
+  // cleared by "Change details". If the server ever refuses a send, we count
+  // down exactly the wait it reports instead.
+  const [cooldown, setCooldown] = useState<{ email: string; until: number } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  // Address a code went to in this session, so someone who went back to fix
+  // their name can return to the code they already have.
+  const [sentTo, setSentTo] = useState<string | null>(null);
   // Set when the anonymous device's email already has an account: the code
   // is a sign-in to that account and the server merges this history into it.
   const [merging, setMerging] = useState(false);
@@ -69,14 +82,23 @@ export function SignIn() {
   useKeyboardInset();
 
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const t = window.setTimeout(() => setCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [cooldown]);
+    if (!cooldown || cooldown.until <= now) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [cooldown, now]);
+
+  const secondsLeftFor = (address: string) =>
+    cooldown && cooldown.email === address ? Math.max(0, Math.ceil((cooldown.until - now) / 1000)) : 0;
+  const startCooldown = (address: string, seconds: number) => {
+    setNow(Date.now());
+    setCooldown({ email: address, until: Date.now() + seconds * 1000 });
+  };
 
   const trimmedName = name.trim();
   const trimmedEmail = email.trim().toLowerCase();
   const detailsComplete = trimmedName.length > 0 && (nameOnly || trimmedEmail.length > 0);
+  const waitForDetails = nameOnly ? 0 : secondsLeftFor(trimmedEmail);
+  const codeStillPending = !nameOnly && sentTo !== null && trimmedEmail === sentTo;
 
   const continueWithDetails = async () => {
     if (!trimmedName) {
@@ -95,15 +117,18 @@ export function SignIn() {
     }
     setBusy(true);
     setError(null);
-    const err = await requestCode(trimmedEmail);
+    const { error: err, retryAfter } = await requestCode(trimmedEmail);
     setBusy(false);
     if (err) {
+      // The server knows the real interval; count down exactly what it says.
+      if (retryAfter) startCooldown(trimmedEmail, retryAfter);
       setError(err);
       return;
     }
     setEmail(trimmedEmail);
+    setSentTo(trimmedEmail);
+    startCooldown(trimmedEmail, RESEND_COOLDOWN_S);
     setCode('');
-    setCooldown(RESEND_COOLDOWN_S);
     setStep('code');
     void track('sign_in_code_sent', { linking });
     // autoFocus only fires on mount; the input is already mounted on resend.
@@ -113,14 +138,15 @@ export function SignIn() {
   const resendCode = async () => {
     setBusy(true);
     setError(null);
-    const err = await requestCode(email, merging ? { mode: 'sign-in' } : undefined);
+    const { error: err, retryAfter } = await requestCode(email, merging ? { mode: 'sign-in' } : undefined);
     setBusy(false);
     if (err) {
+      if (retryAfter) startCooldown(email, retryAfter);
       setError(err);
       return;
     }
     setCode('');
-    setCooldown(RESEND_COOLDOWN_S);
+    startCooldown(email, RESEND_COOLDOWN_S);
     codeRef.current?.focus();
   };
 
@@ -134,16 +160,18 @@ export function SignIn() {
   const continueWithExistingAccount = async () => {
     setBusy(true);
     setError(null);
-    const err = await requestCode(trimmedEmail, { mode: 'sign-in' });
+    const { error: err, retryAfter } = await requestCode(trimmedEmail, { mode: 'sign-in' });
     setBusy(false);
     if (err) {
+      if (retryAfter) startCooldown(trimmedEmail, retryAfter);
       setError(err);
       return;
     }
     setMerging(true);
     setEmail(trimmedEmail);
+    setSentTo(trimmedEmail);
+    startCooldown(trimmedEmail, RESEND_COOLDOWN_S);
     setCode('');
-    setCooldown(RESEND_COOLDOWN_S);
     setStep('code');
     void track('sign_in_code_sent', { linking: false, merging: true });
     setTimeout(() => codeRef.current?.focus(), 0);
@@ -307,9 +335,22 @@ export function SignIn() {
           )}
         </div>
         <div className="shrink-0 px-4 pb-4 safe-bottom border-t border-hairline pt-3" style={footerStyle}>
-          <Button fullWidth disabled={busy || !detailsComplete} onClick={() => void continueWithDetails()}>
-            {busy ? (nameOnly ? 'Saving…' : 'Sending…') : nameOnly ? 'Continue' : 'Send code'}
+          <Button fullWidth disabled={busy || !detailsComplete || waitForDetails > 0} onClick={() => void continueWithDetails()}>
+            {busy
+              ? (nameOnly ? 'Saving…' : 'Sending…')
+              : nameOnly
+                ? 'Continue'
+                : waitForDetails > 0
+                  ? `Send code (${waitForDetails}s)`
+                  : 'Send code'}
           </Button>
+          {codeStillPending && (
+            // They came back to fix the name; the code already sent is still valid
+            // (until they request another, which replaces it).
+            <Button variant="text" className="w-full mt-2" disabled={busy} onClick={() => { setError(null); setStep('code'); }}>
+              Enter the code I already received
+            </Button>
+          )}
           {passkeySupported && !linking && !nameOnly && (
             <Button variant="secondary" fullWidth className="mt-3" disabled={busy} onClick={() => void usePasskey()}>
               {passkeyOnDevice ? `Sign in with ${biometricLabel()}` : `Already set up ${biometricLabel()}? Use it`}
@@ -325,7 +366,7 @@ export function SignIn() {
       <div className="flex-1 overflow-y-auto px-4 pt-14">
         <h1 className="font-serif text-display mb-6">Check your email</h1>
         <p className="text-label text-secondary mb-6">
-          We sent a code to <span className="text-ink">{email}</span>. It may take a minute to arrive.
+          We sent a code to <span className="text-ink">{email}</span>. It may take a minute to arrive — check your spam folder too.
         </p>
         <form noValidate onSubmit={(e) => { e.preventDefault(); void submitCode(); }}>
           <TextInput
@@ -350,16 +391,16 @@ export function SignIn() {
           <Button
             variant="text"
             className="px-0"
-            disabled={busy || cooldown > 0}
+            disabled={busy || secondsLeftFor(email) > 0}
             onClick={() => void resendCode()}
           >
-            {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+            {secondsLeftFor(email) > 0 ? `Resend code in ${secondsLeftFor(email)}s` : 'Resend code'}
           </Button>
           <Button
             variant="text"
             className="px-0"
             disabled={busy}
-            onClick={() => { setStep('details'); setError(null); setCode(''); setMerging(false); }}
+            onClick={() => { setStep('details'); setError(null); setCode(''); setMerging(false); setCooldown(null); }}
           >
             Change details
           </Button>

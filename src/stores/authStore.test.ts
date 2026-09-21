@@ -22,7 +22,7 @@ vi.mock('@/services/auth', () => ({
   setOwnerUserId: (id: string | null) => { ownerId = id; },
   resolveAuthState: () => resolveImpl(),
   onSignedOut: () => () => undefined,
-  requestEmailCode: async () => ({ error: null }),
+  requestEmailCode: async () => ({ error: null, retryAfter: null }),
   verifyEmailCode: async () => {
     if (verifyResult.session) ownerId = verifyResult.session.user.id;
     return verifyResult;

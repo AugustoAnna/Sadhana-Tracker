@@ -26,6 +26,7 @@ Flow: Welcome → *Get started* → name + email → code → straight into onbo
 Everything below is in **Authentication** on the Supabase dashboard and has to be done once per project.
 
 1. **Sign In / Providers → Email**: keep the provider enabled. Set *Email OTP expiration* (default 1 hour; 30 minutes is plenty). *Email OTP Length* can stay at whatever it is (6–10) — the app accepts any length in that range; just keep the template text honest about it.
+   **Per-address send interval** (Emails → SMTP Settings → *minimum interval between emails*, or Authentication → Rate Limits; `smtp_max_frequency` in the Management API): how long the same address must wait between codes. **Set to 1 second** — a new code always replaces the previous one, so the interval is purely anti-abuse and the per-hour cap already limits volume. The app greys out *Resend code* for 60 s after each send purely as a UI guard against double taps; *Change details → Send code* sends a fresh code immediately (and starts the 60 s again). If the server ever refuses, the app shows exactly the wait it reports.
 2. **Sign In / Providers → Anonymous sign-ins**: **disable once this build is in production** (the previous build creates anonymous sessions for new installs, so not before). Existing anonymous sessions keep working until they link an email.
 3. **Emails → Templates**: three templates must contain `{{ .Token }}` — that is what makes Supabase send a code instead of a link. Supabase picks the template from the account's state, so all three carry the same body:
 

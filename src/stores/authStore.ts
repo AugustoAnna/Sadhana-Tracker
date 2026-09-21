@@ -46,7 +46,10 @@ interface AuthStore {
    * it, otherwise a plain sign-in) unless overridden — the merge path sends a
    * sign-in code while still holding an anonymous session.
    */
-  requestCode: (email: string, opts?: { mode?: SignInMode }) => Promise<string | null>;
+  requestCode: (
+    email: string,
+    opts?: { mode?: SignInMode },
+  ) => Promise<{ error: string | null; retryAfter: number | null }>;
   /**
    * Verify the code, then make the local database match the account: a
    * different owner's data is wiped, the account's history is pulled down,
@@ -156,8 +159,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   requestCode: async (email, opts) => {
     const mode: SignInMode = opts?.mode ?? (get().state === 'anonymous' ? 'link' : 'sign-in');
-    const { error } = await requestEmailCode(email, mode);
-    return error;
+    return requestEmailCode(email, mode);
   },
 
   verifyCodeAndMerge: async (email, code, name) => {
