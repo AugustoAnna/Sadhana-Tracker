@@ -5,7 +5,7 @@ import type { PracticeInstance, PracticeLog, Profile, Reminder, ReminderKey, Sav
 import { getPractice } from '@/data/catalogue';
 import { computeCurrentLevel } from '@/data/journey';
 import { generateId, todayKey, formatDateKey } from '@/utils/dates';
-import { queueSync, getParticipantName, fetchBannerTargets } from '@/services/sync';
+import { queueSync } from '@/services/sync';
 import { enterDemoMode as enterDemoModeService, exitDemoMode as exitDemoModeService, type DemoStateId } from '@/services/demoMode';
 import { syncPracticeReminders } from '@/utils/practiceReminders';
 import { precachePracticeAudio } from '@/services/audio';
@@ -23,8 +23,6 @@ interface AppStore {
   levelCrossed: number | null;
   toast: string | null;
   isDemoMode: boolean;
-  serverName: string | null;
-  bannerTargets: Set<string> | null;
   /** Local calendar day the UI is currently rendering. See refreshDay. */
   currentDay: string;
 
@@ -74,8 +72,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
   levelCrossed: null,
   toast: null,
   isDemoMode: false,
-  serverName: null,
-  bannerTargets: null,
   currentDay: todayKey(),
 
   hydrate: async () => {
@@ -89,16 +85,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       db.appMeta.get('meta'),
     ]);
     const reminders = await syncPracticeReminders(db);
-    let serverName: string | null = null;
-    let bannerTargets: Set<string> | null = null;
-    try {
-      [serverName, bannerTargets] = await Promise.all([
-        getParticipantName(),
-        fetchBannerTargets(),
-      ]);
-    } catch {
-      // offline or Supabase unreachable — banner simply stays hidden
-    }
     set({
       profile: profile ?? null,
       instances,
@@ -109,8 +95,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       reminders,
       savedSessions,
       pendingJourneyMinutes: meta?.pendingJourneyMinutes ?? 0,
-      serverName,
-      bannerTargets,
       currentDay: todayKey(),
     });
   },
@@ -142,7 +126,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const db = getDb();
     await db.profile.update('profile', { name });
     const profile = { ...get().profile!, name };
-    set({ profile, serverName: name || null });
+    set({ profile });
     await queueSync({ table: 'participants', operation: 'update', payload: profile });
   },
 

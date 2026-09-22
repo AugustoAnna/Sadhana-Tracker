@@ -14,8 +14,6 @@ const mockState = {
   logs: [],
   currentDay: '2026-08-23',
   profile: { firstRecordReassuranceShown: true },
-  serverName: null as string | null,
-  bannerTargets: null as Set<string> | null,
   logPractice: vi.fn(),
   setPlayerSession: vi.fn(),
   markFirstRecordReassuranceShown: vi.fn(),
@@ -50,39 +48,13 @@ describe('PracticeHome entry points (study build)', () => {
     });
   }
 
-  it('does not show the name banner by default', () => {
+  it('does not show the name banner', () => {
     const { queryByText } = render(
       <MemoryRouter>
         <PracticeHome />
       </MemoryRouter>,
     );
     expect(queryByText(/Namaskaram/)).toBeNull();
-  });
-
-  it('shows the name banner when server name is Anonymous', () => {
-    mockState.serverName = 'Anonymous';
-    mockState.bannerTargets = new Set(['Anonymous']);
-    const { getByText } = render(
-      <MemoryRouter>
-        <PracticeHome />
-      </MemoryRouter>,
-    );
-    expect(getByText(/Namaskaram 'Anonymous'/)).toBeDefined();
-    mockState.serverName = null;
-    mockState.bannerTargets = null;
-  });
-
-  it('does not show the name banner when server name is not in targets', () => {
-    mockState.serverName = 'Priya';
-    mockState.bannerTargets = new Set(['Anonymous']);
-    const { queryByText } = render(
-      <MemoryRouter>
-        <PracticeHome />
-      </MemoryRouter>,
-    );
-    expect(queryByText(/Namaskaram/)).toBeNull();
-    mockState.serverName = null;
-    mockState.bannerTargets = null;
   });
 
   it('does not link to practice-so-far detail screen', () => {
