@@ -42,9 +42,9 @@ vi.mock('./supabase', () => ({
 
 import { restoreFromServer } from './sync';
 
-const participant = { data: { id: 'p1', name: 'Neha Sharma', onboarding_completed_at: null }, error: null };
+const participant = { data: { id: 'p1', name: 'Neha Sharma' }, error: null };
 const onboarded = {
-  data: { id: 'p1', name: 'Neha Sharma', onboarding_completed_at: '2026-09-01T06:00:00.000Z' },
+  data: { id: 'p1', name: 'Neha Sharma' },
   error: null,
 };
 
@@ -132,7 +132,7 @@ describe('restoreFromServer', () => {
     });
   });
 
-  it('marks onboarding complete from the server row even with nothing else to restore', async () => {
+  it('marks onboarding complete from a known participant row even with nothing else to restore', async () => {
     profile = { id: 'profile', name: 'Neha Sharma', onboardingComplete: false } as Profile;
     tables = {
       participants: onboarded,
@@ -142,7 +142,7 @@ describe('restoreFromServer', () => {
 
     expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
     expect(updateProfile).toHaveBeenCalledWith('profile', {
-      onboardingComplete: true, onboardingCompletedAt: '2026-09-01T06:00:00.000Z',
+      onboardingComplete: true,
     });
   });
 
@@ -155,7 +155,7 @@ describe('restoreFromServer', () => {
 
     await restoreFromServer();
     expect(updateProfile).toHaveBeenCalledWith('profile', {
-      onboardingComplete: true, onboardingCompletedAt: '2026-09-01T06:00:00.000Z', name: 'Neha Sharma',
+      onboardingComplete: true, name: 'Neha Sharma',
     });
   });
 

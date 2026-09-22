@@ -289,16 +289,21 @@ async function completeSignIn(
     await app.setName(opts.name);
   }
 
-  // Always ensure a participants row exists after successful auth. Returning
-  // accounts keep their existing row; brand-new accounts get one created now.
+  // Always ensure a participants row exists after successful auth.
+  // Known = a row with this email (or auth user) already existed.
+  // New = row was just created → still show Add Practices.
   const profile = useAppStore.getState().profile;
   if (profile) {
-    const ensured = await ensureParticipantDetailed(profile);
-    if (ensured.id && !ensured.created) knownParticipant = true;
+    try {
+      const ensured = await ensureParticipantDetailed(profile);
+      if (ensured.id && !ensured.created) knownParticipant = true;
+    } catch (err) {
+      console.error('Failed to ensure participant after sign-in:', err);
+    }
   }
 
-  // Known accounts skip first-time setup even with zero practices.
-  // Brand-new accounts (just created row) still go through Add Practices.
+  // Email already in participants → skip Add Practices.
+  // Brand-new email/row → keep first-time setup.
   const current = useAppStore.getState();
   if (
     knownParticipant

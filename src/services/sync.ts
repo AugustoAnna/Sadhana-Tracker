@@ -60,8 +60,8 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
 
 /**
  * Find or create the participants row for the current Auth user.
- * Returns whether the row already existed so routing can treat returning
- * accounts differently from first-time sign-ins.
+ * Known-account detection is email-first: if a row with this email already
+ * exists, this is a returning user (skip Add Practices). Otherwise create.
  */
 export async function ensureParticipantDetailed(profile: Profile): Promise<EnsureParticipantResult> {
   const supabase = getSupabase();
@@ -70,61 +70,118 @@ export async function ensureParticipantDetailed(profile: Profile): Promise<Ensur
   const authUser = await getAuthUser();
   if (!authUser) return { id: null, created: false };
   const authUserId = authUser.id;
+  const email = authUser.email?.trim().toLowerCase() || null;
 
-  const { data: existing } = await supabase
-    .from('participants')
-    .select('id')
-    .eq('auth_user_id', authUserId)
-    .maybeSingle();
+  // 1) Email match is the product rule for "already registered".
+  let existing: { id: string; auth_user_id?: string | null; email?: string | null } | null = null;
+  if (email) {
+    const byEmail = await supabase
+      .from('participants')
+      .select('id, auth_user_id, email')
+      .ilike('email', email)
+      .maybeSingle();
+    if (byEmail.error) {
+      console.error('Failed to look up participant by email:', byEmail.error.message);
+    } else {
+      existing = byEmail.data;
+    }
+  }
+
+  // 2) Fall back to auth_user_id for older rows that never got email filled in.
+  if (!existing) {
+    const byAuth = await supabase
+      .from('participants')
+      .select('id, auth_user_id, email')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+    if (byAuth.error) {
+      console.error('Failed to look up participant by auth user:', byAuth.error.message);
+    } else {
+      existing = byAuth.data;
+    }
+  }
 
   if (existing) {
     participantId = existing.id;
-    // A device whose local database was evicted comes back with a blank profile
-    // name. Writing that over the stored copy erases the only human-readable
-    // record of whose row this is, so leave it alone until there is a real name.
-    // The email is the account's identity; write it whenever the session has one
-    // (it appears the moment a pre-email participant links their address).
-    const patch: { name?: string; email?: string } = {};
+    const patch: { name?: string; email?: string; auth_user_id?: string } = {};
     if (profile.name) patch.name = profile.name;
-    if (authUser.email) patch.email = authUser.email;
+    if (email && existing.email?.toLowerCase() !== email) patch.email = email;
+    // Re-bind the row to this Auth user when email matched an older row.
+    if (existing.auth_user_id !== authUserId) patch.auth_user_id = authUserId;
     if (Object.keys(patch).length) {
-      await supabase
+      const { error: patchError } = await supabase
         .from('participants')
         .update(patch)
-        .eq('auth_user_id', authUserId);
+        .eq('id', existing.id);
+      if (patchError) console.error('Failed to update participant:', patchError.message);
     }
-    // Only where still null: the first device to finish setup (or the
-    // migration backfill) holds the real moment, and a later device or a
-    // profile from before the timestamp existed must not overwrite it.
+    // Best-effort: production may not have onboarding_completed_at yet.
     if (profile.onboardingComplete) {
-      await supabase
+      const { error: onboardError } = await supabase
         .from('participants')
         .update({ onboarding_completed_at: onboardingCompletedAt(profile) })
-        .eq('auth_user_id', authUserId)
+        .eq('id', existing.id)
         .is('onboarding_completed_at', null);
+      if (onboardError && !/onboarding_completed_at/i.test(onboardError.message)) {
+        console.error('Failed to stamp onboarding_completed_at:', onboardError.message);
+      }
     }
     return { id: existing.id, created: false };
   }
 
-  const { data, error } = await supabase
+  const baseRow = {
+    auth_user_id: authUserId,
+    email,
+    name: profile.name || 'Anonymous',
+    environment: APP_ENV,
+  };
+
+  // Try with onboarding timestamp first; fall back if the column is absent.
+  let insert = await supabase
     .from('participants')
     .insert({
-      auth_user_id: authUserId,
-      email: authUser.email,
-      name: profile.name || 'Anonymous',
-      environment: APP_ENV,
+      ...baseRow,
       onboarding_completed_at: profile.onboardingComplete ? onboardingCompletedAt(profile) : null,
     })
     .select('id')
     .single();
 
-  if (error) {
-    console.error('Failed to create participant:', error.message);
+  if (insert.error && /onboarding_completed_at/i.test(insert.error.message)) {
+    insert = await supabase
+      .from('participants')
+      .insert(baseRow)
+      .select('id')
+      .single();
+  }
+
+  if (insert.error) {
+    // Unique race on email or auth_user_id: treat as known existing row.
+    if (email) {
+      const { data: racedEmail } = await supabase
+        .from('participants')
+        .select('id')
+        .ilike('email', email)
+        .maybeSingle();
+      if (racedEmail) {
+        participantId = racedEmail.id;
+        return { id: racedEmail.id, created: false };
+      }
+    }
+    const { data: racedAuth } = await supabase
+      .from('participants')
+      .select('id')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+    if (racedAuth) {
+      participantId = racedAuth.id;
+      return { id: racedAuth.id, created: false };
+    }
+    console.error('Failed to create participant:', insert.error.message);
     return { id: null, created: false };
   }
 
-  participantId = data.id;
-  return { id: data.id, created: true };
+  participantId = insert.data.id;
+  return { id: insert.data.id, created: true };
 }
 
 function sourceFromLogMode(mode: 'logged' | 'minutes_added' | 'guided'): PracticeLog['source'] {
@@ -172,29 +229,30 @@ export async function restoreFromServer(
   const authUserId = authUserIdOverride || await getAuthUserId();
   if (!authUserId) return { rowsWritten: 0, participantFound: false };
 
-  const { data: participant } = await supabase
+  // Do not select onboarding_completed_at: some environments never got that
+  // migration, and a missing column makes every returning user look brand new.
+  const { data: participant, error: participantError } = await supabase
     .from('participants')
-    .select('id, name, onboarding_completed_at')
+    .select('id, name')
     .eq('auth_user_id', authUserId)
     .maybeSingle();
+  if (participantError) {
+    console.error('Failed to look up participant:', participantError.message);
+    return { rowsWritten: 0, participantFound: false };
+  }
   if (!participant) return { rowsWritten: 0, participantFound: false };
 
   const db = getDb();
 
-  // The server's word on onboarding beats the inference below: a second device
-  // signs in with a fresh profile and no logs yet, and must not be walked
-  // through setup again. Done before the history fetch so it holds even when
-  // there is nothing else to restore.
+  // A participants row means this Auth user is known. Mark setup complete so
+  // landing does not reopen Add Practices on every sign-in.
   let profileRestored = 0;
   const profile = await db.profile.get('profile');
   if (profile) {
     const profileUpdate = {
       ...(!profile.name && participant.name ? { name: participant.name } : {}),
-      ...(participant.onboarding_completed_at && !profile.onboardingComplete
-        ? {
-            onboardingComplete: true,
-            onboardingCompletedAt: participant.onboarding_completed_at,
-          }
+      ...(!profile.onboardingComplete
+        ? { onboardingComplete: true }
         : {}),
     };
     if (Object.keys(profileUpdate).length) {
