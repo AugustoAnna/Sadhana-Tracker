@@ -49,7 +49,7 @@ export function Welcome() {
         </p>
       </div>
 
-      <div className="px-4 pb-4 safe-bottom">
+      <div className="px-4 pb-4 safe-bottom-raised">
         <Button fullWidth className="welcome-action-label" onClick={() => navigate('/sign-up')}>
           Get started
         </Button>
