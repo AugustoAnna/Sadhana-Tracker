@@ -322,7 +322,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
         </form>
         <p className="text-secondary mt-3 text-center">
           <span className="block text-[16px] leading-5 font-semibold mb-1">Didn&apos;t receive a code?</span>
-          <span className="block text-label font-normal">
+          <span className="block text-[13px] leading-5 font-normal">
             Please check your spam folder and whether the email above is correct. You can edit it by going back.
           </span>
         </p>
