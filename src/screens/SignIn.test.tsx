@@ -32,6 +32,7 @@ vi.mock('@/stores/appStore', () => ({
 vi.mock('@/services/instrumentation', () => ({ track: vi.fn(async () => undefined) }));
 vi.mock('@/services/appLifecycle', () => ({ reportAppOpen: vi.fn(async () => undefined) }));
 vi.mock('@/hooks', () => ({ useKeyboardInset: () => undefined }));
+vi.mock('@/config/environment', () => ({ APP_ENV: 'study' }));
 
 function renderSignIn(mode: 'sign-in' | 'sign-up' = 'sign-up') {
   return render(

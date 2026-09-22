@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { EMAIL_TAKEN_MESSAGE, biometricLabel, isValidEmail } from '@/services/auth';
 import { track } from '@/services/instrumentation';
 import { reportAppOpen } from '@/services/appLifecycle';
+import { APP_ENV } from '@/config/environment';
 
 /**
  * Supabase's "Email OTP Length" setting is 6–10 digits and lives in the
@@ -301,6 +302,13 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           </svg>
         </button>
         <h1 className="font-serif text-display mb-6">Check your email</h1>
+        {APP_ENV === 'lab' && explicitSignIn && passkeyFallbackToCode && (
+          <div className="bg-card rounded-[14px] p-3 mb-4 border border-hairline">
+            <p className="text-label text-secondary">
+              {biometricLabel()} sign-in did not complete, so we sent a fresh code.
+            </p>
+          </div>
+        )}
         <p className="text-label text-secondary mb-6">
           We sent a code to <span className="text-ink font-semibold">{email}</span>. It may take a minute to arrive.
         </p>
