@@ -253,9 +253,8 @@ describe('SignIn', () => {
       expect(screen.queryByRole('button', { name: /Face ID|Touch ID|fingerprint|passkey/i })).toBeNull();
     });
 
-    it('uses passkey automatically first in sign-in mode when available', async () => {
+    it('uses passkey automatically first in sign-in mode when supported', async () => {
       authState.passkeySupported = true;
-      authState.passkeyOnDevice = true;
       renderSignIn('sign-in');
       fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
       fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
@@ -266,7 +265,6 @@ describe('SignIn', () => {
 
     it('falls back to a fresh OTP in sign-in mode when biometrics are dismissed', async () => {
       authState.passkeySupported = true;
-      authState.passkeyOnDevice = true;
       signInWithPasskey.mockResolvedValueOnce('cancelled');
       renderSignIn('sign-in');
       fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });

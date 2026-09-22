@@ -45,7 +45,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const signInWithPasskey = useAuthStore((s) => s.signInWithPasskey);
   const enablePasskey = useAuthStore((s) => s.enablePasskey);
   const passkeySupported = useAuthStore((s) => s.passkeySupported);
-  const passkeyOnDevice = useAuthStore((s) => s.passkeyOnDevice);
   const profile = useAppStore((s) => s.profile);
   const setNameStore = useAppStore((s) => s.setName);
   const linking = authState === 'anonymous';
@@ -91,7 +90,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
       return;
     }
 
-    if (explicitSignIn && passkeySupported && passkeyOnDevice) {
+    if (explicitSignIn && passkeySupported) {
       setBusy(true);
       setError(null);
       const result = await signInWithPasskey();
