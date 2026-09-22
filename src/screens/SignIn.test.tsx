@@ -138,6 +138,20 @@ describe('SignIn', () => {
     expect(send().disabled).toBe(false);
   });
 
+  it('keeps explicit sign-up on the name, email, and OTP flow when auth is stale', async () => {
+    authState.state = 'signed-in';
+    renderSignIn('sign-up');
+
+    expect(screen.getByLabelText('Your name')).toBeTruthy();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Priya' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+
+    await screen.findByText('Check your email');
+    expect(requestCode).toHaveBeenCalledWith('a@b.co', undefined);
+  });
+
   it('rejects a malformed email without calling the server', async () => {
     renderSignIn();
     fillDetails('Priya', 'nope');
@@ -295,17 +309,6 @@ describe('SignIn', () => {
     fillDetails();
     await screen.findByRole('alert');
     expect(screen.queryByRole('button', { name: 'Continue with that account' })).toBeNull();
-  });
-
-  it('only asks for a name when already signed in without one', async () => {
-    authState.state = 'signed-in';
-    renderSignIn();
-    expect(screen.queryByLabelText('Email')).toBeNull();
-    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Priya' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await screen.findByText('landed home');
-    expect(setName).toHaveBeenCalledWith('Priya');
-    expect(requestCode).not.toHaveBeenCalled();
   });
 
   it('does not ask for a name on explicit sign-in even when the local name is blank', () => {

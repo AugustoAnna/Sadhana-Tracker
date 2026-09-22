@@ -50,11 +50,12 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const profile = useAppStore((s) => s.profile);
   const setNameStore = useAppStore((s) => s.setName);
   const linking = authState === 'anonymous';
-  // A returning sign-in is always email-only, even if a previous restore left
-  // the local profile blank. The name-only recovery step belongs to sign-up.
-  const nameOnly = authState === 'signed-in' && mode !== 'sign-in';
   const explicitSignIn = mode === 'sign-in' && !linking;
-  const explicitSignUp = mode === 'sign-up' && !linking && !nameOnly;
+  const explicitSignUp = mode === 'sign-up' && !linking;
+  // Only the internal nameless-account recovery step is name-only. Explicit
+  // sign-up always collects email and sends an OTP, even if a stale auth state
+  // says the device is already signed in.
+  const nameOnly = authState === 'signed-in' && !explicitSignIn && !explicitSignUp;
   const requiresName = linking || explicitSignUp || nameOnly;
   const canGoBackToWelcome = explicitSignUp || explicitSignIn;
 
@@ -79,9 +80,9 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const trimmedEmail = email.trim().toLowerCase();
   const detailsComplete = nameOnly
     ? trimmedName.length > 0
-    : explicitSignIn
-      ? trimmedEmail.length > 0
-      : trimmedName.length > 0 && trimmedEmail.length > 0;
+    : requiresName
+      ? trimmedName.length > 0 && trimmedEmail.length > 0
+      : trimmedEmail.length > 0;
 
   const clearDevBannerTimers = () => {
     if (devBannerHideTimer.current) {
