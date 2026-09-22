@@ -12,7 +12,6 @@ import { precacheInvocation } from '@/services/audio';
 import { isFeatureEnabled } from '@/features';
 import { track } from '@/services/instrumentation';
 import { updateParticipantFields } from '@/services/sync';
-import { biometricLabel } from '@/services/auth';
 import type { ReminderKey } from '@/types';
 import { getPractice } from '@/data/catalogue';
 import {
@@ -66,13 +65,7 @@ export function Reminders() {
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
   const accountEmail = useAuthStore((s) => s.email);
   const signOut = useAuthStore((s) => s.signOut);
-  const passkeySupported = useAuthStore((s) => s.passkeySupported);
-  const passkeyOnDevice = useAuthStore((s) => s.passkeyOnDevice);
-  const enablePasskey = useAuthStore((s) => s.enablePasskey);
-  const disablePasskey = useAuthStore((s) => s.disablePasskey);
   const [signingOut, setSigningOut] = useState(false);
-  const [passkeyBusy, setPasskeyBusy] = useState(false);
-  const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const inSetup = firstSetup || !profile?.onboardingComplete;
 
@@ -182,17 +175,6 @@ export function Reminders() {
     navigate('/practice-home', { replace: true });
   };
 
-  const handlePasskeyToggle = async () => {
-    setPasskeyBusy(true);
-    setPasskeyError(null);
-    const result = passkeyOnDevice
-      ? await disablePasskey()
-      : await enablePasskey();
-    setPasskeyBusy(false);
-    if (result && result !== 'cancelled') setPasskeyError(result);
-    if (!result) void track(passkeyOnDevice ? 'passkey_removed' : 'passkey_registered', { where: 'reminders' });
-  };
-
   const handleSignOut = async () => {
     if (!window.confirm('Sign out on this device? Your practice history stays in your account.')) return;
     setSigningOut(true);
@@ -296,20 +278,6 @@ export function Reminders() {
             <p className="section-header mb-2">Account</p>
             {accountEmail && (
               <p className="text-label text-secondary mb-3">Signed in as {accountEmail}</p>
-            )}
-            {passkeySupported && (
-              <div className="flex items-center justify-between py-3 border-t border-hairline">
-                <div>
-                  <p className="text-body">{biometricLabel()} sign-in</p>
-                  <p className="text-label text-secondary mt-0.5">
-                    {passkeyOnDevice ? 'On for this device' : 'Skip the emailed code next time'}
-                  </p>
-                  {passkeyError && <p className="text-label text-error mt-1" role="alert">{passkeyError}</p>}
-                </div>
-                <Button variant="secondary" className="px-4 py-2 min-h-0" disabled={passkeyBusy} onClick={() => void handlePasskeyToggle()}>
-                  {passkeyBusy ? '…' : passkeyOnDevice ? 'Turn off' : 'Set up'}
-                </Button>
-              </div>
             )}
             <Button variant="text" className="px-0" disabled={signingOut} onClick={() => void handleSignOut()}>
               {signingOut ? 'Signing out…' : 'Sign out'}

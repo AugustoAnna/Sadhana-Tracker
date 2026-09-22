@@ -134,23 +134,11 @@ describe('SignIn', () => {
     expect(screen.getByText('Let’s get you set up')).toBeTruthy();
   });
 
-  it('offers the code already received after going back', async () => {
+  it('does not offer an already-received-code shortcut after going back', async () => {
     renderSignIn();
     fillDetails('Priya', 'a@b.co');
     await screen.findByText('Check your email');
     fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Enter the code I already received' }));
-    await screen.findByText('Check your email');
-    expect(requestCode).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not offer the old code for a different address after going back', async () => {
-    renderSignIn();
-    fillDetails('Priya', 'a@b.co');
-    await screen.findByText('Check your email');
-    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'other@b.co' } });
-    expect((screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByRole('button', { name: 'Enter the code I already received' })).toBeNull();
   });
 

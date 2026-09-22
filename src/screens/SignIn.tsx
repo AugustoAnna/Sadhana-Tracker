@@ -60,9 +60,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Address a code went to in this session, so someone who went back to fix
-  // their name can return to the code they already have.
-  const [sentTo, setSentTo] = useState<string | null>(null);
   // Set when the anonymous device's email already has an account: the code
   // is a sign-in to that account and the server merges this history into it.
   const [merging, setMerging] = useState(false);
@@ -77,7 +74,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     : explicitSignIn
       ? trimmedEmail.length > 0
       : trimmedName.length > 0 && trimmedEmail.length > 0;
-  const codeStillPending = !nameOnly && sentTo !== null && trimmedEmail === sentTo;
 
   const continueWithDetails = async () => {
     if (!explicitSignIn && !trimmedName) {
@@ -116,7 +112,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
       return;
     }
     setEmail(trimmedEmail);
-    setSentTo(trimmedEmail);
     setCode('');
     setStep('code');
     void track('sign_in_code_sent', { linking });
@@ -155,7 +150,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     }
     setMerging(true);
     setEmail(trimmedEmail);
-    setSentTo(trimmedEmail);
     setCode('');
     setStep('code');
     void track('sign_in_code_sent', { linking: false, merging: true });
@@ -287,13 +281,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
                   ? 'Continue'
                   : 'Send code'}
           </Button>
-          {codeStillPending && (
-            // They came back to fix the name; the code already sent is still valid
-            // (until they request another, which replaces it).
-            <Button variant="text" className="w-full mt-2" disabled={busy} onClick={() => { setError(null); setStep('code'); }}>
-              Enter the code I already received
-            </Button>
-          )}
         </div>
       </div>
     );
