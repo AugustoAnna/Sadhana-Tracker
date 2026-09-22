@@ -384,7 +384,10 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
         </Button>
       </div>
       {devPasskeyError && (
-        <div className="fixed left-4 right-4 bottom-4 z-[70] dev-error-banner bg-card border border-hairline rounded-[14px] p-3 shadow-lg">
+        <div
+          className="fixed left-4 right-4 z-[70] dev-error-banner bg-card border border-hairline rounded-[14px] p-3 shadow-lg"
+          style={{ bottom: 'calc(1rem + var(--keyboard-inset, 0px))' }}
+        >
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-label text-error">{devPasskeyError}</p>
             <span className="text-meta text-secondary tabular-nums" aria-live="polite">{devPasskeyCountdownSec}s</span>
