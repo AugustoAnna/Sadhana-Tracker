@@ -308,6 +308,14 @@ describe('SignIn', () => {
     expect(requestCode).not.toHaveBeenCalled();
   });
 
+  it('does not ask for a name on explicit sign-in even when the local name is blank', () => {
+    authState.state = 'signed-in';
+    renderSignIn('sign-in');
+
+    expect(screen.queryByLabelText('Your name')).toBeNull();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
+  });
+
   describe('passkeys', () => {
     it('has no visible passkey CTA in sign-in mode', () => {
       authState.passkeySupported = true;

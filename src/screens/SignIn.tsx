@@ -50,8 +50,10 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const profile = useAppStore((s) => s.profile);
   const setNameStore = useAppStore((s) => s.setName);
   const linking = authState === 'anonymous';
-  const nameOnly = authState === 'signed-in';
-  const explicitSignIn = mode === 'sign-in' && !linking && !nameOnly;
+  // A returning sign-in is always email-only, even if a previous restore left
+  // the local profile blank. The name-only recovery step belongs to sign-up.
+  const nameOnly = authState === 'signed-in' && mode !== 'sign-in';
+  const explicitSignIn = mode === 'sign-in' && !linking;
   const explicitSignUp = mode === 'sign-up' && !linking && !nameOnly;
   const requiresName = linking || explicitSignUp || nameOnly;
   const canGoBackToWelcome = explicitSignUp || explicitSignIn;
