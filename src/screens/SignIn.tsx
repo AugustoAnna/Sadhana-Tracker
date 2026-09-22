@@ -315,7 +315,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
         <form noValidate onSubmit={(e) => { e.preventDefault(); void submitCode(); }}>
           <TextInput
             ref={codeRef}
-            label="Code from the email"
+            label="Code"
             inputMode="numeric"
             pattern="[0-9]*"
             autoComplete="one-time-code"

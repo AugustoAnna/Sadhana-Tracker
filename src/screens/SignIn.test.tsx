@@ -91,7 +91,7 @@ describe('SignIn', () => {
     expect(requestCode).toHaveBeenCalledWith('someone@example.org', undefined);
     expect(screen.getByText('someone@example.org')).toBeTruthy();
 
-    const codeInput = screen.getByLabelText('Code from the email');
+    const codeInput = screen.getByLabelText('Code');
     // Non-digits are stripped; length follows the project's OTP setting (6–10),
     // so an 8-digit code must survive intact.
     fireEvent.change(codeInput, { target: { value: '12a345678' } });
@@ -108,11 +108,11 @@ describe('SignIn', () => {
     fillDetails();
     await screen.findByText('Check your email');
 
-    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '000000' } });
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/didn’t work/);
-    expect((screen.getByLabelText('Code from the email') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Code') as HTMLInputElement).value).toBe('');
     expect(screen.queryByText('landed home')).toBeNull();
   });
 
@@ -121,9 +121,9 @@ describe('SignIn', () => {
     fillDetails();
     await screen.findByText('Check your email');
     const cont = () => screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement;
-    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '12345' } });
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '12345' } });
     expect(cont().disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
     expect(cont().disabled).toBe(false);
   });
 
@@ -206,7 +206,7 @@ describe('SignIn', () => {
     // second request is a sign-in code for the existing account, not a link attempt
     expect(requestCode).toHaveBeenLastCalledWith('a@b.co', { mode: 'sign-in' });
 
-    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(verifyCodeAndMerge).toHaveBeenCalledWith('a@b.co', '123456', 'Priya'));
     expect(verifyCode).not.toHaveBeenCalled();
@@ -221,7 +221,7 @@ describe('SignIn', () => {
     fillDetails();
     fireEvent.click(await screen.findByRole('button', { name: 'Continue with that account' }));
     await screen.findByText('Check your email');
-    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect((await screen.findByRole('alert')).textContent).toMatch(/history over/);
     expect(screen.queryByText('landed home')).toBeNull();
@@ -287,7 +287,7 @@ describe('SignIn', () => {
       renderSignIn('sign-up');
       fillDetails();
       await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+      fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
       fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
       await screen.findByText('landed home');
@@ -300,7 +300,7 @@ describe('SignIn', () => {
       renderSignIn('sign-up');
       fillDetails();
       await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+      fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
       fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
       await screen.findByText('landed home');
       expect(enablePasskey).toHaveBeenCalledTimes(1);
@@ -312,7 +312,7 @@ describe('SignIn', () => {
       renderSignIn('sign-up');
       fillDetails();
       await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+      fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
       fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
       await screen.findByText('landed home');
       expect(enablePasskey).not.toHaveBeenCalled();
