@@ -171,6 +171,32 @@ describe('SignIn', () => {
     expect((await screen.findByRole('alert')).textContent).toMatch(/42s/);
   });
 
+  it('shows a back button in explicit sign-up mode and goes to welcome', async () => {
+    render(
+      <MemoryRouter initialEntries={['/sign-up']}>
+        <Routes>
+          <Route path="/welcome" element={<p>welcome screen</p>} />
+          <Route path="/sign-up" element={<SignIn mode="sign-up" />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+    await screen.findByText('welcome screen');
+  });
+
+  it('shows a back button in explicit sign-in mode and goes to welcome', async () => {
+    render(
+      <MemoryRouter initialEntries={['/sign-in']}>
+        <Routes>
+          <Route path="/welcome" element={<p>welcome screen</p>} />
+          <Route path="/sign-in" element={<SignIn mode="sign-in" />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+    await screen.findByText('welcome screen');
+  });
+
   it('shows the linking copy with the existing name prefilled for a pre-email anonymous session', () => {
     authState.state = 'anonymous';
     appState.profile = { name: 'Neha' };

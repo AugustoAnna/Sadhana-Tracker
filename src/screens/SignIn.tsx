@@ -51,6 +51,8 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const linking = authState === 'anonymous';
   const nameOnly = authState === 'signed-in';
   const explicitSignIn = mode === 'sign-in' && !linking && !nameOnly;
+  const explicitSignUp = mode === 'sign-up' && !linking && !nameOnly;
+  const canGoBackToWelcome = explicitSignUp || explicitSignIn;
 
   const [step, setStep] = useState<Step>('details');
   const [name, setName] = useState(profile?.name ?? '');
@@ -221,6 +223,17 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     return (
       <div className="flex flex-col h-full bg-page">
         <div className="flex-1 overflow-y-auto px-4 pt-14">
+          {canGoBackToWelcome && (
+            <button
+              onClick={() => navigate('/welcome')}
+              aria-label="Go back"
+              className="w-11 h-11 flex items-center justify-center -ml-2 mb-3 rounded-full"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          )}
           <h1 className="font-serif text-display mb-6">{heading}</h1>
           <p className="text-label text-secondary mb-6">{intro}</p>
           {/* noValidate: our own messages instead of the browser's tooltips. */}
