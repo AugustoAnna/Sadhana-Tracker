@@ -300,7 +300,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
         </button>
         <h1 className="font-serif text-display mb-6">Check your email</h1>
         <p className="text-label text-secondary mb-6">
-          We sent a code to <span className="text-ink">{email}</span>. It may take a minute to arrive — check your spam folder too.
+          We sent a code to <span className="text-ink font-semibold">{email}</span>. It may take a minute to arrive.
         </p>
         <form noValidate onSubmit={(e) => { e.preventDefault(); void submitCode(); }}>
           <TextInput
@@ -322,7 +322,8 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           {error && <p className="text-label text-error mt-3" role="alert">{error}</p>}
         </form>
         <p className="text-label text-secondary mt-3">
-          Didn&apos;t receive a code? Please check your spam folder as well as whether the email above is correct. You can edit it by going back and getting a new code.
+          <span className="block">Didn&apos;t receive a code?</span>
+          Please check your spam folder as well as whether the email above is correct. You can edit it by going back and getting a new code.
         </p>
         <div className="mt-6">
           <Button
