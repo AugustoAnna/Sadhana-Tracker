@@ -48,12 +48,27 @@ function onboardingCompletedAt(profile: Profile): string {
   return profile.onboardingCompletedAt ?? new Date().toISOString();
 }
 
+export type EnsureParticipantResult = {
+  id: string | null;
+  /** True only when this call inserted a brand-new participants row. */
+  created: boolean;
+};
+
 export async function ensureParticipant(profile: Profile): Promise<string | null> {
+  return (await ensureParticipantDetailed(profile)).id;
+}
+
+/**
+ * Find or create the participants row for the current Auth user.
+ * Returns whether the row already existed so routing can treat returning
+ * accounts differently from first-time sign-ins.
+ */
+export async function ensureParticipantDetailed(profile: Profile): Promise<EnsureParticipantResult> {
   const supabase = getSupabase();
-  if (!supabase) return null;
+  if (!supabase) return { id: null, created: false };
 
   const authUser = await getAuthUser();
-  if (!authUser) return null;
+  if (!authUser) return { id: null, created: false };
   const authUserId = authUser.id;
 
   const { data: existing } = await supabase
@@ -88,7 +103,7 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
         .eq('auth_user_id', authUserId)
         .is('onboarding_completed_at', null);
     }
-    return existing.id;
+    return { id: existing.id, created: false };
   }
 
   const { data, error } = await supabase
@@ -105,11 +120,11 @@ export async function ensureParticipant(profile: Profile): Promise<string | null
 
   if (error) {
     console.error('Failed to create participant:', error.message);
-    return null;
+    return { id: null, created: false };
   }
 
   participantId = data.id;
-  return data.id;
+  return { id: data.id, created: true };
 }
 
 function sourceFromLogMode(mode: 'logged' | 'minutes_added' | 'guided'): PracticeLog['source'] {
@@ -137,21 +152,32 @@ function sourceFromLogMode(mode: 'logged' | 'minutes_added' | 'guided'): Practic
  *
  * Returns the number of rows written, 0 when there was nothing to restore.
  */
-export async function restoreFromServer(authUserIdOverride?: string | null): Promise<number> {
+export type RestoreFromServerResult = {
+  /** Rows written into local storage (practices/logs/profile fields). */
+  rowsWritten: number;
+  /** True when a participants row already existed for this Auth user. */
+  participantFound: boolean;
+};
+
+export async function restoreFromServer(
+  authUserIdOverride?: string | null,
+): Promise<RestoreFromServerResult> {
   const supabase = getSupabase();
-  if (!supabase || isDemoDatabaseActive()) return 0;
+  if (!supabase || isDemoDatabaseActive()) {
+    return { rowsWritten: 0, participantFound: false };
+  }
 
   // Prefer the just-verified session id. getAuthUserId() can briefly lag right
   // after OTP/passkey verification and would make a returning user look brand new.
   const authUserId = authUserIdOverride || await getAuthUserId();
-  if (!authUserId) return 0;
+  if (!authUserId) return { rowsWritten: 0, participantFound: false };
 
   const { data: participant } = await supabase
     .from('participants')
     .select('id, name, onboarding_completed_at')
     .eq('auth_user_id', authUserId)
     .maybeSingle();
-  if (!participant) return 0;
+  if (!participant) return { rowsWritten: 0, participantFound: false };
 
   const db = getDb();
 
@@ -188,7 +214,9 @@ export async function restoreFromServer(authUserIdOverride?: string | null): Pro
       .select('id, practice_id, instance, minutes, mode, was_offline, local_date, occurred_at')
       .eq('participant_id', participant.id),
   ]);
-  if (remoteInstances.error || remoteLogs.error) return profileRestored;
+  if (remoteInstances.error || remoteLogs.error) {
+    return { rowsWritten: profileRestored, participantFound: true };
+  }
 
   const localInstances = await db.practiceInstances.toArray();
   const known = new Map(localInstances.map((i) => [i.id, i]));
@@ -236,15 +264,13 @@ export async function restoreFromServer(authUserIdOverride?: string | null): Pro
     });
   }
 
-  if (!instances.length && !logs.length) return profileRestored;
-
+  // A participants row means this is a known account. Skip first-time setup
+  // even when they currently have zero practices on the server.
   await db.transaction('rw', db.practiceInstances, db.practiceLogs, db.profile, async () => {
     if (instances.length) await db.practiceInstances.bulkPut(instances);
     if (logs.length) await db.practiceLogs.bulkPut(logs);
     const profile = await db.profile.get('profile');
-    // A restored account with practices or history is past first-time setup.
-    // Without this, landing re-opens the practice picker and reminders.
-    if (profile && !profile.onboardingComplete && (instances.length > 0 || logs.length > 0)) {
+    if (profile && !profile.onboardingComplete) {
       await db.profile.update('profile', {
         onboardingComplete: true,
         ...(!profile.name && participant.name ? { name: participant.name } : {}),
@@ -259,7 +285,10 @@ export async function restoreFromServer(authUserIdOverride?: string | null): Pro
   if (unattached) {
     console.warn(`restoreFromServer: ${unattached} record(s) had no matching practice`);
   }
-  return instances.length + logs.length + profileRestored;
+  return {
+    rowsWritten: instances.length + logs.length + profileRestored,
+    participantFound: true,
+  };
 }
 
 export async function updateParticipantFields(
@@ -444,7 +473,7 @@ export async function drainSyncQueue() {
       drainRequestedAgain = false;
 
       const profile = await db.profile.get('profile');
-      if (profile?.name) {
+      if (profile) {
         await ensureParticipant(profile);
       }
 
@@ -467,7 +496,7 @@ export async function syncFullState(): Promise<void> {
 
   const db = getDb();
   const profile = await db.profile.get('profile');
-  if (!profile?.name) return;
+  if (!profile) return;
 
   await ensureParticipant(profile);
 

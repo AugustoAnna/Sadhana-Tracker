@@ -50,7 +50,14 @@ vi.mock('@/services/auth', () => ({
 vi.mock('@/services/sync', () => ({
   drainSyncQueue: async () => { calls.push('drainSyncQueue'); },
   resetParticipantCache: () => { calls.push('resetParticipantCache'); },
-  restoreFromServer: async () => { calls.push('restoreFromServer'); return 0; },
+  restoreFromServer: async () => {
+    calls.push('restoreFromServer');
+    return { rowsWritten: 0, participantFound: false };
+  },
+  ensureParticipantDetailed: async () => {
+    calls.push('ensureParticipantDetailed');
+    return { id: 'p1', created: true };
+  },
   syncFullState: async () => { calls.push('syncFullState'); },
 }));
 

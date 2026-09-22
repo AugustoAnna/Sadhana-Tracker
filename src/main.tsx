@@ -66,7 +66,7 @@ function Bootstrap() {
           // to storage eviction — otherwise an evicted participant uploads an
           // empty database over a history that is still sitting in Supabase.
           const restored = await restoreFromServer();
-          if (restored) await hydrate();
+          if (restored.rowsWritten > 0) await hydrate();
           await syncFullState();
         })
         .catch((err) => console.error('Background sync failed:', err));

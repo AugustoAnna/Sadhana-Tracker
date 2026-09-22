@@ -75,9 +75,9 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [remoteLog('l1', 'shambhavi', '2026-08-14')], error: null },
     };
 
-    const n = await restoreFromServer();
+    const result = await restoreFromServer();
 
-    expect(n).toBe(3);
+    expect(result).toEqual({ rowsWritten: 3, participantFound: true });
     expect(putLogs.mock.calls[0][0]).toEqual([
       expect.objectContaining({ id: 'l1', instanceId: 'i1', source: 'checkbox', minutes: 21 }),
     ]);
@@ -112,7 +112,8 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [remoteLog('l1', 'deleted-practice', '2026-08-14')], error: null },
     };
 
-    expect(await restoreFromServer()).toBe(1);
+    // Known participant still marks setup complete even with no usable practices.
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
     expect(putLogs).not.toHaveBeenCalled();
   });
 
@@ -139,7 +140,7 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [], error: null },
     };
 
-    expect(await restoreFromServer()).toBe(1);
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
     expect(updateProfile).toHaveBeenCalledWith('profile', {
       onboardingComplete: true, onboardingCompletedAt: '2026-09-01T06:00:00.000Z',
     });
@@ -158,15 +159,18 @@ describe('restoreFromServer', () => {
     });
   });
 
-  it('restores the known name even when the account has no practice data', async () => {
+  it('marks known accounts complete even with no practice data', async () => {
     tables = {
       participants: participant,
       participant_practices: { data: [], error: null },
       practice_completed: { data: [], error: null },
     };
 
-    expect(await restoreFromServer()).toBe(1);
-    expect(updateProfile).toHaveBeenCalledWith('profile', { name: 'Neha Sharma' });
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
+    expect(updateProfile).toHaveBeenCalledWith('profile', {
+      onboardingComplete: true,
+      name: 'Neha Sharma',
+    });
   });
 
   it('does not touch a profile that already finished setup locally', async () => {
@@ -177,13 +181,13 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [], error: null },
     };
 
-    expect(await restoreFromServer()).toBe(0);
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 0, participantFound: true });
     expect(updateProfile).not.toHaveBeenCalled();
   });
 
-  it('does nothing when this auth user has no participant row', async () => {
+  it('reports no participant when this auth user has no row', async () => {
     tables = { participants: { data: null, error: null } };
-    expect(await restoreFromServer()).toBe(0);
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 0, participantFound: false });
     expect(putInstances).not.toHaveBeenCalled();
   });
 
@@ -194,7 +198,7 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [], error: null },
     };
 
-    expect(await restoreFromServer('auth-user-1')).toBe(2);
+    expect(await restoreFromServer('auth-user-1')).toEqual({ rowsWritten: 2, participantFound: true });
     expect(putInstances).toHaveBeenCalled();
   });
 });

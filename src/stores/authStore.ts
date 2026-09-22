@@ -22,7 +22,13 @@ import {
   type SignInMode,
 } from '@/services/auth';
 import type { Session } from '@supabase/supabase-js';
-import { drainSyncQueue, resetParticipantCache, restoreFromServer, syncFullState } from '@/services/sync';
+import {
+  drainSyncQueue,
+  ensureParticipantDetailed,
+  resetParticipantCache,
+  restoreFromServer,
+  syncFullState,
+} from '@/services/sync';
 import { useAppStore } from './appStore';
 
 interface AuthStore {
@@ -258,12 +264,15 @@ async function completeSignIn(
   }
 
   const app = useAppStore.getState();
+  let knownParticipant = false;
+
   if (opts.mode === 'sign-in') {
     // Always restore under the verified user id before routing. Sign-out wipes
     // local data, so without this a returning login looks like first setup.
     // Link mode keeps the current device history, so it skips restore.
     try {
-      await restoreFromServer(userId);
+      const restored = await restoreFromServer(userId);
+      knownParticipant = restored.participantFound;
       await app.hydrate();
     } catch (err) {
       // OTP/passkey verification already established the session. A failed
@@ -272,6 +281,7 @@ async function completeSignIn(
       await app.hydrate().catch(() => undefined);
     }
   }
+
   // The name they just typed wins over whatever the server or the old local
   // profile held ('Anonymous' placeholders included). setName also queues the
   // participant row update, so the first sync carries the real name.
@@ -279,13 +289,27 @@ async function completeSignIn(
     await app.setName(opts.name);
   }
 
-  // If practices came back from the server, setup is done even when the
-  // participant row never got onboarding_completed_at written.
-  const restored = useAppStore.getState();
+  // Always ensure a participants row exists after successful auth. Returning
+  // accounts keep their existing row; brand-new accounts get one created now.
+  const profile = useAppStore.getState().profile;
+  if (profile) {
+    const ensured = await ensureParticipantDetailed(profile);
+    if (ensured.id && !ensured.created) knownParticipant = true;
+  }
+
+  // Known accounts skip first-time setup even with zero practices.
+  // Brand-new accounts (just created row) still go through Add Practices.
+  const current = useAppStore.getState();
   if (
-    restored.instances.length > 0
-    && restored.profile
-    && !restored.profile.onboardingComplete
+    knownParticipant
+    && current.profile
+    && !current.profile.onboardingComplete
+  ) {
+    await app.completePotentialOnboarding();
+  } else if (
+    current.instances.length > 0
+    && current.profile
+    && !current.profile.onboardingComplete
   ) {
     await app.completePotentialOnboarding();
   }

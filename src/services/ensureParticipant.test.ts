@@ -64,6 +64,15 @@ describe('ensureParticipant', () => {
     expect(inserts[0]).toMatchObject({ name: 'Anonymous' });
   });
 
+  it('creates a row even when the local profile has no name yet', async () => {
+    existingRow = null;
+    authEmail = 'new@example.org';
+    const { ensureParticipantDetailed } = await import('./sync');
+    const result = await ensureParticipantDetailed(profile(''));
+    expect(result).toEqual({ id: 'new-participant', created: true });
+    expect(inserts[0]).toMatchObject({ email: 'new@example.org', name: 'Anonymous' });
+  });
+
   it('mirrors the account email onto the row once the session has one', async () => {
     authEmail = 'priya@example.org';
     await ensureParticipant(profile(''));
