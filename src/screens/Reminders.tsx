@@ -21,10 +21,6 @@ import {
 
 const SESSION_PROMPT_KEY = 'notification_prompt_raised';
 
-const DENIED_INSTRUCTIONS_PLACEHOLDER =
-  'TBD-PM: Open your browser settings, find this site under Notifications, and allow notifications. ' +
-  'On iPhone: Settings → Safari → [site] → Notifications. On Android Chrome: site lock icon → Permissions → Notifications.';
-
 function applyPermissionResult(
   result: NotificationPermission,
   setPermission: (p: NotificationPermission | 'unsupported') => void,
@@ -203,10 +199,7 @@ export function Reminders() {
         {needsPermission && !showConfirmation && (
           <div className="bg-card rounded-[14px] p-4 mb-6">
             {permissionDenied ? (
-              <>
-                <p className="text-body mb-3">Notifications are blocked in your browser.</p>
-                <p className="text-label text-secondary">{DENIED_INSTRUCTIONS_PLACEHOLDER}</p>
-              </>
+              <p className="text-body mb-3">Install the web application to receive reminders</p>
             ) : (
               <>
                 <p className="text-body mb-3">

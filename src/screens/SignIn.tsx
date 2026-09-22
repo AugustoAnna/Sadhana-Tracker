@@ -4,7 +4,7 @@ import { Button, TextInput } from '@/components';
 import { useKeyboardInset } from '@/hooks';
 import { useAppStore } from '@/stores/appStore';
 import { useAuthStore } from '@/stores/authStore';
-import { EMAIL_TAKEN_MESSAGE, biometricLabel, getDevicePasskey, isValidEmail } from '@/services/auth';
+import { EMAIL_TAKEN_MESSAGE, getDevicePasskey, isValidEmail } from '@/services/auth';
 import { track } from '@/services/instrumentation';
 import { reportAppOpen } from '@/services/appLifecycle';
 import { APP_ENV } from '@/config/environment';
@@ -240,12 +240,10 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
       ? 'Keep your progress'
       : explicitSignIn
         ? 'Welcome back'
-        : 'Let’s get you set up';
+        : 'Sign up to track your sadhana';
     const intro = linking
       ? 'Add your email so your practice history stays with you if you change phones. We’ll email you a code to enter here.'
-      : explicitSignIn
-        ? `Enter your email to sign in. If ${biometricLabel()} is available on this device, we’ll use it first; otherwise we’ll send a fresh code.`
-        : 'We’ll email you a code.';
+      : '';
 
     return (
       <div className={`flex flex-col h-full bg-page ${canGoBackToWelcome ? 'auth-font-boost' : ''}`}>
@@ -329,7 +327,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
         </button>
         <h1 className="font-serif text-display mb-6">Check your email</h1>
         <p className="text-label text-secondary mb-6">
-          We sent a code to <span className="text-ink font-semibold">{email}</span>. It may take a minute to arrive.
+          We sent a code to <span className="text-ink font-semibold">{email}</span>.
         </p>
         <form noValidate onSubmit={(e) => { e.preventDefault(); void submitCode(); }}>
           <TextInput
@@ -363,7 +361,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
         <p className="text-secondary mt-7 text-center">
           <span className="block text-[16px] leading-5 font-semibold mb-2">Didn&apos;t receive a code?</span>
           <span className="block text-[13px] leading-5 font-normal">
-            Please check your spam folder and whether the email above is correct. You can edit it by going back.
+            Please check your spam folder and whether the email above is correct.
           </span>
         </p>
       </div>
