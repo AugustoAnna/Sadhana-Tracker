@@ -261,8 +261,15 @@ async function completeSignIn(
   if (opts.mode === 'sign-in') {
     // Returning participant on a new (or wiped) device: hydrate from Supabase
     // before the landing route decides between onboarding and home.
-    await restoreFromServer();
-    await app.hydrate();
+    try {
+      await restoreFromServer();
+      await app.hydrate();
+    } catch (err) {
+      // OTP/passkey verification already established the session. A failed
+      // restore must not send the verified user back to the sign-in screen.
+      console.error('Post-sign-in restore failed:', err);
+      await app.hydrate().catch(() => undefined);
+    }
   }
   // The name they just typed wins over whatever the server or the old local
   // profile held ('Anonymous' placeholders included). setName also queues the
