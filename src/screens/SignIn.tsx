@@ -60,6 +60,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [passkeyFallbackToCode, setPasskeyFallbackToCode] = useState(false);
+  const [devPasskeyError, setDevPasskeyError] = useState<string | null>(null);
   // Set when the anonymous device's email already has an account: the code
   // is a sign-in to that account and the server merges this history into it.
   const [merging, setMerging] = useState(false);
@@ -102,6 +103,11 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
         return;
       }
       setPasskeyFallbackToCode(true);
+      if (APP_ENV === 'lab') {
+        const message = result === 'cancelled' ? 'Passkey sheet dismissed or not shown' : result;
+        setDevPasskeyError(`DEV: ${message}`);
+        setTimeout(() => setDevPasskeyError((v) => (v === `DEV: ${message}` ? null : v)), 5000);
+      }
     }
 
     setBusy(true);
@@ -302,13 +308,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           </svg>
         </button>
         <h1 className="font-serif text-display mb-6">Check your email</h1>
-        {APP_ENV === 'lab' && explicitSignIn && passkeyFallbackToCode && (
-          <div className="bg-card rounded-[14px] p-3 mb-4 border border-hairline">
-            <p className="text-label text-secondary">
-              {biometricLabel()} sign-in did not complete, so we sent a fresh code.
-            </p>
-          </div>
-        )}
         <p className="text-label text-secondary mb-6">
           We sent a code to <span className="text-ink font-semibold">{email}</span>. It may take a minute to arrive.
         </p>
@@ -353,6 +352,14 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           {busy ? 'Checking…' : 'Continue'}
         </Button>
       </div>
+      {devPasskeyError && (
+        <div className="fixed left-4 right-4 bottom-4 z-[70] dev-error-banner bg-card border border-hairline rounded-[14px] p-3 shadow-lg">
+          <p className="text-label text-error">{devPasskeyError}</p>
+          <div className="mt-2 h-1 bg-border rounded overflow-hidden">
+            <div className="h-full bg-error dev-error-progress" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

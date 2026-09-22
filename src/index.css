@@ -184,6 +184,24 @@ body {
   100% { transform: scale(1); }
 }
 
+@keyframes slide-up-in {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes shrink-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.dev-error-banner {
+  animation: slide-up-in 200ms ease-out;
+}
+
+.dev-error-progress {
+  animation: shrink-progress 5s linear forwards;
+}
+
 @keyframes plant-settle {
   0%, 100% { transform: translateY(0); }
   30% { transform: translateY(-4px); }
