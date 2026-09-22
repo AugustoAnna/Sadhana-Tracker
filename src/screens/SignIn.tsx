@@ -45,7 +45,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const verifyCode = useAuthStore((s) => s.verifyCode);
   const verifyCodeAndMerge = useAuthStore((s) => s.verifyCodeAndMerge);
   const signInWithPasskey = useAuthStore((s) => s.signInWithPasskey);
-  const enablePasskey = useAuthStore((s) => s.enablePasskey);
   const profile = useAppStore((s) => s.profile);
   const setNameStore = useAppStore((s) => s.setName);
   const linking = authState === 'anonymous';
@@ -61,7 +60,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [passkeyFallbackToCode, setPasskeyFallbackToCode] = useState(false);
   const [devPasskeyError, setDevPasskeyError] = useState<string | null>(null);
   const [devPasskeyCountdownSec, setDevPasskeyCountdownSec] = useState(0);
   // Set when the anonymous device's email already has an account: the code
@@ -128,14 +126,12 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     if (explicitSignIn) {
       setBusy(true);
       setError(null);
-      setPasskeyFallbackToCode(false);
       const result = await signInWithPasskey();
       if (!result) {
         void track('sign_in_completed', { linking: false, method: 'passkey' });
         finish();
         return;
       }
-      setPasskeyFallbackToCode(true);
       if (APP_ENV === 'lab') {
         const message = result === 'cancelled' ? 'Passkey sheet dismissed or not shown' : result;
         showDevPasskeyBanner(message);
@@ -218,13 +214,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
       return;
     }
     void track('sign_in_completed', { linking, merged: merging, method: 'code' });
-    // Best effort: register this device's passkey right after a successful code
-    // sign-in so future logins can use biometrics.
-    if (passkeyFallbackToCode || !useAuthStore.getState().passkeyOnDevice) {
-      const setupResult = await enablePasskey();
-      if (!setupResult) void track('passkey_registered', { where: 'sign_in' });
-    }
-    setPasskeyFallbackToCode(false);
     finish();
   };
 

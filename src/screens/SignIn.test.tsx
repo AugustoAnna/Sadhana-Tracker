@@ -11,12 +11,11 @@ const verifyCode = vi.fn<(email: string, code: string, name: string) => Promise<
 const verifyCodeAndMerge = vi.fn<(email: string, code: string, name: string) => Promise<string | null>>();
 const signOut = vi.fn(async () => { authState.state = 'signed-out'; });
 const signInWithPasskey = vi.fn<() => Promise<string | null>>();
-const enablePasskey = vi.fn<() => Promise<string | null>>();
 const authState = {
   state: 'signed-out' as string,
   passkeySupported: false,
   passkeyOnDevice: false,
-  requestCode, verifyCode, verifyCodeAndMerge, signOut, signInWithPasskey, enablePasskey,
+  requestCode, verifyCode, verifyCodeAndMerge, signOut, signInWithPasskey,
 };
 const setName = vi.fn(async (_name: string) => undefined);
 const appState = { profile: { name: '' } as { name: string } | null, setName };
@@ -58,7 +57,6 @@ beforeEach(() => {
   signOut.mockClear();
   setName.mockClear();
   signInWithPasskey.mockReset().mockResolvedValue(null);
-  enablePasskey.mockReset().mockResolvedValue(null);
   authState.state = 'signed-out';
   authState.passkeySupported = false;
   authState.passkeyOnDevice = false;
@@ -303,40 +301,5 @@ describe('SignIn', () => {
       expect(screen.queryByRole('button', { name: /Face ID|fingerprint/ })).toBeNull();
     });
 
-    it('registers a passkey automatically after a code sign-in, once per device', async () => {
-      authState.passkeySupported = true;
-      renderSignIn('sign-up');
-      fillDetails();
-      await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-
-      await screen.findByText('landed home');
-      expect(enablePasskey).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not block sign-in if passkey setup is cancelled', async () => {
-      authState.passkeySupported = true;
-      enablePasskey.mockResolvedValueOnce('cancelled');
-      renderSignIn('sign-up');
-      fillDetails();
-      await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      await screen.findByText('landed home');
-      expect(enablePasskey).toHaveBeenCalledTimes(1);
-    });
-
-    it('skips registration when this device already has a passkey', async () => {
-      authState.passkeySupported = true;
-      authState.passkeyOnDevice = true;
-      renderSignIn('sign-up');
-      fillDetails();
-      await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      await screen.findByText('landed home');
-      expect(enablePasskey).not.toHaveBeenCalled();
-    });
   });
 });
