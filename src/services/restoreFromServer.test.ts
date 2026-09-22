@@ -42,9 +42,9 @@ vi.mock('./supabase', () => ({
 
 import { restoreFromServer } from './sync';
 
-const participant = { data: { id: 'p1', name: 'Neha Sharma', onboarding_completed_at: null }, error: null };
+const participant = { data: { id: 'p1', name: 'Neha Sharma' }, error: null };
 const onboarded = {
-  data: { id: 'p1', name: 'Neha Sharma', onboarding_completed_at: '2026-09-01T06:00:00.000Z' },
+  data: { id: 'p1', name: 'Neha Sharma' },
   error: null,
 };
 
@@ -75,9 +75,9 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [remoteLog('l1', 'shambhavi', '2026-08-14')], error: null },
     };
 
-    const n = await restoreFromServer();
+    const result = await restoreFromServer();
 
-    expect(n).toBe(2);
+    expect(result).toEqual({ rowsWritten: 3, participantFound: true });
     expect(putLogs.mock.calls[0][0]).toEqual([
       expect.objectContaining({ id: 'l1', instanceId: 'i1', source: 'checkbox', minutes: 21 }),
     ]);
@@ -112,11 +112,12 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [remoteLog('l1', 'deleted-practice', '2026-08-14')], error: null },
     };
 
-    expect(await restoreFromServer()).toBe(0);
+    // Known participant still marks setup complete even with no usable practices.
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
     expect(putLogs).not.toHaveBeenCalled();
   });
 
-  it('restores a blanked name so the landing guard stops forcing onboarding', async () => {
+  it('marks setup complete and restores the name when practices come back', async () => {
     tables = {
       participants: participant,
       participant_practices: { data: [remoteInstance('i1', 'shambhavi', '2026-08-14T00:00:00Z')], error: null },
@@ -126,11 +127,12 @@ describe('restoreFromServer', () => {
     await restoreFromServer();
 
     expect(updateProfile).toHaveBeenCalledWith('profile', {
-      name: 'Neha Sharma', onboardingComplete: true,
+      onboardingComplete: true,
+      name: 'Neha Sharma',
     });
   });
 
-  it('marks onboarding complete from the server row even with nothing else to restore', async () => {
+  it('marks onboarding complete from a known participant row even with nothing else to restore', async () => {
     profile = { id: 'profile', name: 'Neha Sharma', onboardingComplete: false } as Profile;
     tables = {
       participants: onboarded,
@@ -138,9 +140,9 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [], error: null },
     };
 
-    expect(await restoreFromServer()).toBe(1);
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
     expect(updateProfile).toHaveBeenCalledWith('profile', {
-      onboardingComplete: true, onboardingCompletedAt: '2026-09-01T06:00:00.000Z',
+      onboardingComplete: true,
     });
   });
 
@@ -153,7 +155,21 @@ describe('restoreFromServer', () => {
 
     await restoreFromServer();
     expect(updateProfile).toHaveBeenCalledWith('profile', {
-      onboardingComplete: true, onboardingCompletedAt: '2026-09-01T06:00:00.000Z', name: 'Neha Sharma',
+      onboardingComplete: true, name: 'Neha Sharma',
+    });
+  });
+
+  it('marks known accounts complete even with no practice data', async () => {
+    tables = {
+      participants: participant,
+      participant_practices: { data: [], error: null },
+      practice_completed: { data: [], error: null },
+    };
+
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
+    expect(updateProfile).toHaveBeenCalledWith('profile', {
+      onboardingComplete: true,
+      name: 'Neha Sharma',
     });
   });
 
@@ -165,13 +181,24 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [], error: null },
     };
 
-    expect(await restoreFromServer()).toBe(0);
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 0, participantFound: true });
     expect(updateProfile).not.toHaveBeenCalled();
   });
 
-  it('does nothing when this auth user has no participant row', async () => {
+  it('reports no participant when this auth user has no row', async () => {
     tables = { participants: { data: null, error: null } };
-    expect(await restoreFromServer()).toBe(0);
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 0, participantFound: false });
     expect(putInstances).not.toHaveBeenCalled();
+  });
+
+  it('uses an explicit auth user id when provided', async () => {
+    tables = {
+      participants: participant,
+      participant_practices: { data: [remoteInstance('i1', 'shambhavi', '2026-08-14T00:00:00Z')], error: null },
+      practice_completed: { data: [], error: null },
+    };
+
+    expect(await restoreFromServer('auth-user-1')).toEqual({ rowsWritten: 2, participantFound: true });
+    expect(putInstances).toHaveBeenCalled();
   });
 });

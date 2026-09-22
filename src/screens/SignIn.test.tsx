@@ -66,6 +66,68 @@ beforeEach(() => {
 });
 
 describe('SignIn', () => {
+  it('asks only for email in explicit sign-in mode', () => {
+    renderSignIn('sign-in');
+
+    expect(screen.queryByLabelText('Your name')).toBeNull();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy();
+  });
+
+  it('verifies an explicit sign-in without sending a name', async () => {
+    signInWithPasskey.mockResolvedValueOnce('cancelled');
+    renderSignIn('sign-in');
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByText('Check your email');
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => expect(verifyCode).toHaveBeenCalledWith('a@b.co', '123456', ''));
+  });
+
+  it('enables a passkey after successful OTP when the device has none', async () => {
+    authState.passkeySupported = true;
+    renderSignIn('sign-up');
+    fillDetails();
+    await screen.findByText('Check your email');
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await screen.findByText('landed home');
+    expect(enablePasskey).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not block OTP sign-in when passkey enrollment is cancelled', async () => {
+    authState.passkeySupported = true;
+    enablePasskey.mockResolvedValueOnce('cancelled');
+    renderSignIn('sign-up');
+    fillDetails();
+    await screen.findByText('Check your email');
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await screen.findByText('landed home');
+    expect(enablePasskey).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-enroll a passkey already on the device', async () => {
+    authState.passkeySupported = true;
+    authState.passkeyOnDevice = true;
+    renderSignIn('sign-up');
+    fillDetails();
+    await screen.findByText('Check your email');
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await screen.findByText('landed home');
+    expect(enablePasskey).not.toHaveBeenCalled();
+  });
+
   it('asks for name and email together and blocks until both are filled', () => {
     renderSignIn();
     const send = () => screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement;
@@ -74,6 +136,20 @@ describe('SignIn', () => {
     expect(send().disabled).toBe(true);
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
     expect(send().disabled).toBe(false);
+  });
+
+  it('keeps explicit sign-up on the name, email, and OTP flow when auth is stale', async () => {
+    authState.state = 'signed-in';
+    renderSignIn('sign-up');
+
+    expect(screen.getByLabelText('Your name')).toBeTruthy();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Priya' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+
+    await screen.findByText('Check your email');
+    expect(requestCode).toHaveBeenCalledWith('a@b.co', undefined);
   });
 
   it('rejects a malformed email without calling the server', async () => {
@@ -235,15 +311,12 @@ describe('SignIn', () => {
     expect(screen.queryByRole('button', { name: 'Continue with that account' })).toBeNull();
   });
 
-  it('only asks for a name when already signed in without one', async () => {
+  it('does not ask for a name on explicit sign-in even when the local name is blank', () => {
     authState.state = 'signed-in';
-    renderSignIn();
-    expect(screen.queryByLabelText('Email')).toBeNull();
-    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Priya' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await screen.findByText('landed home');
-    expect(setName).toHaveBeenCalledWith('Priya');
-    expect(requestCode).not.toHaveBeenCalled();
+    renderSignIn('sign-in');
+
+    expect(screen.queryByLabelText('Your name')).toBeNull();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
   });
 
   describe('passkeys', () => {
@@ -282,40 +355,5 @@ describe('SignIn', () => {
       expect(screen.queryByRole('button', { name: /Face ID|fingerprint/ })).toBeNull();
     });
 
-    it('registers a passkey automatically after a code sign-in, once per device', async () => {
-      authState.passkeySupported = true;
-      renderSignIn('sign-up');
-      fillDetails();
-      await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-
-      await screen.findByText('landed home');
-      expect(enablePasskey).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not block sign-in if passkey setup is cancelled', async () => {
-      authState.passkeySupported = true;
-      enablePasskey.mockResolvedValueOnce('cancelled');
-      renderSignIn('sign-up');
-      fillDetails();
-      await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      await screen.findByText('landed home');
-      expect(enablePasskey).toHaveBeenCalledTimes(1);
-    });
-
-    it('skips registration when this device already has a passkey', async () => {
-      authState.passkeySupported = true;
-      authState.passkeyOnDevice = true;
-      renderSignIn('sign-up');
-      fillDetails();
-      await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      await screen.findByText('landed home');
-      expect(enablePasskey).not.toHaveBeenCalled();
-    });
   });
 });

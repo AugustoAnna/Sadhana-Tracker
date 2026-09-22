@@ -46,12 +46,14 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const verifyCodeAndMerge = useAuthStore((s) => s.verifyCodeAndMerge);
   const signInWithPasskey = useAuthStore((s) => s.signInWithPasskey);
   const enablePasskey = useAuthStore((s) => s.enablePasskey);
+  const passkeySupported = useAuthStore((s) => s.passkeySupported);
   const profile = useAppStore((s) => s.profile);
-  const setNameStore = useAppStore((s) => s.setName);
   const linking = authState === 'anonymous';
-  const nameOnly = authState === 'signed-in';
-  const explicitSignIn = mode === 'sign-in' && !linking && !nameOnly;
-  const explicitSignUp = mode === 'sign-up' && !linking && !nameOnly;
+  // Route mode is authoritative. Auth state only decides linking vs normal.
+  const explicitSignIn = mode === 'sign-in' && !linking;
+  const explicitSignUp = mode === 'sign-up' && !linking;
+  // Sign-up and anonymous linking collect a name. Returning sign-in does not.
+  const requiresName = linking || explicitSignUp;
   const canGoBackToWelcome = explicitSignUp || explicitSignIn;
 
   const [step, setStep] = useState<Step>('details');
@@ -60,7 +62,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [passkeyFallbackToCode, setPasskeyFallbackToCode] = useState(false);
   const [devPasskeyError, setDevPasskeyError] = useState<string | null>(null);
   const [devPasskeyCountdownSec, setDevPasskeyCountdownSec] = useState(0);
   // Set when the anonymous device's email already has an account: the code
@@ -74,11 +75,9 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
 
   const trimmedName = name.trim();
   const trimmedEmail = email.trim().toLowerCase();
-  const detailsComplete = nameOnly
-    ? trimmedName.length > 0
-    : explicitSignIn
-      ? trimmedEmail.length > 0
-      : trimmedName.length > 0 && trimmedEmail.length > 0;
+  const detailsComplete = requiresName
+    ? trimmedName.length > 0 && trimmedEmail.length > 0
+    : trimmedEmail.length > 0;
 
   const clearDevBannerTimers = () => {
     if (devBannerHideTimer.current) {
@@ -109,14 +108,8 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   useEffect(() => () => clearDevBannerTimers(), []);
 
   const continueWithDetails = async () => {
-    if (!explicitSignIn && !trimmedName) {
+    if (requiresName && !trimmedName) {
       setError('Please enter your name.');
-      return;
-    }
-    if (nameOnly) {
-      setBusy(true);
-      await setNameStore(trimmedName);
-      navigate('/', { replace: true });
       return;
     }
     if (!isValidEmail(trimmedEmail)) {
@@ -127,14 +120,12 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     if (explicitSignIn) {
       setBusy(true);
       setError(null);
-      setPasskeyFallbackToCode(false);
       const result = await signInWithPasskey();
       if (!result) {
         void track('sign_in_completed', { linking: false, method: 'passkey' });
         finish();
         return;
       }
-      setPasskeyFallbackToCode(true);
       if (APP_ENV === 'lab') {
         const message = result === 'cancelled' ? 'Passkey sheet dismissed or not shown' : result;
         showDevPasskeyBanner(message);
@@ -208,7 +199,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     setError(null);
     const err = merging
       ? await verifyCodeAndMerge(email, code, trimmedName)
-      : await verifyCode(email, code, explicitSignIn ? '' : trimmedName);
+      : await verifyCode(email, code, requiresName ? trimmedName : '');
     if (err) {
       setBusy(false);
       setError(err);
@@ -217,13 +208,12 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
       return;
     }
     void track('sign_in_completed', { linking, merged: merging, method: 'code' });
-    // Best effort: register this device's passkey right after a successful code
-    // sign-in so future logins can use biometrics.
-    if (passkeyFallbackToCode || !useAuthStore.getState().passkeyOnDevice) {
+    // OTP proves account ownership before this device is enrolled for future
+    // passkey sign-ins. Registration is best-effort and never blocks completion.
+    if (passkeySupported && !useAuthStore.getState().passkeyOnDevice) {
       const setupResult = await enablePasskey();
       if (!setupResult) void track('passkey_registered', { where: 'sign_in' });
     }
-    setPasskeyFallbackToCode(false);
     finish();
   };
 
@@ -241,18 +231,14 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   if (step === 'details') {
     const heading = linking
       ? 'Keep your progress'
-      : nameOnly
-        ? 'What should we call you?'
-        : explicitSignIn
-          ? 'Welcome back'
-          : 'Let’s get you set up';
+      : explicitSignIn
+        ? 'Welcome back'
+        : 'Let’s get you set up';
     const intro = linking
       ? 'Add your email so your practice history stays with you if you change phones. We’ll email you a code to enter here.'
-      : nameOnly
-        ? ''
-        : explicitSignIn
-          ? `Enter your email to sign in. If ${biometricLabel()} is available on this device, we’ll use it first; otherwise we’ll send a fresh code.`
-          : 'We’ll email you a code.';
+      : explicitSignIn
+        ? `Enter your email to sign in. If ${biometricLabel()} is available on this device, we’ll use it first; otherwise we’ll send a fresh code.`
+        : 'We’ll email you a code.';
 
     return (
       <div className={`flex flex-col h-full bg-page ${canGoBackToWelcome ? 'auth-font-boost' : ''}`}>
@@ -272,7 +258,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           {intro && <p className="text-label text-secondary mb-6">{intro}</p>}
           {/* noValidate: our own messages instead of the browser's tooltips. */}
           <form noValidate className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); void continueWithDetails(); }}>
-            {!explicitSignIn && (
+            {requiresName && (
               <TextInput
                 label="Your name"
                 autoComplete="name"
@@ -283,21 +269,19 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
                 autoFocus={!name}
               />
             )}
-            {!nameOnly && (
-              <TextInput
-                label="Email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(null); }}
-                onKeyDown={submitOnEnter(continueWithDetails)}
-                autoFocus={explicitSignIn || !!name}
-              />
-            )}
+            <TextInput
+              label="Email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(null); }}
+              onKeyDown={submitOnEnter(continueWithDetails)}
+              autoFocus={explicitSignIn || !!name}
+            />
             {error && <p className="text-label text-error" role="alert">{error}</p>}
           </form>
           {linking && error === EMAIL_TAKEN_MESSAGE && (
@@ -314,12 +298,10 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
         <div className="shrink-0 px-4 pb-4 safe-bottom border-t border-hairline pt-3" style={footerStyle}>
           <Button fullWidth disabled={busy || !detailsComplete} onClick={() => void continueWithDetails()}>
             {busy
-              ? (nameOnly ? 'Saving…' : 'Sending…')
-              : nameOnly
+              ? 'Sending…'
+              : explicitSignIn
                 ? 'Continue'
-                : explicitSignIn
-                  ? 'Continue'
-                  : 'Send code'}
+                : 'Send code'}
           </Button>
         </div>
       </div>
