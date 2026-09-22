@@ -4,6 +4,10 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
+const isLab = process.env.VITE_APP_ENV === 'lab';
+const appName = isLab ? 'Sadhana Tracker Lab' : 'Sadhana Tracker';
+const shortName = isLab ? 'Sadhana Lab' : 'Sadhana';
+
 export default defineConfig({
   plugins: [
     react(),
@@ -16,8 +20,8 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'Sadhana Tracker',
-        short_name: 'Sadhana',
+        name: appName,
+        short_name: shortName,
         description: 'Track your spiritual practice journey',
         theme_color: '#0D8A7A',
         background_color: '#FDFBF5',
