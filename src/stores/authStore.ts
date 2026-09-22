@@ -257,13 +257,6 @@ async function completeSignIn(
     setDevicePasskey(null);
   }
 
-  useAuthStore.setState({
-    state: 'signed-in',
-    userId,
-    email: session.user.email ?? opts.fallbackEmail,
-    passkeyOnDevice: passkeyOnDeviceFor(userId),
-  });
-
   const app = useAppStore.getState();
   if (opts.mode === 'sign-in') {
     // Returning participant on a new (or wiped) device: hydrate from Supabase
@@ -278,4 +271,14 @@ async function completeSignIn(
     await app.setName(opts.name);
   }
   void syncFullState();
+
+  // Keep the sign-in guard mounted until the profile and server data are ready.
+  // Publishing signed-in earlier lets it redirect through `/` while the landing
+  // guard still has stale local data, which can produce a blank screen.
+  useAuthStore.setState({
+    state: 'signed-in',
+    userId,
+    email: session.user.email ?? opts.fallbackEmail,
+    passkeyOnDevice: passkeyOnDeviceFor(userId),
+  });
 }
