@@ -44,7 +44,6 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const verifyCodeAndMerge = useAuthStore((s) => s.verifyCodeAndMerge);
   const signInWithPasskey = useAuthStore((s) => s.signInWithPasskey);
   const enablePasskey = useAuthStore((s) => s.enablePasskey);
-  const passkeySupported = useAuthStore((s) => s.passkeySupported);
   const profile = useAppStore((s) => s.profile);
   const setNameStore = useAppStore((s) => s.setName);
   const linking = authState === 'anonymous';
@@ -59,6 +58,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passkeyFallbackToCode, setPasskeyFallbackToCode] = useState(false);
   // Set when the anonymous device's email already has an account: the code
   // is a sign-in to that account and the server merges this history into it.
   const [merging, setMerging] = useState(false);
@@ -90,15 +90,17 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
       return;
     }
 
-    if (explicitSignIn && passkeySupported) {
+    if (explicitSignIn) {
       setBusy(true);
       setError(null);
+      setPasskeyFallbackToCode(false);
       const result = await signInWithPasskey();
       if (!result) {
         void track('sign_in_completed', { linking: false, method: 'passkey' });
         finish();
         return;
       }
+      setPasskeyFallbackToCode(true);
     }
 
     setBusy(true);
@@ -179,10 +181,11 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     void track('sign_in_completed', { linking, merged: merging, method: 'code' });
     // Best effort: register this device's passkey right after a successful code
     // sign-in so future logins can use biometrics.
-    if (passkeySupported && !useAuthStore.getState().passkeyOnDevice) {
+    if (passkeyFallbackToCode || !useAuthStore.getState().passkeyOnDevice) {
       const setupResult = await enablePasskey();
       if (!setupResult) void track('passkey_registered', { where: 'sign_in' });
     }
+    setPasskeyFallbackToCode(false);
     finish();
   };
 
@@ -320,7 +323,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           />
           {error && <p className="text-label text-error mt-3" role="alert">{error}</p>}
         </form>
-        <div className="mt-2">
+        <div className="mt-1">
           <Button
             variant="text"
             className="px-0"
@@ -331,7 +334,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           </Button>
         </div>
         <p className="text-secondary mt-7 text-center">
-          <span className="block text-[16px] leading-5 font-semibold mb-1">Didn&apos;t receive a code?</span>
+          <span className="block text-[16px] leading-5 font-semibold mb-2">Didn&apos;t receive a code?</span>
           <span className="block text-[13px] leading-5 font-normal">
             Please check your spam folder and whether the email above is correct. You can edit it by going back.
           </span>
