@@ -55,7 +55,7 @@ export function Welcome() {
         </Button>
         <p className="text-label text-secondary text-center mt-3">
           Already have an account?{' '}
-          <Link to="/sign-in" className="text-ink underline underline-offset-2">
+          <Link to="/sign-in" className="text-ink text-body font-semibold underline underline-offset-2">
             Sign in
           </Link>
         </p>
