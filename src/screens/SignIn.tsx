@@ -215,8 +215,8 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           : 'We’ll email you a code.';
 
     return (
-      <div className={`flex flex-col h-full bg-page ${explicitSignUp ? 'sign-up-font-boost' : ''}`}>
-        <div className="flex-1 overflow-y-auto px-4 pt-14">
+      <div className={`flex flex-col h-full bg-page ${canGoBackToWelcome ? 'auth-font-boost' : ''}`}>
+        <div className="flex-1 overflow-y-auto px-4 auth-details-scroll">
           {canGoBackToWelcome && (
             <button
               onClick={() => navigate('/welcome')}
@@ -288,7 +288,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
 
   return (
     <div className="flex flex-col h-full bg-page">
-      <div className="flex-1 overflow-y-auto px-4 pt-14">
+      <div className="flex-1 overflow-y-auto px-4 auth-details-scroll">
         <button
           onClick={() => { setStep('details'); setError(null); setCode(''); setMerging(false); }}
           aria-label="Go back"

@@ -50,12 +50,12 @@ export function Welcome() {
       </div>
 
       <div className="px-4 pb-4 safe-bottom">
-        <Button fullWidth className="text-[17px] leading-[1.2]" onClick={() => navigate('/sign-up')}>
+        <Button fullWidth className="welcome-action-label" onClick={() => navigate('/sign-up')}>
           Get started
         </Button>
         <p className="text-label text-secondary text-center mt-3">
           Already have an account?{' '}
-          <Link to="/sign-in" className="text-ink text-[17px] leading-[1.2] font-semibold underline underline-offset-2">
+          <Link to="/sign-in" className="text-ink welcome-action-label underline underline-offset-2">
             Sign in
           </Link>
         </p>

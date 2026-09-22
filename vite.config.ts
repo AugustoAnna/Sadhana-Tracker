@@ -1,14 +1,16 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-const isLab = process.env.VITE_APP_ENV === 'lab';
-const appName = isLab ? 'Sadhana Tracker Lab' : 'Sadhana Tracker';
-const shortName = isLab ? 'Sadhana Lab' : 'Sadhana';
+export default defineConfig(({ mode }) => {
+  const fileEnv = loadEnv(mode, process.cwd(), '');
+  const isLab = (process.env.VITE_APP_ENV ?? fileEnv.VITE_APP_ENV) === 'lab';
+  const appName = isLab ? 'Sadhana Tracker Lab' : 'Sadhana Tracker';
+  const shortName = isLab ? 'Sadhana Lab' : 'Sadhana';
 
-export default defineConfig({
+  return {
   plugins: [
     react(),
     tailwindcss(),
@@ -54,4 +56,5 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  };
 });

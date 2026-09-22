@@ -134,15 +134,25 @@ body {
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
-.sign-up-font-boost .text-display {
+.auth-font-boost .text-display {
   font-size: 26px;
 }
 
-.sign-up-font-boost .text-label,
-.sign-up-font-boost .text-body,
-.sign-up-font-boost .eyebrow,
-.sign-up-font-boost input {
+.auth-font-boost .text-label,
+.auth-font-boost .text-body,
+.auth-font-boost .eyebrow,
+.auth-font-boost input {
   font-size: calc(1em + 2px);
+}
+
+.welcome-action-label {
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.auth-details-scroll {
+  padding-top: max(8px, env(safe-area-inset-top));
 }
 
 @keyframes check-fill {
