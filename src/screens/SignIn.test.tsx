@@ -208,7 +208,7 @@ describe('SignIn', () => {
     fillDetails('Priya', 'a@b.co');
     await screen.findByText('Check your email');
     fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
-    expect(screen.getByText('Let’s get you set up')).toBeTruthy();
+    expect(screen.getByText('Sign up to track your sadhana')).toBeTruthy();
   });
 
   it('does not offer an already-received-code shortcut after going back', async () => {

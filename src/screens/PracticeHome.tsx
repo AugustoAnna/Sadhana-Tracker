@@ -125,7 +125,7 @@ export function PracticeHome() {
     <div className="h-full overflow-y-auto pb-8 bg-page">
       {/* Compact header: app name left, reminders bell right, no bar behind it. */}
       <header className="flex items-center justify-between px-4 pt-3 text-ink">
-        <h1 className="font-serif text-headline flex-1 text-center pl-11">Sadhana Tracker</h1>
+        <h1 className="font-serif text-headline flex-1 text-center pl-11" style={{ fontSize: '22px' }}>Sadhana Tracker</h1>
         {bellAction}
       </header>
 
