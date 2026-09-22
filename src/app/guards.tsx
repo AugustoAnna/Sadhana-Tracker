@@ -33,11 +33,8 @@ export function LandingRedirect() {
     return <Navigate to={profile.name ? '/sign-in' : '/welcome'} replace />;
   }
 
-  // Setup still requires a name; returning sign-in does not.
-  if (!profile.name) {
-    return <Navigate to="/sign-in" replace />;
-  }
-
+  // Authenticated routing is independent of whether the local name field has
+  // finished restoring. Name is collected during sign-up/setup, not as a gate.
   if (!profile.onboardingComplete) {
     if (instances.length === 0) {
       return <Navigate to="/practices/edit" replace state={{ firstSetup: true }} />;
@@ -58,21 +55,19 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** The sign-in screen is for people who are not signed in, or still need setup. */
+/** The sign-in screen is for people who are not signed in. */
 export function SignInGuard({ children }: { children: React.ReactNode }) {
   const authState = useAuthStore((s) => s.state);
-  const profile = useAppStore((s) => s.profile);
   if (authState === 'unknown') return <GuardLoading />;
-  if (authState === 'signed-in' && profile?.name) {
+  if (authState === 'signed-in') {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
 }
 
 export function WelcomeGuard({ children }: { children: React.ReactNode }) {
-  const profile = useAppStore((s) => s.profile);
   const authState = useAuthStore((s) => s.state);
-  if (authState === 'signed-in' && profile?.name) {
+  if (authState === 'signed-in') {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
@@ -88,11 +83,12 @@ export function PostOnboardingGuard({ children }: { children: React.ReactNode })
 
 export function SetupGuard({ children }: { children: React.ReactNode }) {
   const profile = useAppStore((s) => s.profile);
+  const authState = useAuthStore((s) => s.state);
+  if (authState !== 'signed-in') {
+    return <Navigate to="/sign-in" replace />;
+  }
   if (profile?.onboardingComplete) {
     return <>{children}</>;
   }
-  if (profile?.name) {
-    return <>{children}</>;
-  }
-  return <Navigate to="/" replace />;
+  return <>{children}</>;
 }
