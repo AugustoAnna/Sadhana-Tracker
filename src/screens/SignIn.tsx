@@ -320,13 +320,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           />
           {error && <p className="text-label text-error mt-3" role="alert">{error}</p>}
         </form>
-        <p className="text-secondary mt-3 text-center">
-          <span className="block text-[16px] leading-5 font-semibold mb-1">Didn&apos;t receive a code?</span>
-          <span className="block text-[13px] leading-5 font-normal">
-            Please check your spam folder and whether the email above is correct. You can edit it by going back.
-          </span>
-        </p>
-        <div className="mt-6 flex justify-center">
+        <div className="mt-2">
           <Button
             variant="text"
             className="px-0"
@@ -336,6 +330,12 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
             Resend code
           </Button>
         </div>
+        <p className="text-secondary mt-7 text-center">
+          <span className="block text-[16px] leading-5 font-semibold mb-1">Didn&apos;t receive a code?</span>
+          <span className="block text-[13px] leading-5 font-normal">
+            Please check your spam folder and whether the email above is correct. You can edit it by going back.
+          </span>
+        </p>
       </div>
       <div className="shrink-0 px-4 pb-4 safe-bottom border-t border-hairline pt-3" style={footerStyle}>
         <Button fullWidth disabled={busy || !isCompleteCode(code)} onClick={() => void submitCode()}>
