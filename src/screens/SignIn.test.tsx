@@ -66,6 +66,27 @@ beforeEach(() => {
 });
 
 describe('SignIn', () => {
+  it('asks only for email in explicit sign-in mode', () => {
+    renderSignIn('sign-in');
+
+    expect(screen.queryByLabelText('Your name')).toBeNull();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy();
+  });
+
+  it('verifies an explicit sign-in without sending a name', async () => {
+    signInWithPasskey.mockResolvedValueOnce('cancelled');
+    renderSignIn('sign-in');
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByText('Check your email');
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => expect(verifyCode).toHaveBeenCalledWith('a@b.co', '123456', ''));
+  });
+
   it('asks for name and email together and blocks until both are filled', () => {
     renderSignIn();
     const send = () => screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement;

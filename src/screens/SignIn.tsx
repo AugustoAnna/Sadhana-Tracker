@@ -52,6 +52,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const nameOnly = authState === 'signed-in';
   const explicitSignIn = mode === 'sign-in' && !linking && !nameOnly;
   const explicitSignUp = mode === 'sign-up' && !linking && !nameOnly;
+  const requiresName = linking || explicitSignUp || nameOnly;
   const canGoBackToWelcome = explicitSignUp || explicitSignIn;
 
   const [step, setStep] = useState<Step>('details');
@@ -109,7 +110,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   useEffect(() => () => clearDevBannerTimers(), []);
 
   const continueWithDetails = async () => {
-    if (!explicitSignIn && !trimmedName) {
+    if (requiresName && !trimmedName) {
       setError('Please enter your name.');
       return;
     }
@@ -208,7 +209,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     setError(null);
     const err = merging
       ? await verifyCodeAndMerge(email, code, trimmedName)
-      : await verifyCode(email, code, explicitSignIn ? '' : trimmedName);
+      : await verifyCode(email, code, requiresName ? trimmedName : '');
     if (err) {
       setBusy(false);
       setError(err);
@@ -272,7 +273,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           {intro && <p className="text-label text-secondary mb-6">{intro}</p>}
           {/* noValidate: our own messages instead of the browser's tooltips. */}
           <form noValidate className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); void continueWithDetails(); }}>
-            {!explicitSignIn && (
+            {requiresName && (
               <TextInput
                 label="Your name"
                 autoComplete="name"
