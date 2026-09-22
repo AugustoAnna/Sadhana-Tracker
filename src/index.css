@@ -135,7 +135,7 @@ body {
 }
 
 .safe-bottom-raised {
-  padding-bottom: max(26px, calc(env(safe-area-inset-bottom) + 10px));
+  padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + 24px);
 }
 
 .auth-font-boost .text-display {
