@@ -321,7 +321,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
           />
           {error && <p className="text-label text-error mt-3" role="alert">{error}</p>}
         </form>
-        <p className="text-label text-secondary mt-3">
+        <p className="text-label text-secondary mt-3 text-center">
           <span className="block">Didn&apos;t receive a code?</span>
           Please check your spam folder as well as whether the email above is correct. You can edit it by going back and getting a new code.
         </p>
