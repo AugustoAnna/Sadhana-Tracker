@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PracticeCard, BottomSheet, MinutePicker, Button,
-  PracticeCalendar, ProgressStatBoxes, NameBanner,
+  PracticeCalendar, ProgressStatBoxes,
 } from '@/components';
 import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
@@ -130,8 +130,6 @@ export function PracticeHome() {
       </header>
 
       <div className="px-4">
-        <NameBanner />
-
         <section className="mt-5">
           <p className="section-header mb-2">Today</p>
           <div className="grid grid-cols-2 gap-3">

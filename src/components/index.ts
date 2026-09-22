@@ -20,4 +20,3 @@ export { ConfirmFooter } from './ConfirmFooter';
 export { PracticeCalendar, ProgressStatBoxes } from './PracticeCalendar';
 export { DemoModePicker, useDemoModeEntry } from './DemoMode';
 export { DemoModeIndicator } from './DemoModeIndicator';
-export { NameBanner } from './NameBanner';
