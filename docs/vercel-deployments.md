@@ -1,6 +1,11 @@
 # Vercel deployments — study and lab
 
-Two Vercel projects deploy from the **same repository and branch** (`main`). They differ only in environment variables.
+Two Vercel projects deploy from the same repository, but each tracks a different production branch so both environments keep a stable URL:
+
+- Study project tracks `main`
+- Lab project tracks `lab`
+
+They also differ in environment variables.
 
 | Vercel project name (suggested) | Audience | `VITE_APP_ENV` | Purpose |
 | --- | --- | --- | --- |
@@ -25,6 +30,35 @@ URLs are **TBD-PM** (open item #7 in spec §11).
 | Study | `VITE_APP_ENV` | `study` |
 | Lab | `VITE_APP_ENV` | `lab` |
 
+## Branch tracking model (current)
+
+| Project | Vercel environment | Branch tracking | Deploy target |
+| --- | --- | --- | --- |
+| Study (`sadhana-preview` / `sadhana-study`) | Production | `main` | Stable study production URL |
+| Lab (`sadhana-lab`) | Production | `lab` | Stable lab production URL |
+
+This avoids shipping lab changes to study/production while still giving lab a fixed URL.
+
+## Configure or change branch tracking
+
+In Vercel, this setting is now in **Environments** (not in Git settings):
+
+1. Open the project (`sadhana-lab` or study project)
+2. Go to **Settings -> Environments**
+3. Click **Production**
+4. Open **Branch Tracking**
+5. Set the branch (`lab` for lab project, `main` for study project)
+6. Save
+
+After changing branch tracking, push a commit to that branch (or redeploy) to confirm.
+
+### If we rename the lab branch later
+
+1. Create and push the new branch
+2. Update lab project **Production -> Branch Tracking** to the new branch name
+3. Push once to the new branch to trigger deploys
+4. Optionally delete old lab branch after validation
+
 ## Create projects in Vercel dashboard
 
 1. Go to [vercel.com/new](https://vercel.com/new) and import the GitHub repository.
@@ -33,9 +67,9 @@ URLs are **TBD-PM** (open item #7 in spec §11).
    - Framework preset: Vite
    - Build command: `npm run build`
    - Output directory: `dist`
-   - Production branch: `main`
+   - Production branch tracking: `main` (Settings -> Environments -> Production)
    - Environment variables: add all three (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_ENV=study`)
-3. Repeat for the **lab** project with `VITE_APP_ENV=lab`.
+3. Repeat for the **lab** project with `VITE_APP_ENV=lab` and production branch tracking `lab`.
 4. After first deploy from each project, write one test row and confirm it lands in the correct `environment` bucket in Supabase (V1/V2).
 
 ## Optional: CLI setup

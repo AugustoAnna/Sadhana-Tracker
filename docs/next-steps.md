@@ -9,7 +9,7 @@ This guide covers what is **done in code**, what **you must configure**, and wha
 | Area | Status | Your action |
 | --- | --- | --- |
 | Supabase migration `002_v3_schema.sql` | You ran it ✓ | Verify V1–V9 below |
-| Study + lab Vercel deploys | Code on `main` | Set `VITE_APP_ENV` per project |
+| Study + lab Vercel deploys | Code on `main` + `lab` | Set `VITE_APP_ENV` + branch tracking per project |
 | Illustrations | Code wired | Copy Drive files → `public/illustrations/` |
 | Rider spec bugs B1–B6, screens C1–C11, E1–E3 | Implemented in this push | Test on device |
 | Audio / altar / diya | Partial | PM assets (see §4) |
@@ -19,7 +19,12 @@ This guide covers what is **done in code**, what **you must configure**, and wha
 
 ## 1. Vercel — two projects, one repo
 
-Both projects build from **`main`**. They differ only by environment variables.
+Projects use branch-based production tracking for stable URLs:
+
+- Study project Production tracks `main`
+- Lab project Production tracks `lab`
+
+They also differ by environment variables.
 
 ### Study project (25 participants)
 
