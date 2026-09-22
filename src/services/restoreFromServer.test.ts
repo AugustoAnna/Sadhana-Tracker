@@ -77,7 +77,7 @@ describe('restoreFromServer', () => {
 
     const n = await restoreFromServer();
 
-    expect(n).toBe(2);
+    expect(n).toBe(3);
     expect(putLogs.mock.calls[0][0]).toEqual([
       expect.objectContaining({ id: 'l1', instanceId: 'i1', source: 'checkbox', minutes: 21 }),
     ]);
@@ -112,7 +112,7 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [remoteLog('l1', 'deleted-practice', '2026-08-14')], error: null },
     };
 
-    expect(await restoreFromServer()).toBe(0);
+    expect(await restoreFromServer()).toBe(1);
     expect(putLogs).not.toHaveBeenCalled();
   });
 
@@ -155,6 +155,17 @@ describe('restoreFromServer', () => {
     expect(updateProfile).toHaveBeenCalledWith('profile', {
       onboardingComplete: true, onboardingCompletedAt: '2026-09-01T06:00:00.000Z', name: 'Neha Sharma',
     });
+  });
+
+  it('restores the known name even when the account has no practice data', async () => {
+    tables = {
+      participants: participant,
+      participant_practices: { data: [], error: null },
+      practice_completed: { data: [], error: null },
+    };
+
+    expect(await restoreFromServer()).toBe(1);
+    expect(updateProfile).toHaveBeenCalledWith('profile', { name: 'Neha Sharma' });
   });
 
   it('does not touch a profile that already finished setup locally', async () => {

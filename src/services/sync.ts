@@ -158,14 +158,19 @@ export async function restoreFromServer(): Promise<number> {
   // through setup again. Done before the history fetch so it holds even when
   // there is nothing else to restore.
   let profileRestored = 0;
-  if (participant.onboarding_completed_at) {
-    const profile = await db.profile.get('profile');
-    if (profile && !profile.onboardingComplete) {
-      await db.profile.update('profile', {
-        onboardingComplete: true,
-        onboardingCompletedAt: participant.onboarding_completed_at,
-        ...(!profile.name && participant.name ? { name: participant.name } : {}),
-      });
+  const profile = await db.profile.get('profile');
+  if (profile) {
+    const profileUpdate = {
+      ...(!profile.name && participant.name ? { name: participant.name } : {}),
+      ...(participant.onboarding_completed_at && !profile.onboardingComplete
+        ? {
+            onboardingComplete: true,
+            onboardingCompletedAt: participant.onboarding_completed_at,
+          }
+        : {}),
+    };
+    if (Object.keys(profileUpdate).length) {
+      await db.profile.update('profile', profileUpdate);
       profileRestored = 1;
     }
   }
