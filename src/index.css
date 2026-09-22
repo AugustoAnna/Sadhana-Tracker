@@ -134,6 +134,17 @@ body {
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
+.sign-up-font-boost .text-display {
+  font-size: 26px;
+}
+
+.sign-up-font-boost .text-label,
+.sign-up-font-boost .text-body,
+.sign-up-font-boost .eyebrow,
+.sign-up-font-boost input {
+  font-size: calc(1em + 2px);
+}
+
 @keyframes check-fill {
   from { transform: scale(0); }
   to { transform: scale(1); }

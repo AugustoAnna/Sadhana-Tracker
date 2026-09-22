@@ -212,10 +212,10 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
         ? 'Your name is shown on your practices.'
         : explicitSignIn
           ? `Enter your email to sign in. If ${biometricLabel()} is available on this device, we’ll use it first; otherwise we’ll send a fresh code.`
-          : 'Your name is shown on your practices. We’ll email you a code to confirm your address — no password needed.';
+          : 'We’ll email you a code.';
 
     return (
-      <div className="flex flex-col h-full bg-page">
+      <div className={`flex flex-col h-full bg-page ${explicitSignUp ? 'sign-up-font-boost' : ''}`}>
         <div className="flex-1 overflow-y-auto px-4 pt-14">
           {canGoBackToWelcome && (
             <button
