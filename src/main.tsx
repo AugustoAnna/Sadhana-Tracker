@@ -9,7 +9,6 @@ import { initDayRollover } from '@/services/dayRollover';
 import { initServiceWorkerUpdates } from '@/services/swUpdate';
 import { ensureDatabasesReady, recoverFromInterruptedDemo } from '@/services/demoMode';
 import { track } from '@/services/instrumentation';
-import { APP_ENV } from '@/config/environment';
 import './index.css';
 
 import { registerSW } from 'virtual:pwa-register';
@@ -85,16 +84,7 @@ function Bootstrap() {
     );
   }
 
-  return (
-    <>
-      {APP_ENV === 'lab' && (
-        <div className="fixed top-2 right-2 z-50 px-2 py-1 rounded bg-journey text-white text-meta tracking-wide pointer-events-none">
-          LAB
-        </div>
-      )}
-      <AppRouter />
-    </>
-  );
+  return <AppRouter />;
 }
 
 createRoot(document.getElementById('root')!).render(
