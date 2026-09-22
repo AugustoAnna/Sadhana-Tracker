@@ -9,7 +9,20 @@ vi.mock('@/components', () => ({
 }));
 
 describe('Welcome', () => {
-  it('has a single door: Get started leads to sign-in', async () => {
+  it('routes Get started to sign-up', async () => {
+    render(
+      <MemoryRouter initialEntries={['/welcome']}>
+        <Routes>
+          <Route path="/welcome" element={<Welcome />} />
+          <Route path="/sign-up" element={<p>sign-up screen</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Get started' }));
+    await screen.findByText('sign-up screen');
+  });
+
+  it('offers a sign-in link below Get started', async () => {
     render(
       <MemoryRouter initialEntries={['/welcome']}>
         <Routes>
@@ -18,8 +31,7 @@ describe('Welcome', () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect(screen.getAllByRole('button')).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Get started' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Sign in' }));
     await screen.findByText('sign-in screen');
   });
 });

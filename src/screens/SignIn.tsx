@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, TextInput } from '@/components';
 import { useKeyboardInset } from '@/hooks';
@@ -17,15 +17,12 @@ const MIN_CODE_LENGTH = 6;
 const MAX_CODE_LENGTH = 10;
 const isCompleteCode = (value: string) => value.length >= MIN_CODE_LENGTH;
 
-/**
- * UI-only guard against tapping "Resend" twice by accident. The server's own
- * per-address interval is 1 s, so this is purely about the button. "Change
- * details" clears it so a fresh code can be requested straight away — and
- * that send starts the 60 s again.
- */
-const RESEND_COOLDOWN_S = 60;
+type Step = 'details' | 'code' | 'restoring';
+type EntryMode = 'sign-in' | 'sign-up';
 
-type Step = 'details' | 'code' | 'passkey-offer' | 'restoring';
+interface SignInProps {
+  mode?: EntryMode;
+}
 
 /** Enter / the keyboard's Go key submits; the visible button lives in the footer. */
 function submitOnEnter(action: () => Promise<void>) {
@@ -37,15 +34,9 @@ function submitOnEnter(action: () => Promise<void>) {
 }
 
 /**
- * The one entry point for everyone: name + email, then the emailed code.
- *
- * Three situations share the screen and differ only in copy and in what the
- * store does with the code:
- * - fresh device / new or returning participant → sign-in (`signInWithOtp`)
- * - pre-email anonymous session → link (`updateUser({ email })`, same user id)
- * - signed in but nameless (setName failed mid sign-in) → name-only, no code
+ * Shared auth screen used as either sign-up or sign-in entry.
  */
-export function SignIn() {
+export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const navigate = useNavigate();
   const authState = useAuthStore((s) => s.state);
   const requestCode = useAuthStore((s) => s.requestCode);
@@ -59,6 +50,7 @@ export function SignIn() {
   const setNameStore = useAppStore((s) => s.setName);
   const linking = authState === 'anonymous';
   const nameOnly = authState === 'signed-in';
+  const explicitSignIn = mode === 'sign-in' && !linking && !nameOnly;
 
   const [step, setStep] = useState<Step>('details');
   const [name, setName] = useState(profile?.name ?? '');
@@ -66,11 +58,6 @@ export function SignIn() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Resend countdown, keyed by address. Started after every successful send;
-  // cleared by "Change details". If the server ever refuses a send, we count
-  // down exactly the wait it reports instead.
-  const [cooldown, setCooldown] = useState<{ email: string; until: number } | null>(null);
-  const [now, setNow] = useState(() => Date.now());
   // Address a code went to in this session, so someone who went back to fix
   // their name can return to the code they already have.
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -81,27 +68,17 @@ export function SignIn() {
 
   useKeyboardInset();
 
-  useEffect(() => {
-    if (!cooldown || cooldown.until <= now) return;
-    const t = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [cooldown, now]);
-
-  const secondsLeftFor = (address: string) =>
-    cooldown && cooldown.email === address ? Math.max(0, Math.ceil((cooldown.until - now) / 1000)) : 0;
-  const startCooldown = (address: string, seconds: number) => {
-    setNow(Date.now());
-    setCooldown({ email: address, until: Date.now() + seconds * 1000 });
-  };
-
   const trimmedName = name.trim();
   const trimmedEmail = email.trim().toLowerCase();
-  const detailsComplete = trimmedName.length > 0 && (nameOnly || trimmedEmail.length > 0);
-  const waitForDetails = nameOnly ? 0 : secondsLeftFor(trimmedEmail);
+  const detailsComplete = nameOnly
+    ? trimmedName.length > 0
+    : explicitSignIn
+      ? trimmedEmail.length > 0
+      : trimmedName.length > 0 && trimmedEmail.length > 0;
   const codeStillPending = !nameOnly && sentTo !== null && trimmedEmail === sentTo;
 
   const continueWithDetails = async () => {
-    if (!trimmedName) {
+    if (!explicitSignIn && !trimmedName) {
       setError('Please enter your name.');
       return;
     }
@@ -115,19 +92,29 @@ export function SignIn() {
       setError('Please enter a valid email address.');
       return;
     }
+
+    if (explicitSignIn && passkeySupported && passkeyOnDevice) {
+      setBusy(true);
+      setError(null);
+      const result = await signInWithPasskey();
+      if (!result) {
+        void track('sign_in_completed', { linking: false, method: 'passkey' });
+        finish();
+        return;
+      }
+    }
+
     setBusy(true);
     setError(null);
-    const { error: err, retryAfter } = await requestCode(trimmedEmail);
+    const { error: err } = await requestCode(trimmedEmail, explicitSignIn ? { mode: 'sign-in' } : undefined);
     setBusy(false);
     if (err) {
-      // The server knows the real interval; count down exactly what it says.
-      if (retryAfter) startCooldown(trimmedEmail, retryAfter);
+      // The server knows the real interval and includes that wait in its message.
       setError(err);
       return;
     }
     setEmail(trimmedEmail);
     setSentTo(trimmedEmail);
-    startCooldown(trimmedEmail, RESEND_COOLDOWN_S);
     setCode('');
     setStep('code');
     void track('sign_in_code_sent', { linking });
@@ -138,15 +125,13 @@ export function SignIn() {
   const resendCode = async () => {
     setBusy(true);
     setError(null);
-    const { error: err, retryAfter } = await requestCode(email, merging ? { mode: 'sign-in' } : undefined);
+    const { error: err } = await requestCode(email, merging ? { mode: 'sign-in' } : undefined);
     setBusy(false);
     if (err) {
-      if (retryAfter) startCooldown(email, retryAfter);
       setError(err);
       return;
     }
     setCode('');
-    startCooldown(email, RESEND_COOLDOWN_S);
     codeRef.current?.focus();
   };
 
@@ -160,17 +145,15 @@ export function SignIn() {
   const continueWithExistingAccount = async () => {
     setBusy(true);
     setError(null);
-    const { error: err, retryAfter } = await requestCode(trimmedEmail, { mode: 'sign-in' });
+    const { error: err } = await requestCode(trimmedEmail, { mode: 'sign-in' });
     setBusy(false);
     if (err) {
-      if (retryAfter) startCooldown(trimmedEmail, retryAfter);
       setError(err);
       return;
     }
     setMerging(true);
     setEmail(trimmedEmail);
     setSentTo(trimmedEmail);
-    startCooldown(trimmedEmail, RESEND_COOLDOWN_S);
     setCode('');
     setStep('code');
     void track('sign_in_code_sent', { linking: false, merging: true });
@@ -190,7 +173,7 @@ export function SignIn() {
     setError(null);
     const err = merging
       ? await verifyCodeAndMerge(email, code, trimmedName)
-      : await verifyCode(email, code, trimmedName);
+      : await verifyCode(email, code, explicitSignIn ? '' : trimmedName);
     if (err) {
       setBusy(false);
       setError(err);
@@ -199,50 +182,12 @@ export function SignIn() {
       return;
     }
     void track('sign_in_completed', { linking, merged: merging, method: 'code' });
-    // Offer the faster door for next time — once per device, only where the
-    // browser can actually do it. Anonymous users can't register one; they've
-    // just been linked, so by now they can.
+    // Best effort: register this device's passkey right after a successful code
+    // sign-in so future logins can use biometrics.
     if (passkeySupported && !useAuthStore.getState().passkeyOnDevice) {
-      setBusy(false);
-      setError(null);
-      setStep('passkey-offer');
-      return;
+      const setupResult = await enablePasskey();
+      if (!setupResult) void track('passkey_registered', { where: 'sign_in' });
     }
-    finish();
-  };
-
-  const usePasskey = async () => {
-    setBusy(true);
-    setError(null);
-    const result = await signInWithPasskey();
-    if (result === 'cancelled') {
-      setBusy(false);
-      return;
-    }
-    if (result) {
-      setBusy(false);
-      setError(result);
-      return;
-    }
-    void track('sign_in_completed', { linking: false, method: 'passkey' });
-    finish();
-  };
-
-  const acceptPasskeyOffer = async () => {
-    setBusy(true);
-    setError(null);
-    const result = await enablePasskey();
-    if (result === 'cancelled') {
-      setBusy(false);
-      return;
-    }
-    if (result) {
-      // Don't hold the sign-in hostage to this; they can retry from Reminders.
-      setBusy(false);
-      setError(result);
-      return;
-    }
-    void track('passkey_registered', { where: 'sign_in' });
     finish();
   };
 
@@ -257,38 +202,21 @@ export function SignIn() {
 
   const footerStyle = { paddingBottom: 'calc(1rem + var(--keyboard-inset, 0px))' };
 
-  if (step === 'passkey-offer') {
-    return (
-      <div className="flex flex-col h-full bg-page">
-        <div className="flex-1 overflow-y-auto px-4 pt-14">
-          <h1 className="font-serif text-display mb-6">Sign in faster next time?</h1>
-          <p className="text-label text-secondary mb-3">
-            Use {biometricLabel()} instead of an emailed code whenever you need to sign in again on this device.
-          </p>
-          <p className="text-label text-secondary">
-            Your fingerprint or face never leaves your device. You can turn this off any time under Reminders → Account.
-          </p>
-          {error && <p className="text-label text-error mt-4" role="alert">{error}</p>}
-        </div>
-        <div className="shrink-0 px-4 pb-4 safe-bottom border-t border-hairline pt-3" style={footerStyle}>
-          <Button fullWidth disabled={busy} onClick={() => void acceptPasskeyOffer()}>
-            {busy ? 'Setting up…' : `Use ${biometricLabel()}`}
-          </Button>
-          <Button variant="text" className="w-full mt-2" disabled={busy} onClick={finish}>
-            Not now
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   if (step === 'details') {
-    const heading = linking ? 'Keep your progress' : nameOnly ? 'What should we call you?' : 'Let’s get you set up';
+    const heading = linking
+      ? 'Keep your progress'
+      : nameOnly
+        ? 'What should we call you?'
+        : explicitSignIn
+          ? 'Welcome back'
+          : 'Let’s get you set up';
     const intro = linking
       ? 'Add your email so your practice history stays with you if you change phones. We’ll email you a code to enter here.'
       : nameOnly
         ? 'Your name is shown on your practices.'
-        : 'Your name is shown on your practices. We’ll email you a code to confirm your address — no password needed.';
+        : explicitSignIn
+          ? `Enter your email to sign in. If ${biometricLabel()} is available on this device, we’ll use it first; otherwise we’ll send a fresh code.`
+          : 'Your name is shown on your practices. We’ll email you a code to confirm your address — no password needed.';
 
     return (
       <div className="flex flex-col h-full bg-page">
@@ -297,15 +225,17 @@ export function SignIn() {
           <p className="text-label text-secondary mb-6">{intro}</p>
           {/* noValidate: our own messages instead of the browser's tooltips. */}
           <form noValidate className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); void continueWithDetails(); }}>
-            <TextInput
-              label="Your name"
-              autoComplete="name"
-              autoCapitalize="words"
-              value={name}
-              onChange={(e) => { setName(e.target.value); setError(null); }}
-              onKeyDown={submitOnEnter(continueWithDetails)}
-              autoFocus={!name}
-            />
+            {!explicitSignIn && (
+              <TextInput
+                label="Your name"
+                autoComplete="name"
+                autoCapitalize="words"
+                value={name}
+                onChange={(e) => { setName(e.target.value); setError(null); }}
+                onKeyDown={submitOnEnter(continueWithDetails)}
+                autoFocus={!name}
+              />
+            )}
             {!nameOnly && (
               <TextInput
                 label="Email"
@@ -318,7 +248,7 @@ export function SignIn() {
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(null); }}
                 onKeyDown={submitOnEnter(continueWithDetails)}
-                autoFocus={!!name}
+                autoFocus={explicitSignIn || !!name}
               />
             )}
             {error && <p className="text-label text-error" role="alert">{error}</p>}
@@ -335,13 +265,13 @@ export function SignIn() {
           )}
         </div>
         <div className="shrink-0 px-4 pb-4 safe-bottom border-t border-hairline pt-3" style={footerStyle}>
-          <Button fullWidth disabled={busy || !detailsComplete || waitForDetails > 0} onClick={() => void continueWithDetails()}>
+          <Button fullWidth disabled={busy || !detailsComplete} onClick={() => void continueWithDetails()}>
             {busy
               ? (nameOnly ? 'Saving…' : 'Sending…')
               : nameOnly
                 ? 'Continue'
-                : waitForDetails > 0
-                  ? `Send code (${waitForDetails}s)`
+                : explicitSignIn
+                  ? 'Continue'
                   : 'Send code'}
           </Button>
           {codeStillPending && (
@@ -349,11 +279,6 @@ export function SignIn() {
             // (until they request another, which replaces it).
             <Button variant="text" className="w-full mt-2" disabled={busy} onClick={() => { setError(null); setStep('code'); }}>
               Enter the code I already received
-            </Button>
-          )}
-          {passkeySupported && !linking && !nameOnly && (
-            <Button variant="secondary" fullWidth className="mt-3" disabled={busy} onClick={() => void usePasskey()}>
-              {passkeyOnDevice ? `Sign in with ${biometricLabel()}` : `Already set up ${biometricLabel()}? Use it`}
             </Button>
           )}
         </div>
@@ -364,6 +289,15 @@ export function SignIn() {
   return (
     <div className="flex flex-col h-full bg-page">
       <div className="flex-1 overflow-y-auto px-4 pt-14">
+        <button
+          onClick={() => { setStep('details'); setError(null); setCode(''); setMerging(false); }}
+          aria-label="Go back"
+          className="w-11 h-11 flex items-center justify-center -ml-2 mb-3 rounded-full"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
         <h1 className="font-serif text-display mb-6">Check your email</h1>
         <p className="text-label text-secondary mb-6">
           We sent a code to <span className="text-ink">{email}</span>. It may take a minute to arrive — check your spam folder too.
@@ -387,22 +321,17 @@ export function SignIn() {
           />
           {error && <p className="text-label text-error mt-3" role="alert">{error}</p>}
         </form>
-        <div className="flex items-center justify-between mt-6">
-          <Button
-            variant="text"
-            className="px-0"
-            disabled={busy || secondsLeftFor(email) > 0}
-            onClick={() => void resendCode()}
-          >
-            {secondsLeftFor(email) > 0 ? `Resend code in ${secondsLeftFor(email)}s` : 'Resend code'}
-          </Button>
+        <p className="text-label text-secondary mt-3">
+          Didn&apos;t receive a code? Please check your spam folder as well as whether the email above is correct. You can edit it by going back and getting a new code.
+        </p>
+        <div className="mt-6">
           <Button
             variant="text"
             className="px-0"
             disabled={busy}
-            onClick={() => { setStep('details'); setError(null); setCode(''); setMerging(false); setCooldown(null); }}
+            onClick={() => void resendCode()}
           >
-            Change details
+            Resend code
           </Button>
         </div>
       </div>

@@ -38,7 +38,10 @@ export function AppRouter() {
             <WelcomeGuard><Welcome /></WelcomeGuard>
           } />
           <Route path="/sign-in" element={
-            <SignInGuard><SignIn /></SignInGuard>
+            <SignInGuard><SignIn mode="sign-in" /></SignInGuard>
+          } />
+          <Route path="/sign-up" element={
+            <SignInGuard><SignIn mode="sign-up" /></SignInGuard>
           } />
           <Route path="/welcome/name" element={<Navigate to="/sign-in" replace />} />
 
