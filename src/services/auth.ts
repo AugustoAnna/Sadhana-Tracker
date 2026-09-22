@@ -278,7 +278,8 @@ export async function isPasskeySupported(): Promise<boolean> {
 export function biometricLabel(): string {
   const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent;
   if (/iPhone|iPad|iPod|Macintosh/i.test(ua)) return 'Face ID or Touch ID';
-  return 'fingerprint or screen lock';
+  if (/Android/i.test(ua)) return 'fingerprint or face unlock';
+  return 'fingerprint, face unlock, or screen lock';
 }
 
 /** The person dismissed the system prompt — not an error worth showing. */

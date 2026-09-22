@@ -56,6 +56,7 @@ import {
   setOwnerUserId,
   friendlyAuthError,
   retryAfterSeconds,
+  biometricLabel,
   isValidEmail,
   registerDevicePasskey,
   signInWithDevicePasskey,
@@ -171,6 +172,30 @@ describe('helpers', () => {
     expect(retryAfterSeconds('Token has expired')).toBeNull();
     expect(friendlyAuthError('Failed to fetch')).toMatch(/offline/);
     expect(friendlyAuthError('Something unexpected')).toBe('Something unexpected');
+  });
+
+  it('uses device-specific biometric labels', () => {
+    const originalNavigator = globalThis.navigator;
+
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' },
+      configurable: true,
+    });
+    expect(biometricLabel()).toBe('Face ID or Touch ID');
+
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8)' },
+      configurable: true,
+    });
+    expect(biometricLabel()).toBe('fingerprint or face unlock');
+
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      configurable: true,
+    });
+    expect(biometricLabel()).toBe('fingerprint, face unlock, or screen lock');
+
+    Object.defineProperty(globalThis, 'navigator', { value: originalNavigator, configurable: true });
   });
 });
 
