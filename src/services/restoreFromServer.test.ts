@@ -186,4 +186,15 @@ describe('restoreFromServer', () => {
     expect(await restoreFromServer()).toBe(0);
     expect(putInstances).not.toHaveBeenCalled();
   });
+
+  it('uses an explicit auth user id when provided', async () => {
+    tables = {
+      participants: participant,
+      participant_practices: { data: [remoteInstance('i1', 'shambhavi', '2026-08-14T00:00:00Z')], error: null },
+      practice_completed: { data: [], error: null },
+    };
+
+    expect(await restoreFromServer('auth-user-1')).toBe(2);
+    expect(putInstances).toHaveBeenCalled();
+  });
 });

@@ -63,9 +63,11 @@ vi.mock('@/db', () => ({
 vi.mock('./appStore', () => ({
   useAppStore: {
     getState: () => ({
-      profile: { name: profileName },
+      profile: { name: profileName, onboardingComplete: false },
+      instances: [],
       hydrate: async () => { calls.push('hydrate'); },
       setName: async (name: string) => { calls.push(`setName:${name}`); profileName = name; },
+      completePotentialOnboarding: async () => { calls.push('completePotentialOnboarding'); },
     }),
   },
 }));

@@ -33,14 +33,14 @@ export function LandingRedirect() {
     return <Navigate to={profile.name ? '/sign-in' : '/welcome'} replace />;
   }
 
-  // Returning users with practices already chosen go straight home.
-  // Only first-time setup (no practices yet) enters the practice picker.
-  // Reminder/notification setup is not repeated on later sign-ins.
-  if (!profile.onboardingComplete && instances.length === 0) {
-    return <Navigate to="/practices/edit" replace state={{ firstSetup: true }} />;
+  // Returning users go home once they have any practices. Only a brand-new
+  // account with no practices enters the picker. Reminders/notifications are
+  // never forced again on later sign-ins.
+  if (instances.length > 0 || profile.onboardingComplete) {
+    return <Navigate to="/practice-home" replace />;
   }
 
-  return <Navigate to="/practice-home" replace />;
+  return <Navigate to="/practices/edit" replace state={{ firstSetup: true }} />;
 }
 
 /** Everything behind this needs a signed-in account. */

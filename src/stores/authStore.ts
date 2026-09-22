@@ -259,11 +259,11 @@ async function completeSignIn(
 
   const app = useAppStore.getState();
   if (opts.mode === 'sign-in') {
-    // Returning participant on a new (or wiped) device: hydrate from Supabase
-    // before publishing signed-in. Otherwise landing sees an empty local
-    // profile and forces practice/reminder setup again.
+    // Always restore under the verified user id before routing. Sign-out wipes
+    // local data, so without this a returning login looks like first setup.
+    // Link mode keeps the current device history, so it skips restore.
     try {
-      await restoreFromServer();
+      await restoreFromServer(userId);
       await app.hydrate();
     } catch (err) {
       // OTP/passkey verification already established the session. A failed
@@ -278,6 +278,18 @@ async function completeSignIn(
   if (opts.name && opts.name !== useAppStore.getState().profile?.name) {
     await app.setName(opts.name);
   }
+
+  // If practices came back from the server, setup is done even when the
+  // participant row never got onboarding_completed_at written.
+  const restored = useAppStore.getState();
+  if (
+    restored.instances.length > 0
+    && restored.profile
+    && !restored.profile.onboardingComplete
+  ) {
+    await app.completePotentialOnboarding();
+  }
+
   void syncFullState();
 
   useAuthStore.setState({

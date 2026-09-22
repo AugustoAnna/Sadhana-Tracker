@@ -137,11 +137,13 @@ function sourceFromLogMode(mode: 'logged' | 'minutes_added' | 'guided'): Practic
  *
  * Returns the number of rows written, 0 when there was nothing to restore.
  */
-export async function restoreFromServer(): Promise<number> {
+export async function restoreFromServer(authUserIdOverride?: string | null): Promise<number> {
   const supabase = getSupabase();
   if (!supabase || isDemoDatabaseActive()) return 0;
 
-  const authUserId = await getAuthUserId();
+  // Prefer the just-verified session id. getAuthUserId() can briefly lag right
+  // after OTP/passkey verification and would make a returning user look brand new.
+  const authUserId = authUserIdOverride || await getAuthUserId();
   if (!authUserId) return 0;
 
   const { data: participant } = await supabase
