@@ -3,6 +3,14 @@ import { Navigate } from 'react-router-dom';
 import { useAppStore } from '@/stores/appStore';
 import { useAuthStore } from '@/stores/authStore';
 
+function GuardLoading() {
+  return (
+    <div className="h-full flex items-center justify-center bg-page">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
 export function LandingRedirect() {
   const profile = useAppStore((s) => s.profile);
   const instances = useAppStore((s) => s.instances);
@@ -13,7 +21,7 @@ export function LandingRedirect() {
     setReady(true);
   }, []);
 
-  if (!ready || !profile || authState === 'unknown') return null;
+  if (!ready || !profile || authState === 'unknown') return <GuardLoading />;
 
   // A device that has seen the app before (local name, or an anonymous session
   // from the pre-email build) goes straight to sign-in; a brand new one gets
@@ -44,7 +52,7 @@ export function LandingRedirect() {
 /** Everything behind this needs a signed-in account. */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const authState = useAuthStore((s) => s.state);
-  if (authState === 'unknown') return null;
+  if (authState === 'unknown') return <GuardLoading />;
   if (authState !== 'signed-in') {
     return <Navigate to="/sign-in" replace />;
   }
@@ -55,7 +63,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 export function SignInGuard({ children }: { children: React.ReactNode }) {
   const authState = useAuthStore((s) => s.state);
   const profile = useAppStore((s) => s.profile);
-  if (authState === 'unknown') return null;
+  if (authState === 'unknown') return <GuardLoading />;
   if (authState === 'signed-in' && profile?.name) {
     return <Navigate to="/" replace />;
   }
