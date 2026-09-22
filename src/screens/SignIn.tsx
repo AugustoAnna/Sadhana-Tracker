@@ -45,6 +45,8 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const verifyCode = useAuthStore((s) => s.verifyCode);
   const verifyCodeAndMerge = useAuthStore((s) => s.verifyCodeAndMerge);
   const signInWithPasskey = useAuthStore((s) => s.signInWithPasskey);
+  const enablePasskey = useAuthStore((s) => s.enablePasskey);
+  const passkeySupported = useAuthStore((s) => s.passkeySupported);
   const profile = useAppStore((s) => s.profile);
   const setNameStore = useAppStore((s) => s.setName);
   const linking = authState === 'anonymous';
@@ -214,6 +216,12 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
       return;
     }
     void track('sign_in_completed', { linking, merged: merging, method: 'code' });
+    // OTP proves account ownership before this device is enrolled for future
+    // passkey sign-ins. Registration is best-effort and never blocks completion.
+    if (passkeySupported && !useAuthStore.getState().passkeyOnDevice) {
+      const setupResult = await enablePasskey();
+      if (!setupResult) void track('passkey_registered', { where: 'sign_in' });
+    }
     finish();
   };
 
