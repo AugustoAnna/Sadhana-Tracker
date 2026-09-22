@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, TextInput } from '@/components';
 import { useKeyboardInset } from '@/hooks';
@@ -16,6 +16,7 @@ import { APP_ENV } from '@/config/environment';
  */
 const MIN_CODE_LENGTH = 6;
 const MAX_CODE_LENGTH = 10;
+const DEV_BANNER_MS = 7000;
 const isCompleteCode = (value: string) => value.length >= MIN_CODE_LENGTH;
 
 type Step = 'details' | 'code' | 'restoring';
@@ -61,10 +62,13 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
   const [error, setError] = useState<string | null>(null);
   const [passkeyFallbackToCode, setPasskeyFallbackToCode] = useState(false);
   const [devPasskeyError, setDevPasskeyError] = useState<string | null>(null);
+  const [devPasskeyCountdownSec, setDevPasskeyCountdownSec] = useState(0);
   // Set when the anonymous device's email already has an account: the code
   // is a sign-in to that account and the server merges this history into it.
   const [merging, setMerging] = useState(false);
   const codeRef = useRef<HTMLInputElement>(null);
+  const devBannerHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const devBannerTickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useKeyboardInset();
 
@@ -75,6 +79,34 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     : explicitSignIn
       ? trimmedEmail.length > 0
       : trimmedName.length > 0 && trimmedEmail.length > 0;
+
+  const clearDevBannerTimers = () => {
+    if (devBannerHideTimer.current) {
+      clearTimeout(devBannerHideTimer.current);
+      devBannerHideTimer.current = null;
+    }
+    if (devBannerTickTimer.current) {
+      clearInterval(devBannerTickTimer.current);
+      devBannerTickTimer.current = null;
+    }
+  };
+
+  const showDevPasskeyBanner = (message: string) => {
+    const fullMessage = `DEV: ${message}`;
+    clearDevBannerTimers();
+    setDevPasskeyError(fullMessage);
+    setDevPasskeyCountdownSec(Math.ceil(DEV_BANNER_MS / 1000));
+    devBannerTickTimer.current = setInterval(() => {
+      setDevPasskeyCountdownSec((seconds) => Math.max(1, seconds - 1));
+    }, 1000);
+    devBannerHideTimer.current = setTimeout(() => {
+      setDevPasskeyError((value) => (value === fullMessage ? null : value));
+      setDevPasskeyCountdownSec(0);
+      clearDevBannerTimers();
+    }, DEV_BANNER_MS);
+  };
+
+  useEffect(() => () => clearDevBannerTimers(), []);
 
   const continueWithDetails = async () => {
     if (!explicitSignIn && !trimmedName) {
@@ -105,8 +137,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
       setPasskeyFallbackToCode(true);
       if (APP_ENV === 'lab') {
         const message = result === 'cancelled' ? 'Passkey sheet dismissed or not shown' : result;
-        setDevPasskeyError(`DEV: ${message}`);
-        setTimeout(() => setDevPasskeyError((v) => (v === `DEV: ${message}` ? null : v)), 5000);
+        showDevPasskeyBanner(message);
       }
     }
 
@@ -354,9 +385,12 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
       </div>
       {devPasskeyError && (
         <div className="fixed left-4 right-4 bottom-4 z-[70] dev-error-banner bg-card border border-hairline rounded-[14px] p-3 shadow-lg">
-          <p className="text-label text-error">{devPasskeyError}</p>
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-label text-error">{devPasskeyError}</p>
+            <span className="text-meta text-secondary tabular-nums" aria-live="polite">{devPasskeyCountdownSec}s</span>
+          </div>
           <div className="mt-2 h-1 bg-border rounded overflow-hidden">
-            <div className="h-full bg-error dev-error-progress" />
+            <div className="h-full bg-error dev-error-progress" style={{ animationDuration: `${DEV_BANNER_MS}ms` }} />
           </div>
         </div>
       )}
