@@ -201,22 +201,22 @@ describe('helpers', () => {
 
 describe('passkeys', () => {
   it('registers, remembers the passkey for this device and account, and labels it', async () => {
-    const result = await registerDevicePasskey('user-1');
+    const result = await registerDevicePasskey('user-1', 'a@b.co');
     expect(result).toEqual({ error: null, cancelled: false });
-    expect(getDevicePasskey()).toEqual({ userId: 'user-1', passkeyId: 'pk-9' });
+    expect(getDevicePasskey()).toEqual({ userId: 'user-1', email: 'a@b.co', passkeyId: 'pk-9' });
     expect(passkeyUpdate).toHaveBeenCalledWith(expect.objectContaining({ passkeyId: 'pk-9' }));
   });
 
   it('treats a dismissed prompt as cancelled and leaves no device record', async () => {
     registerPasskey.mockResolvedValueOnce({ data: null as never, error: { code: 'ERROR_CEREMONY_ABORTED', message: 'aborted' } });
-    const result = await registerDevicePasskey('user-1');
+    const result = await registerDevicePasskey('user-1', 'a@b.co');
     expect(result).toEqual({ error: null, cancelled: true });
     expect(getDevicePasskey()).toBeNull();
   });
 
   it('explains a relying-party mismatch instead of leaking the raw error', async () => {
     registerPasskey.mockResolvedValueOnce({ data: null as never, error: { code: 'ERROR_INVALID_RP_ID', message: 'rp' } });
-    const { error } = await registerDevicePasskey('user-1');
+    const { error } = await registerDevicePasskey('user-1', 'a@b.co');
     expect(error).toMatch(/aren’t set up for this address/);
   });
 
@@ -229,7 +229,7 @@ describe('passkeys', () => {
   });
 
   it('removes this device\'s passkey from the account and forgets it locally', async () => {
-    setDevicePasskey({ userId: 'user-1', passkeyId: 'pk-9' });
+    setDevicePasskey({ userId: 'user-1', email: 'a@b.co', passkeyId: 'pk-9' });
     expect(await removeDevicePasskey()).toEqual({ error: null });
     expect(passkeyDelete).toHaveBeenCalledWith({ passkeyId: 'pk-9' });
     expect(getDevicePasskey()).toBeNull();

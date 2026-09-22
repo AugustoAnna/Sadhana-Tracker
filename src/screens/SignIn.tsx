@@ -4,7 +4,7 @@ import { Button, TextInput } from '@/components';
 import { useKeyboardInset } from '@/hooks';
 import { useAppStore } from '@/stores/appStore';
 import { useAuthStore } from '@/stores/authStore';
-import { EMAIL_TAKEN_MESSAGE, isValidEmail } from '@/services/auth';
+import { EMAIL_TAKEN_MESSAGE, getDevicePasskey, isValidEmail } from '@/services/auth';
 import { track } from '@/services/instrumentation';
 import { reportAppOpen } from '@/services/appLifecycle';
 import { APP_ENV } from '@/config/environment';
@@ -118,17 +118,24 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     }
 
     if (explicitSignIn) {
-      setBusy(true);
-      setError(null);
-      const result = await signInWithPasskey();
-      if (!result) {
-        void track('sign_in_completed', { linking: false, method: 'passkey' });
-        finish();
-        return;
-      }
-      if (APP_ENV === 'lab') {
-        const message = result === 'cancelled' ? 'Passkey sheet dismissed or not shown' : result;
-        showDevPasskeyBanner(message);
+      // Only attempt biometric sign-in when this device already holds a passkey
+      // for the account whose email was typed. A platform authenticator with no
+      // hint would otherwise auto-select another account's passkey and sign into
+      // the wrong user.
+      const devicePasskey = getDevicePasskey();
+      if (devicePasskey?.email && devicePasskey.email.toLowerCase() === trimmedEmail) {
+        setBusy(true);
+        setError(null);
+        const result = await signInWithPasskey();
+        if (!result) {
+          void track('sign_in_completed', { linking: false, method: 'passkey' });
+          finish();
+          return;
+        }
+        if (APP_ENV === 'lab') {
+          const message = result === 'cancelled' ? 'Passkey sheet dismissed or not shown' : result;
+          showDevPasskeyBanner(message);
+        }
       }
     }
 

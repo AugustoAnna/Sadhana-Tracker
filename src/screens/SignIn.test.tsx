@@ -4,6 +4,18 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { SignIn } from '@/screens/SignIn';
 import { EMAIL_TAKEN_MESSAGE } from '@/services/auth';
 
+const devicePasskey = vi.hoisted(() => ({
+  current: null as { userId: string; email: string | null; passkeyId: string } | null,
+}));
+
+vi.mock('@/services/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/auth')>();
+  return {
+    ...actual,
+    getDevicePasskey: () => devicePasskey.current,
+  };
+});
+
 type CodeResult = { error: string | null; retryAfter?: number | null };
 const ok: CodeResult = { error: null };
 const requestCode = vi.fn<(email: string, opts?: { mode?: string }) => Promise<CodeResult>>();
@@ -51,7 +63,12 @@ function fillDetails(name = 'Priya', email = 'a@b.co') {
   fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
 }
 
+function installDevicePasskey(email: string) {
+  devicePasskey.current = { userId: 'user-pk', email, passkeyId: 'pk-1' };
+}
+
 beforeEach(() => {
+  devicePasskey.current = null;
   requestCode.mockReset().mockResolvedValue(ok);
   verifyCode.mockReset().mockResolvedValue(null);
   verifyCodeAndMerge.mockReset().mockResolvedValue(null);
@@ -329,6 +346,7 @@ describe('SignIn', () => {
 
     it('uses passkey automatically first in sign-in mode when supported', async () => {
       authState.passkeySupported = true;
+      installDevicePasskey('a@b.co');
       renderSignIn('sign-in');
       fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
       fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
@@ -339,12 +357,24 @@ describe('SignIn', () => {
 
     it('falls back to a fresh OTP in sign-in mode when biometrics are dismissed', async () => {
       authState.passkeySupported = true;
+      installDevicePasskey('a@b.co');
       signInWithPasskey.mockResolvedValueOnce('cancelled');
       renderSignIn('sign-in');
       fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
       fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
       await screen.findByText('Check your email');
       expect(signInWithPasskey).toHaveBeenCalledTimes(1);
+      expect(requestCode).toHaveBeenCalledWith('a@b.co', { mode: 'sign-in' });
+    });
+
+    it('does not use another account\'s passkey when the typed email differs', async () => {
+      authState.passkeySupported = true;
+      installDevicePasskey('other@x.co');
+      renderSignIn('sign-in');
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await screen.findByText('Check your email');
+      expect(signInWithPasskey).not.toHaveBeenCalled();
       expect(requestCode).toHaveBeenCalledWith('a@b.co', { mode: 'sign-in' });
     });
 

@@ -210,9 +210,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   enablePasskey: async () => {
-    const { userId } = get();
+    const { userId, email } = get();
     if (!userId) return 'Please sign in first.';
-    const { error, cancelled } = await registerDevicePasskey(userId);
+    const { error, cancelled } = await registerDevicePasskey(userId, email);
     if (cancelled) return 'cancelled';
     if (error) return error;
     set({ passkeyOnDevice: true });
