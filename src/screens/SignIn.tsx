@@ -209,7 +209,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
     const intro = linking
       ? 'Add your email so your practice history stays with you if you change phones. We’ll email you a code to enter here.'
       : nameOnly
-        ? 'Your name is shown on your practices.'
+        ? ''
         : explicitSignIn
           ? `Enter your email to sign in. If ${biometricLabel()} is available on this device, we’ll use it first; otherwise we’ll send a fresh code.`
           : 'We’ll email you a code.';
@@ -229,7 +229,7 @@ export function SignIn({ mode = 'sign-in' }: SignInProps) {
             </button>
           )}
           <h1 className="font-serif text-display mb-6">{heading}</h1>
-          <p className="text-label text-secondary mb-6">{intro}</p>
+          {intro && <p className="text-label text-secondary mb-6">{intro}</p>}
           {/* noValidate: our own messages instead of the browser's tooltips. */}
           <form noValidate className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); void continueWithDetails(); }}>
             {!explicitSignIn && (
