@@ -33,13 +33,11 @@ export function LandingRedirect() {
     return <Navigate to={profile.name ? '/sign-in' : '/welcome'} replace />;
   }
 
-  // Authenticated routing is independent of whether the local name field has
-  // finished restoring. Name is collected during sign-up/setup, not as a gate.
-  if (!profile.onboardingComplete) {
-    if (instances.length === 0) {
-      return <Navigate to="/practices/edit" replace state={{ firstSetup: true }} />;
-    }
-    return <Navigate to="/reminders" replace state={{ firstSetup: true }} />;
+  // Returning users with practices already chosen go straight home.
+  // Only first-time setup (no practices yet) enters the practice picker.
+  // Reminder/notification setup is not repeated on later sign-ins.
+  if (!profile.onboardingComplete && instances.length === 0) {
+    return <Navigate to="/practices/edit" replace state={{ firstSetup: true }} />;
   }
 
   return <Navigate to="/practice-home" replace />;

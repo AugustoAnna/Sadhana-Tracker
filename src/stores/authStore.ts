@@ -257,25 +257,17 @@ async function completeSignIn(
     setDevicePasskey(null);
   }
 
-  // The OTP/passkey ceremony has succeeded. Publish that fact before the
-  // network restore so routing cannot treat a verified user as signed out.
-  useAuthStore.setState({
-    state: 'signed-in',
-    userId,
-    email: session.user.email ?? opts.fallbackEmail,
-    passkeyOnDevice: passkeyOnDeviceFor(userId),
-  });
-
   const app = useAppStore.getState();
   if (opts.mode === 'sign-in') {
     // Returning participant on a new (or wiped) device: hydrate from Supabase
-    // before the landing route decides between onboarding and home.
+    // before publishing signed-in. Otherwise landing sees an empty local
+    // profile and forces practice/reminder setup again.
     try {
       await restoreFromServer();
       await app.hydrate();
     } catch (err) {
       // OTP/passkey verification already established the session. A failed
-      // restore must not send the verified user back to the sign-in screen.
+      // restore must not block sign-in completion.
       console.error('Post-sign-in restore failed:', err);
       await app.hydrate().catch(() => undefined);
     }
@@ -288,4 +280,10 @@ async function completeSignIn(
   }
   void syncFullState();
 
+  useAuthStore.setState({
+    state: 'signed-in',
+    userId,
+    email: session.user.email ?? opts.fallbackEmail,
+    passkeyOnDevice: passkeyOnDeviceFor(userId),
+  });
 }

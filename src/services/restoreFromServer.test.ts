@@ -116,7 +116,7 @@ describe('restoreFromServer', () => {
     expect(putLogs).not.toHaveBeenCalled();
   });
 
-  it('restores a blanked name so the landing guard stops forcing onboarding', async () => {
+  it('marks setup complete and restores the name when practices come back', async () => {
     tables = {
       participants: participant,
       participant_practices: { data: [remoteInstance('i1', 'shambhavi', '2026-08-14T00:00:00Z')], error: null },
@@ -126,7 +126,8 @@ describe('restoreFromServer', () => {
     await restoreFromServer();
 
     expect(updateProfile).toHaveBeenCalledWith('profile', {
-      name: 'Neha Sharma', onboardingComplete: true,
+      onboardingComplete: true,
+      name: 'Neha Sharma',
     });
   });
 

@@ -240,12 +240,17 @@ export async function restoreFromServer(): Promise<number> {
     if (instances.length) await db.practiceInstances.bulkPut(instances);
     if (logs.length) await db.practiceLogs.bulkPut(logs);
     const profile = await db.profile.get('profile');
-    // A restored participant is past onboarding by definition; without this the
-    // landing guard keeps routing them to /welcome on top of their own history.
-    if (profile && !profile.name && participant.name) {
-      await db.profile.update('profile', { name: participant.name, onboardingComplete: true });
-    } else if (profile && logs.length && !profile.onboardingComplete) {
-      await db.profile.update('profile', { onboardingComplete: true });
+    // A restored account with practices or history is past first-time setup.
+    // Without this, landing re-opens the practice picker and reminders.
+    if (profile && !profile.onboardingComplete && (instances.length > 0 || logs.length > 0)) {
+      await db.profile.update('profile', {
+        onboardingComplete: true,
+        ...(!profile.name && participant.name ? { name: participant.name } : {}),
+      });
+      profileRestored = 1;
+    } else if (profile && !profile.name && participant.name) {
+      await db.profile.update('profile', { name: participant.name });
+      profileRestored = 1;
     }
   });
 
