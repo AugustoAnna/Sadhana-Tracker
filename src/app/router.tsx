@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DemoModeIndicator } from '@/components/DemoModeIndicator';
+import { LabIndicator } from '@/components/LabIndicator';
 import { APP_ENV } from '@/config/environment';
 import { isFeatureEnabled } from '@/features';
 import { NotFound } from './NotFound';
@@ -30,6 +31,7 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <div className="h-full max-w-lg mx-auto bg-page shadow-lg relative overflow-hidden">
+        <LabIndicator />
         {isFeatureEnabled('mandala') && <DemoModeIndicator />}
         <Routes>
           <Route path="/" element={<LandingRedirect />} />
@@ -38,7 +40,10 @@ export function AppRouter() {
             <WelcomeGuard><Welcome /></WelcomeGuard>
           } />
           <Route path="/sign-in" element={
-            <SignInGuard><SignIn /></SignInGuard>
+            <SignInGuard><SignIn mode="sign-in" /></SignInGuard>
+          } />
+          <Route path="/sign-up" element={
+            <SignInGuard><SignIn mode="sign-up" /></SignInGuard>
           } />
           <Route path="/welcome/name" element={<Navigate to="/sign-in" replace />} />
 

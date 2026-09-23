@@ -36,7 +36,7 @@ print(f'  -> {len(rows)} rows')
 "
 }
 
-run participants "select id, name, platform, installed_standalone, notification_permission, segment, timezone, created_at from participants where environment = 'study'"
+run participants "select id, name, platform, installed_standalone, notification_permission, segment, timezone, created_at, onboarding_completed_at from participants where environment = 'study'"
 
 run participant_practices "select participant_id, practice_id, instance, created_at from participant_practices where environment = 'study'"
 

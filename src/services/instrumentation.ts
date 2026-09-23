@@ -6,6 +6,7 @@ import { queueSync } from './sync';
 export type InstrumentEvent =
   | 'app_open'
   | 'setup_completed'
+  | 'onboarding_completed'
   | 'practices_changed'
   | 'practice_started'
   | 'practice_quit'

@@ -12,7 +12,6 @@ import { precacheInvocation } from '@/services/audio';
 import { isFeatureEnabled } from '@/features';
 import { track } from '@/services/instrumentation';
 import { updateParticipantFields } from '@/services/sync';
-import { biometricLabel } from '@/services/auth';
 import type { ReminderKey } from '@/types';
 import { getPractice } from '@/data/catalogue';
 import {
@@ -21,10 +20,6 @@ import {
 } from '@/utils/practiceReminders';
 
 const SESSION_PROMPT_KEY = 'notification_prompt_raised';
-
-const DENIED_INSTRUCTIONS_PLACEHOLDER =
-  'TBD-PM: Open your browser settings, find this site under Notifications, and allow notifications. ' +
-  'On iPhone: Settings → Safari → [site] → Notifications. On Android Chrome: site lock icon → Permissions → Notifications.';
 
 function applyPermissionResult(
   result: NotificationPermission,
@@ -66,13 +61,7 @@ export function Reminders() {
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
   const accountEmail = useAuthStore((s) => s.email);
   const signOut = useAuthStore((s) => s.signOut);
-  const passkeySupported = useAuthStore((s) => s.passkeySupported);
-  const passkeyOnDevice = useAuthStore((s) => s.passkeyOnDevice);
-  const enablePasskey = useAuthStore((s) => s.enablePasskey);
-  const disablePasskey = useAuthStore((s) => s.disablePasskey);
   const [signingOut, setSigningOut] = useState(false);
-  const [passkeyBusy, setPasskeyBusy] = useState(false);
-  const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const inSetup = firstSetup || !profile?.onboardingComplete;
 
@@ -171,21 +160,15 @@ export function Reminders() {
   const handleFinishSetup = async () => {
     const r1 = reminders.find((r) => r.id === 1);
     await completeOnboarding(r1?.enabled ?? false);
+    track('onboarding_completed', {
+      reminder_enabled: r1?.enabled ?? false,
+      practice_count: instances.length,
+      notification_permission: permission,
+    });
     if (isFeatureEnabled('invocation')) {
       await precacheInvocation();
     }
     navigate('/practice-home', { replace: true });
-  };
-
-  const handlePasskeyToggle = async () => {
-    setPasskeyBusy(true);
-    setPasskeyError(null);
-    const result = passkeyOnDevice
-      ? await disablePasskey()
-      : await enablePasskey();
-    setPasskeyBusy(false);
-    if (result && result !== 'cancelled') setPasskeyError(result);
-    if (!result) void track(passkeyOnDevice ? 'passkey_removed' : 'passkey_registered', { where: 'reminders' });
   };
 
   const handleSignOut = async () => {
@@ -216,10 +199,7 @@ export function Reminders() {
         {needsPermission && !showConfirmation && (
           <div className="bg-card rounded-[14px] p-4 mb-6">
             {permissionDenied ? (
-              <>
-                <p className="text-body mb-3">Notifications are blocked in your browser.</p>
-                <p className="text-label text-secondary">{DENIED_INSTRUCTIONS_PLACEHOLDER}</p>
-              </>
+              <p className="text-body mb-3">Install the web application to receive reminders</p>
             ) : (
               <>
                 <p className="text-body mb-3">
@@ -291,20 +271,6 @@ export function Reminders() {
             <p className="section-header mb-2">Account</p>
             {accountEmail && (
               <p className="text-label text-secondary mb-3">Signed in as {accountEmail}</p>
-            )}
-            {passkeySupported && (
-              <div className="flex items-center justify-between py-3 border-t border-hairline">
-                <div>
-                  <p className="text-body">{biometricLabel()} sign-in</p>
-                  <p className="text-label text-secondary mt-0.5">
-                    {passkeyOnDevice ? 'On for this device' : 'Skip the emailed code next time'}
-                  </p>
-                  {passkeyError && <p className="text-label text-error mt-1" role="alert">{passkeyError}</p>}
-                </div>
-                <Button variant="secondary" className="px-4 py-2 min-h-0" disabled={passkeyBusy} onClick={() => void handlePasskeyToggle()}>
-                  {passkeyBusy ? '…' : passkeyOnDevice ? 'Turn off' : 'Set up'}
-                </Button>
-              </div>
             )}
             <Button variant="text" className="px-0" disabled={signingOut} onClick={() => void handleSignOut()}>
               {signingOut ? 'Signing out…' : 'Sign out'}

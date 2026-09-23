@@ -22,7 +22,13 @@ import {
   type SignInMode,
 } from '@/services/auth';
 import type { Session } from '@supabase/supabase-js';
-import { drainSyncQueue, resetParticipantCache, restoreFromServer, syncFullState } from '@/services/sync';
+import {
+  drainSyncQueue,
+  ensureParticipantDetailed,
+  resetParticipantCache,
+  restoreFromServer,
+  syncFullState,
+} from '@/services/sync';
 import { useAppStore } from './appStore';
 
 interface AuthStore {
@@ -204,9 +210,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   enablePasskey: async () => {
-    const { userId } = get();
+    const { userId, email } = get();
     if (!userId) return 'Please sign in first.';
-    const { error, cancelled } = await registerDevicePasskey(userId);
+    const { error, cancelled } = await registerDevicePasskey(userId, email);
     if (cancelled) return 'cancelled';
     if (error) return error;
     set({ passkeyOnDevice: true });
@@ -257,25 +263,68 @@ async function completeSignIn(
     setDevicePasskey(null);
   }
 
-  useAuthStore.setState({
-    state: 'signed-in',
-    userId,
-    email: session.user.email ?? opts.fallbackEmail,
-    passkeyOnDevice: passkeyOnDeviceFor(userId),
-  });
-
   const app = useAppStore.getState();
+  let knownParticipant = false;
+
   if (opts.mode === 'sign-in') {
-    // Returning participant on a new (or wiped) device: hydrate from Supabase
-    // before the landing route decides between onboarding and home.
-    await restoreFromServer();
-    await app.hydrate();
+    // Always restore under the verified user id before routing. Sign-out wipes
+    // local data, so without this a returning login looks like first setup.
+    // Link mode keeps the current device history, so it skips restore.
+    try {
+      const restored = await restoreFromServer(userId);
+      knownParticipant = restored.participantFound;
+      await app.hydrate();
+    } catch (err) {
+      // OTP/passkey verification already established the session. A failed
+      // restore must not block sign-in completion.
+      console.error('Post-sign-in restore failed:', err);
+      await app.hydrate().catch(() => undefined);
+    }
   }
+
   // The name they just typed wins over whatever the server or the old local
   // profile held ('Anonymous' placeholders included). setName also queues the
   // participant row update, so the first sync carries the real name.
   if (opts.name && opts.name !== useAppStore.getState().profile?.name) {
     await app.setName(opts.name);
   }
+
+  // Always ensure a participants row exists after successful auth.
+  // Known = a row with this email (or auth user) already existed.
+  // New = row was just created → still show Add Practices.
+  const profile = useAppStore.getState().profile;
+  if (profile) {
+    try {
+      const ensured = await ensureParticipantDetailed(profile);
+      if (ensured.id && !ensured.created) knownParticipant = true;
+    } catch (err) {
+      console.error('Failed to ensure participant after sign-in:', err);
+    }
+  }
+
+  // Email already in participants → skip Add Practices.
+  // Brand-new email/row → keep first-time setup.
+  const current = useAppStore.getState();
+  if (
+    knownParticipant
+    && current.profile
+    && !current.profile.onboardingComplete
+  ) {
+    await app.completePotentialOnboarding();
+  } else if (
+    current.instances.length > 0
+    && current.profile
+    && !current.profile.onboardingComplete
+  ) {
+    await app.completePotentialOnboarding();
+  }
+
   void syncFullState();
+
+  useAuthStore.setState({
+    state: 'signed-in',
+    userId,
+    email: session.user.email ?? opts.fallbackEmail,
+    passkeyOnDevice: passkeyOnDeviceFor(userId),
+  });
 }

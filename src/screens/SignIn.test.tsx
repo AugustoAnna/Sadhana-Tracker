@@ -4,8 +4,20 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { SignIn } from '@/screens/SignIn';
 import { EMAIL_TAKEN_MESSAGE } from '@/services/auth';
 
-type CodeResult = { error: string | null; retryAfter: number | null };
-const ok: CodeResult = { error: null, retryAfter: null };
+const devicePasskey = vi.hoisted(() => ({
+  current: null as { userId: string; email: string | null; passkeyId: string } | null,
+}));
+
+vi.mock('@/services/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/auth')>();
+  return {
+    ...actual,
+    getDevicePasskey: () => devicePasskey.current,
+  };
+});
+
+type CodeResult = { error: string | null; retryAfter?: number | null };
+const ok: CodeResult = { error: null };
 const requestCode = vi.fn<(email: string, opts?: { mode?: string }) => Promise<CodeResult>>();
 const verifyCode = vi.fn<(email: string, code: string, name: string) => Promise<string | null>>();
 const verifyCodeAndMerge = vi.fn<(email: string, code: string, name: string) => Promise<string | null>>();
@@ -32,12 +44,13 @@ vi.mock('@/stores/appStore', () => ({
 vi.mock('@/services/instrumentation', () => ({ track: vi.fn(async () => undefined) }));
 vi.mock('@/services/appLifecycle', () => ({ reportAppOpen: vi.fn(async () => undefined) }));
 vi.mock('@/hooks', () => ({ useKeyboardInset: () => undefined }));
+vi.mock('@/config/environment', () => ({ APP_ENV: 'study' }));
 
-function renderSignIn() {
+function renderSignIn(mode: 'sign-in' | 'sign-up' = 'sign-up') {
   return render(
     <MemoryRouter initialEntries={['/sign-in']}>
       <Routes>
-        <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/sign-in" element={<SignIn mode={mode} />} />
         <Route path="/" element={<p>landed home</p>} />
       </Routes>
     </MemoryRouter>,
@@ -50,7 +63,12 @@ function fillDetails(name = 'Priya', email = 'a@b.co') {
   fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
 }
 
+function installDevicePasskey(email: string) {
+  devicePasskey.current = { userId: 'user-pk', email, passkeyId: 'pk-1' };
+}
+
 beforeEach(() => {
+  devicePasskey.current = null;
   requestCode.mockReset().mockResolvedValue(ok);
   verifyCode.mockReset().mockResolvedValue(null);
   verifyCodeAndMerge.mockReset().mockResolvedValue(null);
@@ -65,6 +83,68 @@ beforeEach(() => {
 });
 
 describe('SignIn', () => {
+  it('asks only for email in explicit sign-in mode', () => {
+    renderSignIn('sign-in');
+
+    expect(screen.queryByLabelText('Your name')).toBeNull();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy();
+  });
+
+  it('verifies an explicit sign-in without sending a name', async () => {
+    signInWithPasskey.mockResolvedValueOnce('cancelled');
+    renderSignIn('sign-in');
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByText('Check your email');
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => expect(verifyCode).toHaveBeenCalledWith('a@b.co', '123456', ''));
+  });
+
+  it('enables a passkey after successful OTP when the device has none', async () => {
+    authState.passkeySupported = true;
+    renderSignIn('sign-up');
+    fillDetails();
+    await screen.findByText('Check your email');
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await screen.findByText('landed home');
+    expect(enablePasskey).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not block OTP sign-in when passkey enrollment is cancelled', async () => {
+    authState.passkeySupported = true;
+    enablePasskey.mockResolvedValueOnce('cancelled');
+    renderSignIn('sign-up');
+    fillDetails();
+    await screen.findByText('Check your email');
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await screen.findByText('landed home');
+    expect(enablePasskey).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-enroll a passkey already on the device', async () => {
+    authState.passkeySupported = true;
+    authState.passkeyOnDevice = true;
+    renderSignIn('sign-up');
+    fillDetails();
+    await screen.findByText('Check your email');
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await screen.findByText('landed home');
+    expect(enablePasskey).not.toHaveBeenCalled();
+  });
+
   it('asks for name and email together and blocks until both are filled', () => {
     renderSignIn();
     const send = () => screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement;
@@ -73,6 +153,20 @@ describe('SignIn', () => {
     expect(send().disabled).toBe(true);
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
     expect(send().disabled).toBe(false);
+  });
+
+  it('keeps explicit sign-up on the name, email, and OTP flow when auth is stale', async () => {
+    authState.state = 'signed-in';
+    renderSignIn('sign-up');
+
+    expect(screen.getByLabelText('Your name')).toBeTruthy();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Priya' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+
+    await screen.findByText('Check your email');
+    expect(requestCode).toHaveBeenCalledWith('a@b.co', undefined);
   });
 
   it('rejects a malformed email without calling the server', async () => {
@@ -87,10 +181,10 @@ describe('SignIn', () => {
     fillDetails('  Priya ', '  Someone@Example.org ');
 
     await screen.findByText('Check your email');
-    expect(requestCode).toHaveBeenCalledWith('someone@example.org');
+    expect(requestCode).toHaveBeenCalledWith('someone@example.org', undefined);
     expect(screen.getByText('someone@example.org')).toBeTruthy();
 
-    const codeInput = screen.getByLabelText('Code from the email');
+    const codeInput = screen.getByLabelText('Code');
     // Non-digits are stripped; length follows the project's OTP setting (6–10),
     // so an 8-digit code must survive intact.
     fireEvent.change(codeInput, { target: { value: '12a345678' } });
@@ -107,11 +201,11 @@ describe('SignIn', () => {
     fillDetails();
     await screen.findByText('Check your email');
 
-    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '000000' } });
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/didn’t work/);
-    expect((screen.getByLabelText('Code from the email') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Code') as HTMLInputElement).value).toBe('');
     expect(screen.queryByText('landed home')).toBeNull();
   });
 
@@ -120,63 +214,69 @@ describe('SignIn', () => {
     fillDetails();
     await screen.findByText('Check your email');
     const cont = () => screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement;
-    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '12345' } });
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '12345' } });
     expect(cont().disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
     expect(cont().disabled).toBe(false);
   });
 
-  it('greys out Resend for 60 s after a send', async () => {
+  it('shows a back button in the code step and returns to details', async () => {
+    renderSignIn();
+    fillDetails('Priya', 'a@b.co');
+    await screen.findByText('Check your email');
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+    expect(screen.getByText('Sign up to track your sadhana')).toBeTruthy();
+  });
+
+  it('does not offer an already-received-code shortcut after going back', async () => {
+    renderSignIn();
+    fillDetails('Priya', 'a@b.co');
+    await screen.findByText('Check your email');
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+    expect(screen.queryByRole('button', { name: 'Enter the code I already received' })).toBeNull();
+  });
+
+  it('shows resend without a countdown and includes the delivery caption', async () => {
     renderSignIn();
     fillDetails();
     await screen.findByText('Check your email');
-    const resend = screen.getByRole('button', { name: /Resend code in (60|59)s/ }) as HTMLButtonElement;
-    expect(resend.disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Change details' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Resend code' })).toBeTruthy();
+    expect(screen.getByText(/Didn't receive a code\?/)).toBeTruthy();
   });
 
-  describe('after Change details', () => {
-    it('lets the same address send a fresh code at once, then greys out Resend again', async () => {
-      renderSignIn();
-      fillDetails('Priya', 'a@b.co');
-      await screen.findByText('Check your email');
-      fireEvent.click(screen.getByRole('button', { name: 'Change details' }));
+  it('surfaces the server wait message when a resend is refused', async () => {
+    renderSignIn();
+    fillDetails('Priya', 'a@b.co');
+    await screen.findByText('Check your email');
+    requestCode.mockResolvedValueOnce({ error: 'A code was sent recently — you can request another in 42s.', retryAfter: 42 });
+    fireEvent.click(screen.getByRole('button', { name: 'Resend code' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/42s/);
+  });
 
-      const send = screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement;
-      expect(send.disabled).toBe(false);
-      fireEvent.click(send);
-      await screen.findByText('Check your email');
-      expect(requestCode).toHaveBeenCalledTimes(2);
-      expect((screen.getByRole('button', { name: /Resend code in \d+s/ }) as HTMLButtonElement).disabled).toBe(true);
-    });
+  it('shows a back button in explicit sign-up mode and goes to welcome', async () => {
+    render(
+      <MemoryRouter initialEntries={['/sign-up']}>
+        <Routes>
+          <Route path="/welcome" element={<p>welcome screen</p>} />
+          <Route path="/sign-up" element={<SignIn mode="sign-up" />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+    await screen.findByText('welcome screen');
+  });
 
-    it('offers the code already received instead of sending again', async () => {
-      renderSignIn();
-      fillDetails('Priya', 'a@b.co');
-      await screen.findByText('Check your email');
-      fireEvent.click(screen.getByRole('button', { name: 'Change details' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Enter the code I already received' }));
-      await screen.findByText('Check your email');
-      expect(requestCode).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not offer the old code for a different address', async () => {
-      renderSignIn();
-      fillDetails('Priya', 'a@b.co');
-      await screen.findByText('Check your email');
-      fireEvent.click(screen.getByRole('button', { name: 'Change details' }));
-      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'other@b.co' } });
-      expect((screen.getByRole('button', { name: 'Send code' }) as HTMLButtonElement).disabled).toBe(false);
-      expect(screen.queryByRole('button', { name: 'Enter the code I already received' })).toBeNull();
-    });
-
-    it('counts down exactly what the server asked for, only when the server refuses', async () => {
-      requestCode.mockResolvedValueOnce({ error: 'A code was sent recently — you can request another in 42s.', retryAfter: 42 });
-      renderSignIn();
-      fillDetails('Priya', 'a@b.co');
-      expect((await screen.findByRole('alert')).textContent).toMatch(/42s/);
-      expect(screen.getByRole('button', { name: /Send code \(4[12]s\)/ })).toBeTruthy();
-    });
+  it('shows a back button in explicit sign-in mode and goes to welcome', async () => {
+    render(
+      <MemoryRouter initialEntries={['/sign-in']}>
+        <Routes>
+          <Route path="/welcome" element={<p>welcome screen</p>} />
+          <Route path="/sign-in" element={<SignIn mode="sign-in" />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+    await screen.findByText('welcome screen');
   });
 
   it('shows the linking copy with the existing name prefilled for a pre-email anonymous session', () => {
@@ -199,7 +299,7 @@ describe('SignIn', () => {
     // second request is a sign-in code for the existing account, not a link attempt
     expect(requestCode).toHaveBeenLastCalledWith('a@b.co', { mode: 'sign-in' });
 
-    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(verifyCodeAndMerge).toHaveBeenCalledWith('a@b.co', '123456', 'Priya'));
     expect(verifyCode).not.toHaveBeenCalled();
@@ -214,7 +314,7 @@ describe('SignIn', () => {
     fillDetails();
     fireEvent.click(await screen.findByRole('button', { name: 'Continue with that account' }));
     await screen.findByText('Check your email');
-    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect((await screen.findByRole('alert')).textContent).toMatch(/history over/);
     expect(screen.queryByText('landed home')).toBeNull();
@@ -228,41 +328,54 @@ describe('SignIn', () => {
     expect(screen.queryByRole('button', { name: 'Continue with that account' })).toBeNull();
   });
 
-  it('only asks for a name when already signed in without one', async () => {
+  it('does not ask for a name on explicit sign-in even when the local name is blank', () => {
     authState.state = 'signed-in';
-    renderSignIn();
-    expect(screen.queryByLabelText('Email')).toBeNull();
-    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Priya' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await screen.findByText('landed home');
-    expect(setName).toHaveBeenCalledWith('Priya');
-    expect(requestCode).not.toHaveBeenCalled();
+    renderSignIn('sign-in');
+
+    expect(screen.queryByLabelText('Your name')).toBeNull();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
   });
 
   describe('passkeys', () => {
-    it('shows no passkey button when the browser cannot do one', () => {
-      renderSignIn();
-      expect(screen.queryByRole('button', { name: /Face ID|fingerprint/ })).toBeNull();
-    });
-
-    it('offers passkey sign-in on the details step and lands home on success', async () => {
+    it('has no visible passkey CTA in sign-in mode', () => {
       authState.passkeySupported = true;
       authState.passkeyOnDevice = true;
-      renderSignIn();
-      fireEvent.click(screen.getByRole('button', { name: /Sign in with/ }));
+      renderSignIn('sign-in');
+      expect(screen.queryByRole('button', { name: /Face ID|Touch ID|fingerprint|passkey/i })).toBeNull();
+    });
+
+    it('uses passkey automatically first in sign-in mode when supported', async () => {
+      authState.passkeySupported = true;
+      installDevicePasskey('a@b.co');
+      renderSignIn('sign-in');
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
       await screen.findByText('landed home');
       expect(signInWithPasskey).toHaveBeenCalledTimes(1);
       expect(requestCode).not.toHaveBeenCalled();
     });
 
-    it('stays put quietly when the system prompt is dismissed', async () => {
+    it('falls back to a fresh OTP in sign-in mode when biometrics are dismissed', async () => {
       authState.passkeySupported = true;
+      installDevicePasskey('a@b.co');
       signInWithPasskey.mockResolvedValueOnce('cancelled');
-      renderSignIn();
-      fireEvent.click(screen.getByRole('button', { name: /Use it/ }));
-      await waitFor(() => expect(signInWithPasskey).toHaveBeenCalled());
-      expect(screen.queryByRole('alert')).toBeNull();
-      expect(screen.getByLabelText('Email')).toBeTruthy();
+      renderSignIn('sign-in');
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await screen.findByText('Check your email');
+      expect(signInWithPasskey).toHaveBeenCalledTimes(1);
+      expect(requestCode).toHaveBeenCalledWith('a@b.co', { mode: 'sign-in' });
+    });
+
+    it('does not use another account\'s passkey when the typed email differs', async () => {
+      authState.passkeySupported = true;
+      installDevicePasskey('other@x.co');
+      renderSignIn('sign-in');
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.co' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await screen.findByText('Check your email');
+      expect(signInWithPasskey).not.toHaveBeenCalled();
+      expect(requestCode).toHaveBeenCalledWith('a@b.co', { mode: 'sign-in' });
     });
 
     it('does not offer a passkey while linking an anonymous session', () => {
@@ -272,43 +385,5 @@ describe('SignIn', () => {
       expect(screen.queryByRole('button', { name: /Face ID|fingerprint/ })).toBeNull();
     });
 
-    it('offers to set up a passkey after a code sign-in, once per device', async () => {
-      authState.passkeySupported = true;
-      renderSignIn();
-      fillDetails();
-      await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-
-      await screen.findByText('Sign in faster next time?');
-      fireEvent.click(screen.getByRole('button', { name: /^Use / }));
-      await screen.findByText('landed home');
-      expect(enablePasskey).toHaveBeenCalledTimes(1);
-    });
-
-    it('lets the offer be skipped', async () => {
-      authState.passkeySupported = true;
-      renderSignIn();
-      fillDetails();
-      await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      await screen.findByText('Sign in faster next time?');
-      fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
-      await screen.findByText('landed home');
-      expect(enablePasskey).not.toHaveBeenCalled();
-    });
-
-    it('skips the offer when this device already has a passkey', async () => {
-      authState.passkeySupported = true;
-      authState.passkeyOnDevice = true;
-      renderSignIn();
-      fillDetails();
-      await screen.findByText('Check your email');
-      fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      await screen.findByText('landed home');
-      expect(screen.queryByText('Sign in faster next time?')).toBeNull();
-    });
   });
 });

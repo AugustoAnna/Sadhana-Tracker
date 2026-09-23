@@ -17,17 +17,13 @@ const square = await image
 
 async function onBackground(input, size, contentSize) {
   const offset = Math.round((size - contentSize) / 2);
+  // Resize the artwork to the safe-zone size first: sharp's composite() has no
+  // `resize` option, so scaling must happen before the overlay is composed.
+  const resized = await sharp(input).resize(contentSize, contentSize).png().toBuffer();
   return sharp({
     create: { width: size, height: size, channels: 4, background: BACKGROUND },
   })
-    .composite([
-      {
-        input,
-        top: offset,
-        left: offset,
-        resize: { width: contentSize, height: contentSize },
-      },
-    ])
+    .composite([{ input: resized, top: offset, left: offset }])
     .png()
     .toBuffer();
 }

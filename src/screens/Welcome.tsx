@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button, PracticeIllustration } from '@/components';
 
 /** Ring layout — central illustration larger, six around in a circle. */
@@ -49,11 +49,16 @@ export function Welcome() {
         </p>
       </div>
 
-      <div className="px-4 pb-4 safe-bottom">
-        {/* One door for everyone: new and returning participants both give name + email next. */}
-        <Button fullWidth onClick={() => navigate('/sign-in')}>
+      <div className="px-4 pb-4 safe-bottom-raised">
+        <Button fullWidth className="welcome-action-label" onClick={() => navigate('/sign-up')}>
           Get started
         </Button>
+        <p className="text-label text-secondary text-center mt-3">
+          Already have an account?{' '}
+          <Link to="/sign-in" className="text-ink welcome-action-label underline underline-offset-2">
+            Sign in
+          </Link>
+        </p>
       </div>
     </div>
   );

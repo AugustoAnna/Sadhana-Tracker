@@ -246,6 +246,7 @@ const DEVICE_PASSKEY_KEY = 'sadhana_device_passkey';
 
 export interface DevicePasskey {
   userId: string;
+  email: string | null;
   passkeyId: string;
 }
 
@@ -278,7 +279,8 @@ export async function isPasskeySupported(): Promise<boolean> {
 export function biometricLabel(): string {
   const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent;
   if (/iPhone|iPad|iPod|Macintosh/i.test(ua)) return 'Face ID or Touch ID';
-  return 'fingerprint or screen lock';
+  if (/Android/i.test(ua)) return 'fingerprint or face unlock';
+  return 'fingerprint, face unlock, or screen lock';
 }
 
 /** The person dismissed the system prompt — not an error worth showing. */
@@ -301,14 +303,14 @@ export function friendlyPasskeyError(error: unknown): string {
 }
 
 /** Register a passkey for the signed-in user and remember it for this device. */
-export async function registerDevicePasskey(userId: string): Promise<{ error: string | null; cancelled: boolean }> {
+export async function registerDevicePasskey(userId: string, email: string | null): Promise<{ error: string | null; cancelled: boolean }> {
   const supabase = getSupabase();
   if (!supabase) return { error: 'Sign-in is not configured.', cancelled: false };
   const { data, error } = await supabase.auth.registerPasskey();
   if (error) {
     return { error: isPasskeyCancelled(error) ? null : friendlyPasskeyError(error), cancelled: isPasskeyCancelled(error) };
   }
-  setDevicePasskey({ userId, passkeyId: data.id });
+  setDevicePasskey({ userId, email, passkeyId: data.id });
   // Best effort label so the account's passkey list reads sensibly.
   void supabase.auth.passkey.update({ passkeyId: data.id, friendlyName: deviceLabel() }).catch(() => undefined);
   return { error: null, cancelled: false };

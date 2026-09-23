@@ -82,7 +82,7 @@ Fill from **Project Settings → API** in the [Supabase dashboard](https://supab
 
 | Table | Purpose |
 |---|---|
-| `participants` | One row per anonymous auth user (name, platform, segment, environment) |
+| `participants` | One row per auth user (name, email, platform, segment, environment, `onboarding_completed_at`) |
 | `practices` | Read-only practice catalogue (seeded — see below) |
 | `participant_practices` | Practices added to the participant's list |
 | `practice_completed` | Every logged practice session |
