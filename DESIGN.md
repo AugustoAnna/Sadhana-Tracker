@@ -26,7 +26,7 @@ Heat map bands (R5) are unchanged.
 
 ## Dark mode
 
-`<html data-theme="dark">` swaps the Semantics values above. It is on from 6pm to 6am local time, and whenever the device is in dark mode (`src/services/theme.ts`; `index.html` sets it before first paint).
+`<html data-theme="dark">` swaps the Semantics values above. It is on from 6pm to 6am local time, and whenever the device is in dark mode (`src/services/theme.ts`; `index.html` sets it before first paint). To test at any hour, open the app with `?theme=dark` or `?theme=light`; it sticks on that device until `?theme=auto`.
 
 - Warm near-blacks (page `#141311`, card `#211F1B`) and off-white ink `#ECE8DF`, not pure black/white. Every text/surface pair clears WCAG AA.
 - Filled teal (`bg-primary`) is unchanged so white labels read the same. Teal as text/icon uses `text-primary-text`, which brightens to `#35B5A2`.

@@ -48,8 +48,27 @@ function applyTheme(theme: Theme): void {
   if (useThemeStore.getState().theme !== theme) useThemeStore.setState({ theme });
 }
 
+const OVERRIDE_KEY = 'theme-override';
+
+/**
+ * Testing switch: `?theme=dark` or `?theme=light` pins the theme on this
+ * device regardless of the clock, `?theme=auto` goes back to it. Remembered so
+ * it survives in-app navigation dropping the query string.
+ */
+export function readOverride(): Theme | null {
+  try {
+    const param = new URLSearchParams(window.location.search).get('theme');
+    if (param === 'dark' || param === 'light') localStorage.setItem(OVERRIDE_KEY, param);
+    else if (param === 'auto') localStorage.removeItem(OVERRIDE_KEY);
+    const stored = localStorage.getItem(OVERRIDE_KEY);
+    return stored === 'dark' || stored === 'light' ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
 function refresh(): void {
-  applyTheme(resolveTheme(new Date(), darkQuery()?.matches ?? false));
+  applyTheme(readOverride() ?? resolveTheme(new Date(), darkQuery()?.matches ?? false));
 }
 
 let boundaryTimer: ReturnType<typeof setTimeout> | null = null;
