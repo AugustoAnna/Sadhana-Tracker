@@ -207,7 +207,7 @@ export function PracticeHome() {
             <p className="section-header">My practices</p>
             <button
               onClick={() => navigate('/practices/edit')}
-              className="w-11 h-11 flex items-center justify-center text-primary"
+              className="w-11 h-11 flex items-center justify-center text-primary-text"
               aria-label="Edit practices"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -219,7 +219,7 @@ function SetupPracticeRow({
         disabled={!added && atCap}
         className={`px-3 py-1.5 rounded-[7px] text-meta font-semibold min-h-11 flex-shrink-0 disabled:opacity-30 ${
           added
-            ? 'border-2 border-primary text-primary'
+            ? 'border-2 border-primary text-primary-text'
             : 'bg-primary text-white'
         }`}
       >
