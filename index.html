@@ -14,10 +14,18 @@
     <title>Sadhana Tracker</title>
     <script>
       // Pick the theme before first paint so evenings don't flash white.
-      // Mirrors resolveTheme() in src/services/theme.ts, which takes over once the app loads.
+      // Mirrors readOverride()/resolveTheme() in src/services/theme.ts, which takes over once the app loads.
       (function () {
+        var override = null;
+        try {
+          var param = new URLSearchParams(location.search).get('theme');
+          if (param === 'dark' || param === 'light') localStorage.setItem('theme-override', param);
+          else if (param === 'auto') localStorage.removeItem('theme-override');
+          override = localStorage.getItem('theme-override');
+        } catch (e) {}
         var h = new Date().getHours();
-        var dark = h >= 18 || h < 6 || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        var dark = override === 'dark' || (override !== 'light' &&
+          (h >= 18 || h < 6 || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)));
         if (dark) {
           document.documentElement.dataset.theme = 'dark';
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '#141311');

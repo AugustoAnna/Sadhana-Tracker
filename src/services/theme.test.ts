@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { isNight, msUntilNextBoundary, resolveTheme } from './theme';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { isNight, msUntilNextBoundary, readOverride, resolveTheme } from './theme';
 
 const at = (h: number, m = 0) => new Date(2026, 8, 26, h, m, 0, 0);
 
@@ -44,5 +44,48 @@ describe('msUntilNextBoundary', () => {
   it('moves past a boundary it is sitting on', () => {
     expect(msUntilNextBoundary(at(18, 0))).toBeGreaterThan(0);
     expect(minutes(msUntilNextBoundary(new Date(2026, 8, 26, 18, 0, 1, 0)))).toBe(12 * 60);
+  });
+});
+
+describe('readOverride', () => {
+  const visit = (search: string) => window.history.replaceState(null, '', `/${search}`);
+
+  beforeEach(() => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    visit('');
+  });
+
+  it('follows the clock when no override was asked for', () => {
+    expect(readOverride()).toBeNull();
+  });
+
+  it('pins the theme from ?theme= and remembers it after the query is gone', () => {
+    visit('?theme=dark');
+    expect(readOverride()).toBe('dark');
+    visit('');
+    expect(readOverride()).toBe('dark');
+    visit('?theme=light');
+    expect(readOverride()).toBe('light');
+  });
+
+  it('goes back to the clock with ?theme=auto', () => {
+    visit('?theme=dark');
+    readOverride();
+    visit('?theme=auto');
+    expect(readOverride()).toBeNull();
+  });
+
+  it('ignores values it does not know', () => {
+    visit('?theme=purple');
+    expect(readOverride()).toBeNull();
   });
 });
