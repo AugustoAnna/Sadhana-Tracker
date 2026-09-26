@@ -52,7 +52,7 @@ function Wheel({ items, selected, onSelect, label }: {
             <div
               key={item}
               className={`h-10 flex items-center justify-center snap-center text-lg ${
-                item === selected ? 'font-bold text-gray-900' : 'text-gray-400'
+                item === selected ? 'font-bold text-gray-900 dark:text-ink' : 'text-gray-400 dark:text-faint'
               }`}
             >
               {typeof item === 'number' ? item.toString().padStart(2, '0') : item}
@@ -76,8 +76,8 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
   }, [hour, minute, period]);
 
   return (
-    <div className="bg-gray-100 rounded-xl p-2 flex gap-1 relative">
-      <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-10 bg-white/60 rounded-lg pointer-events-none" />
+    <div className="bg-field rounded-xl p-2 flex gap-1 relative">
+      <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-10 bg-field-highlight rounded-lg pointer-events-none" />
       <Wheel items={HOURS} selected={hour} onSelect={(v) => setHour(v as number)} label="Hour" />
       <Wheel items={MINUTES} selected={minute} onSelect={(v) => setMinute(v as number)} label="Minute" />
       <Wheel items={PERIODS} selected={period} onSelect={(v) => setPeriod(v as string)} label="Period" />

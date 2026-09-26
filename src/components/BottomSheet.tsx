@@ -34,7 +34,7 @@ export function BottomSheet({
         <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       )}
       {!dismissOnBackdrop && <div className="absolute inset-0 bg-black/50" />}
-      <div className="relative w-full bg-page rounded-t-[18px] px-4 pt-4 pb-8 safe-bottom max-h-[85vh] overflow-y-auto">
+      <div className="relative w-full bg-raised rounded-t-[18px] px-4 pt-4 pb-8 safe-bottom max-h-[85vh] overflow-y-auto">
         <div className={`flex items-center justify-between mb-4 ${hideCloseButton ? '' : 'pr-8'}`}>
           {title && <h2 className="font-serif text-headline flex-1 text-center">{title}</h2>}
           {!hideCloseButton && (

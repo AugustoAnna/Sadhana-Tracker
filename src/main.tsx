@@ -7,6 +7,7 @@ import { initSyncListener, restoreFromServer, syncFullState } from '@/services/s
 import { initAppLifecycle } from '@/services/appLifecycle';
 import { initDayRollover } from '@/services/dayRollover';
 import { initServiceWorkerUpdates } from '@/services/swUpdate';
+import { initTheme } from '@/services/theme';
 import { ensureDatabasesReady, recoverFromInterruptedDemo } from '@/services/demoMode';
 import { track } from '@/services/instrumentation';
 import './index.css';
@@ -16,6 +17,7 @@ import { registerSW } from 'virtual:pwa-register';
 registerSW({ immediate: true });
 
 initServiceWorkerUpdates();
+initTheme();
 
 if ('serviceWorker' in navigator) {
   // Delivery receipts the worker could not post (offline when the push

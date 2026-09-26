@@ -214,7 +214,7 @@ export function Reminders() {
         )}
 
         {showConfirmation && (
-          <div className="bg-primary/10 rounded-[14px] p-4 mb-6 text-center text-body text-primary">
+          <div className="bg-primary/10 rounded-[14px] p-4 mb-6 text-center text-body text-primary-text">
             Reminders are on
           </div>
         )}

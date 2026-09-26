@@ -24,7 +24,7 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
-      <div className={`relative rounded-2xl p-6 w-full max-w-sm ${dark ? 'bg-[#2A2418] text-white' : 'bg-white'}`}>
+      <div className={`relative rounded-2xl p-6 w-full max-w-sm ${dark ? 'bg-[#2A2418] text-white' : 'bg-raised'}`}>
         <h2 className="font-serif text-xl font-semibold mb-2">{title}</h2>
         <p className={`mb-6 text-sm ${dark ? 'text-white/80' : 'text-secondary'}`}>{message}</p>
         <div className="flex flex-col gap-3">
