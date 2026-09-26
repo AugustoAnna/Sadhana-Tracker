@@ -33,6 +33,19 @@
   --color-journey: #C6530F;           /* journey/accent */
   --color-error: #D32F2F;
 
+  /*
+    Split out for dark mode — each light value is exactly what these spots
+    rendered before, so light mode is unchanged.
+  */
+  --color-primary-text: #0D8A7A;      /* teal as text/icon; brightens in dark */
+  --color-raised: #FFFFFF;            /* sheets and dialogs above the page */
+  --color-success: #2D8A4E;           /* completed tick */
+  --color-faint: #9B9B9B;             /* lock icons, unselected picker rows */
+  --color-field: oklch(96.7% 0.003 264.542);        /* picker well, locked tile */
+  --color-field-highlight: rgb(255 255 255 / 0.6);  /* picker selection band */
+  --color-switch-off: oklch(87.2% 0.01 258.338);
+  --gradient-player: radial-gradient(ellipse at center, #A88B34 0%, #7D6528 100%);
+
   /* Type */
   --font-serif: "Fraunces", Georgia, serif;
   --font-sans: "DM Sans", system-ui, sans-serif;
@@ -44,6 +57,51 @@
   --radius-cream: 14px;
   --radius-sheet: 18px;
 }
+
+/*
+  Dark theme — set on <html data-theme="dark"> by src/services/theme.ts
+  (after 6pm until 6am, or when the device is in dark mode).
+
+  Warm near-blacks rather than neutral grey so cream/brass/teal still feel
+  like the same palette, and an off-white ink rather than pure white to cut
+  glare in the evening. Every text/surface pair here clears WCAG AA (4.5:1).
+  Filled teal buttons keep the light-mode teal so white labels read the same.
+*/
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-primary-text: #35B5A2;
+  --color-primary-dark: #0A6B5E;
+
+  --color-page: #141311;
+  --color-raised: #1C1A17;
+  --color-card: #211F1B;
+  --color-cream: #211F1B;
+  --color-sunken: #36322B;            /* progress track sits on card */
+  --color-placeholder: #2B2824;
+
+  --color-ink: #ECE8DF;
+  --color-secondary: #B5AFA4;
+  --color-muted: #9C968B;
+  --color-brass: #CDB47A;
+  --color-faint: #6F6A62;
+
+  --color-ground: #5E4D22;
+  --color-player: #5E4D22;
+  --color-header: #2A3E3F;
+  --color-border: #403B34;
+  --color-hairline: #2D2A25;
+  --color-journey: #E8834A;
+  --color-error: #F07171;
+  --color-success: #5CC27F;
+
+  --color-field: #2A2723;
+  --color-field-highlight: rgb(255 255 255 / 0.07);
+  --color-switch-off: #4A453D;
+  --gradient-player: radial-gradient(ellipse at center, #7A6526 0%, #3F3313 100%);
+}
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 * {
   -webkit-tap-highlight-color: transparent;
@@ -128,6 +186,26 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-brass);
+}
+
+/*
+  Light text on a dark ground reads heavier than the same weight in light mode,
+  so the scale steps down one weight. DM Sans has 500 and Fraunces has 600
+  loaded, so nothing falls back to faux weights.
+*/
+[data-theme="dark"] body,
+[data-theme="dark"] .text-body,
+[data-theme="dark"] .text-meta,
+[data-theme="dark"] .text-title,
+[data-theme="dark"] .section-header,
+[data-theme="dark"] .eyebrow {
+  font-weight: 500;
+}
+
+[data-theme="dark"] .text-display,
+[data-theme="dark"] .text-headline,
+[data-theme="dark"] .text-stat {
+  font-weight: 600;
 }
 
 .safe-bottom {
