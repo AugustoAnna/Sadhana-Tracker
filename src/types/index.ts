@@ -53,6 +53,8 @@ export interface Profile {
   notificationPermissionAsked: boolean;
   trackerIntroSeen: boolean;
   featureDiscoveryStep: number;
+  /** Start of the empty-day run the missed-day sheet last showed for (yyyy-MM-dd). Local only. */
+  missedSheetRunKey?: string | null;
 }
 
 export type ReminderSlot = 1 | 2 | 3;

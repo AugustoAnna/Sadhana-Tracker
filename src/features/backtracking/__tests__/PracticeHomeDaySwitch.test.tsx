@@ -6,8 +6,9 @@ import type { PracticeInstance, PracticeLog } from '@/types';
 const TODAY = '2026-09-30';
 const YESTERDAY = '2026-09-29';
 
+// Added today, so the missed-day sheet (tested separately) never opens here.
 function inst(id: string, practiceId: string, order: number): PracticeInstance {
-  return { id, practiceId, instanceNumber: 1, order, addedAt: 0 };
+  return { id, practiceId, instanceNumber: 1, order, addedAt: Date.parse(`${TODAY}T06:00:00`) };
 }
 
 function log(instanceId: string, practiceId: string, localDate: string, minutes: number): PracticeLog {
@@ -31,6 +32,7 @@ const state = {
   logPractice: vi.fn(),
   setPlayerSession: vi.fn(),
   markFirstRecordReassuranceShown: vi.fn(),
+  markMissedSheetShown: vi.fn(),
 };
 
 vi.mock('@/stores/appStore', () => ({

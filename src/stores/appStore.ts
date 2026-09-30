@@ -63,6 +63,7 @@ interface AppStore {
   showToast: (msg: string) => void;
   clearToast: () => void;
   markInstanceEducationShown: () => Promise<void>;
+  markMissedSheetShown: (runKey: LocalDate) => Promise<void>;
   markFirstRecordReassuranceShown: () => Promise<void>;
   setFeatureDiscoveryStep: (step: number) => Promise<void>;
   enterDemoMode: (stateId: DemoStateId) => Promise<void>;
@@ -459,6 +460,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const db = getDb();
     await db.profile.update('profile', { instanceEducationShown: true });
     set({ profile: { ...get().profile!, instanceEducationShown: true } });
+  },
+
+  markMissedSheetShown: async (runKey) => {
+    const db = getDb();
+    await db.profile.update('profile', { missedSheetRunKey: runKey });
+    set({ profile: { ...get().profile!, missedSheetRunKey: runKey } });
   },
 
   markFirstRecordReassuranceShown: async () => {

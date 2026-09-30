@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PracticeCard, BottomSheet, MinutePicker, Button,
@@ -19,6 +19,8 @@ import { EVENTS } from '@/features/backtracking/analyticsNames';
 import { yesterdayOf } from '@/features/backtracking/dates';
 import { DaySwitcher } from '@/features/backtracking/DaySwitcher';
 import { removedPracticesOn } from '@/features/backtracking/removedPractices';
+import { missedDayDecision, type MissedVariant } from '@/features/backtracking/missedDayRule';
+import { MissedDaySheet, type MissedDayAnswer } from '@/features/backtracking/MissedDaySheet';
 import type { BacktrackRoute, DayKey, LocalDate } from '@/features/backtracking/types';
 
 export function PracticeHome() {
@@ -29,6 +31,7 @@ export function PracticeHome() {
   const setPlayerSession = useAppStore((s) => s.setPlayerSession);
   const profile = useAppStore((s) => s.profile);
   const markFirstRecordReassuranceShown = useAppStore((s) => s.markFirstRecordReassuranceShown);
+  const markMissedSheetShown = useAppStore((s) => s.markMissedSheetShown);
   const playerSession = useAppStore((s) => s.playerSession);
   const haptic = useHaptic();
 
@@ -43,6 +46,9 @@ export function PracticeHome() {
   // day is still today, so a rollover drops back to Today in the same render.
   // Screen state, so every new visit to this screen opens on Today.
   const [yesterdayPick, setYesterdayPick] = useState<{ madeOn: LocalDate; route: BacktrackRoute } | null>(null);
+  const [missedSheet, setMissedSheet] = useState<{ variant: MissedVariant } | null>(null);
+  const shownRunKeyRef = useRef<LocalDate | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [reassuranceOpen, setReassuranceOpen] = useState(false);
   const reassuranceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -62,6 +68,27 @@ export function PracticeHome() {
     () => (onYesterday ? removedPracticesOn(logs, instances, selectedDate) : []),
     [onYesterday, logs, instances, selectedDate],
   );
+
+  // Ask about yesterday when the screen opens and when the day changes — not
+  // on every log. The run key is saved at once, so a reload doesn't ask again;
+  // the ref covers the gap before that save lands (and StrictMode's re-run).
+  useEffect(() => {
+    const decision = missedDayDecision(logs, instances, profile?.missedSheetRunKey, today);
+    if (!decision.show || decision.runKey === shownRunKeyRef.current) return;
+    shownRunKeyRef.current = decision.runKey;
+    setMissedSheet({ variant: decision.variant });
+    void markMissedSheetShown(decision.runKey);
+    track(EVENTS.missedSheetShown, { variant: decision.variant, gap_days: decision.gapDays });
+  }, [today]);
+
+  const answerMissedDay = (answer: MissedDayAnswer) => {
+    if (missedSheet) track(EVENTS.missedSheetAnswered, { variant: missedSheet.variant, answer });
+    setMissedSheet(null);
+    if (answer === 'log') {
+      setYesterdayPick({ madeOn: today, route: 'sheet' });
+      if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    }
+  };
 
   const switchDay = (to: DayKey) => {
     setYesterdayPick(to === 'yesterday' ? { madeOn: today, route: 'switcher' } : null);
@@ -150,7 +177,7 @@ export function PracticeHome() {
   };
 
   return (
-    <div className="h-full overflow-y-auto pb-8 bg-page">
+    <div ref={scrollRef} className="h-full overflow-y-auto pb-8 bg-page">
       {/* Compact header: app name left, reminders bell right, no bar behind it. */}
       <header className="flex items-center justify-between px-4 pt-3 text-ink">
         <h1 className="font-serif text-headline flex-1 text-center pl-11" style={{ fontSize: '22px' }}>Sadhana Tracker</h1>
@@ -262,6 +289,14 @@ export function PracticeHome() {
           {minuteMode === 'play' ? 'Start practice' : 'Add'}
         </Button>
       </BottomSheet>
+
+      <MissedDaySheet
+        open={!!missedSheet}
+        variant={missedSheet?.variant ?? 1}
+        name={profile?.name?.trim() ?? ''}
+        practiceId={sortedInstances[0]?.practiceId ?? 'default'}
+        onAnswer={answerMissedDay}
+      />
 
       <BottomSheet
         open={reassuranceOpen}
