@@ -41,29 +41,45 @@ vi.mock('@/services/supabase', () => ({
 
 import { drainSyncQueue } from '@/services/sync';
 
-describe('practice_completed sync with SYNC_BACKTRACK_COLUMNS off', () => {
-  it('sends a backtracked log without the backtrack or route columns', async () => {
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    const log: PracticeLog = {
-      id: 'log-1',
-      practiceId: 'isha-kriya',
-      instanceId: 'inst-1',
-      minutes: 12,
-      timestamp: Date.parse('2026-09-30T08:00:00'),
-      localDate: '2026-09-29',
-      source: 'checkbox',
-      wasOffline: false,
-      backtrack: true,
-      route: 'switcher',
-    };
-    queue = [{ id: 'q1', table: 'practice_completed', operation: 'insert', createdAt: 1, payload: log }];
+function practiceLog(overrides: Partial<PracticeLog>): PracticeLog {
+  return {
+    id: 'log-1',
+    practiceId: 'isha-kriya',
+    instanceId: 'inst-1',
+    minutes: 12,
+    timestamp: Date.parse('2026-09-30T08:00:00'),
+    localDate: '2026-09-30',
+    source: 'checkbox',
+    wasOffline: false,
+    ...overrides,
+  };
+}
 
-    await drainSyncQueue();
+async function sync(log: PracticeLog) {
+  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+  upserts.length = 0;
+  queue = [{ id: 'q1', table: 'practice_completed', operation: 'insert', createdAt: 1, payload: log }];
+  await drainSyncQueue();
+  expect(queue).toEqual([]);
+  return upserts.find((u) => u.id === log.id);
+}
 
-    const row = upserts.find((u) => u.id === 'log-1');
-    expect(row).toMatchObject({ local_date: '2026-09-29' });
-    expect(row).not.toHaveProperty('backtrack');
-    expect(row).not.toHaveProperty('route');
-    expect(queue).toEqual([]);
+describe('practice_completed backtrack columns', () => {
+  it('marks a yesterday log with its route', async () => {
+    const row = await sync(practiceLog({ localDate: '2026-09-29', backtrack: true, route: 'sheet' }));
+
+    expect(row).toMatchObject({ local_date: '2026-09-29', backtrack: true, route: 'sheet' });
+  });
+
+  it('defaults a yesterday log without a route to the switcher', async () => {
+    const row = await sync(practiceLog({ localDate: '2026-09-29', backtrack: true }));
+
+    expect(row).toMatchObject({ backtrack: true, route: 'switcher' });
+  });
+
+  it('sends a same-day log, or one queued before backtracking existed, as not backtracked', async () => {
+    const row = await sync(practiceLog({}));
+
+    expect(row).toMatchObject({ backtrack: false, route: null });
   });
 });

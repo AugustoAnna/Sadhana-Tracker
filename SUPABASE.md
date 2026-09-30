@@ -104,6 +104,7 @@ supabase/migrations/003_seed_practices.sql
 supabase/migrations/004_push_subscriptions.sql
 supabase/migrations/006_participant_email.sql          (participants.email + view refresh)
 supabase/migrations/007_merge_participants.sql         (merge_participants() + participants.merged_into)
+supabase/migrations/009_practice_backtrack.sql         (practice_completed.backtrack/route + study view refresh; run before deploying the app that sends them)
 supabase/migrations/20260807100000_initial_schema.sql   (v2, superseded)
 ```
 

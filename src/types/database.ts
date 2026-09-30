@@ -111,6 +111,8 @@ export type Database = {
           occurred_at: string;
           environment: string;
           created_at: string;
+          backtrack: boolean;
+          route: 'switcher' | 'sheet' | 'push' | null;
         };
         Insert: {
           id?: string;
@@ -124,7 +126,6 @@ export type Database = {
           occurred_at?: string;
           environment: string;
           created_at?: string;
-          // Backtracking columns (backend B3). Sent only when SYNC_BACKTRACK_COLUMNS is on.
           backtrack?: boolean;
           route?: 'switcher' | 'sheet' | 'push' | null;
         };
