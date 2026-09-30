@@ -8,7 +8,6 @@ interface PracticeCardProps {
   instance: PracticeInstance;
   allInstances: PracticeInstance[];
   completed: boolean;
-  completedTwice: boolean;
   timedMinutesToday?: number;
   onCheckbox?: () => void;
   onPlus?: () => void;
@@ -31,7 +30,6 @@ export function PracticeCard({
   instance,
   allInstances,
   completed,
-  completedTwice: _completedTwice,
   timedMinutesToday = 0,
   onCheckbox,
   onPlus,

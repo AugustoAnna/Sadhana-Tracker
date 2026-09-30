@@ -15,6 +15,8 @@ interface BottomSheetProps {
 const DRAG_SLOP_PX = 6;
 const DISMISS_FRACTION = 0.25;
 const DISMISS_VELOCITY_PX_PER_MS = 0.5;
+/** A finger held still this long before lifting is not a flick, however fast it moved before. */
+const FLICK_MAX_PAUSE_MS = 100;
 
 interface Drag {
   pointerId: number;
@@ -85,7 +87,9 @@ export function BottomSheet({
     if (!drag?.active || e.pointerId !== drag.pointerId) return;
     const height = panelRef.current?.offsetHeight ?? 0;
     const dy = Math.max(0, e.clientY - drag.startY);
-    if (dy > height * DISMISS_FRACTION || drag.velocity > DISMISS_VELOCITY_PX_PER_MS) {
+    const flicked = performance.now() - drag.lastT <= FLICK_MAX_PAUSE_MS
+      && drag.velocity > DISMISS_VELOCITY_PX_PER_MS;
+    if (dy > height * DISMISS_FRACTION || flicked) {
       onClose();
       return;
     }

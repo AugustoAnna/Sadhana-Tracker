@@ -49,7 +49,6 @@ export interface Profile {
   /** ISO timestamp of finishing setup; mirrors participants.onboarding_completed_at. */
   onboardingCompletedAt?: string;
   instanceEducationShown: boolean;
-  firstRecordReassuranceShown: boolean;
   notificationPermissionAsked: boolean;
   trackerIntroSeen: boolean;
   featureDiscoveryStep: number;

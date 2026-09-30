@@ -6,6 +6,8 @@ import type { LocalDate } from './types';
 export interface RemovedPractice {
   instanceId: string;
   practiceId: string;
+  /** 1st/2nd among removed instances of the same practice, by first log. */
+  instanceNumber: 1 | 2;
   minutes: number;
 }
 
@@ -20,7 +22,7 @@ export function removedPracticesOn(
   date: LocalDate,
 ): RemovedPractice[] {
   const current = new Set(instances.map((i) => i.id));
-  const byInstance = new Map<string, RemovedPractice & { firstAt: number }>();
+  const byInstance = new Map<string, Omit<RemovedPractice, 'instanceNumber'> & { firstAt: number }>();
   for (const log of getLogsForDay(logs, date)) {
     if (current.has(log.instanceId) || !getPractice(log.practiceId)) continue;
     const seen = byInstance.get(log.instanceId);
@@ -36,7 +38,14 @@ export function removedPracticesOn(
       });
     }
   }
+  // The log doesn't record the instance number, so two removed instances of
+  // one practice are told apart by which was logged first.
+  const seenPerPractice = new Map<string, number>();
   return [...byInstance.values()]
     .sort((a, b) => a.firstAt - b.firstAt)
-    .map(({ firstAt: _firstAt, ...rest }) => rest);
+    .map(({ firstAt: _firstAt, ...rest }) => {
+      const n = (seenPerPractice.get(rest.practiceId) ?? 0) + 1;
+      seenPerPractice.set(rest.practiceId, n);
+      return { ...rest, instanceNumber: (n >= 2 ? 2 : 1) as 1 | 2 };
+    });
 }

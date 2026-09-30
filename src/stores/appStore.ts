@@ -29,9 +29,15 @@ interface AppStore {
   isDemoMode: boolean;
   /** Local calendar day the UI is currently rendering. See refreshDay. */
   currentDay: string;
+  /**
+   * The launch-time pull from the server has finished (or failed). Until then
+   * local logs may miss ones made on another device.
+   */
+  remoteRestoreSettled: boolean;
 
   hydrate: () => Promise<void>;
   refreshDay: () => Promise<void>;
+  markRemoteRestoreSettled: () => void;
   setName: (name: string) => Promise<void>;
   setMeditatorStatus: (isMeditator: boolean) => Promise<void>;
   setDrawnToType: (type: DrawnToType) => Promise<void>;
@@ -64,7 +70,6 @@ interface AppStore {
   clearToast: () => void;
   markInstanceEducationShown: () => Promise<void>;
   markMissedSheetShown: (runKey: LocalDate) => Promise<void>;
-  markFirstRecordReassuranceShown: () => Promise<void>;
   setFeatureDiscoveryStep: (step: number) => Promise<void>;
   enterDemoMode: (stateId: DemoStateId) => Promise<void>;
   exitDemoMode: () => Promise<void>;
@@ -83,6 +88,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   toast: null,
   isDemoMode: false,
   currentDay: todayKey(),
+  remoteRestoreSettled: false,
 
   hydrate: async () => {
     const db = getDb();
@@ -108,6 +114,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       currentDay: todayKey(),
     });
   },
+
+  markRemoteRestoreSettled: () => set({ remoteRestoreSettled: true }),
 
   refreshDay: async () => {
     const day = todayKey();
@@ -466,12 +474,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const db = getDb();
     await db.profile.update('profile', { missedSheetRunKey: runKey });
     set({ profile: { ...get().profile!, missedSheetRunKey: runKey } });
-  },
-
-  markFirstRecordReassuranceShown: async () => {
-    const db = getDb();
-    await db.profile.update('profile', { firstRecordReassuranceShown: true });
-    set({ profile: { ...get().profile!, firstRecordReassuranceShown: true } });
   },
 
   setFeatureDiscoveryStep: async (step) => {

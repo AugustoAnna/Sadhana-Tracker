@@ -27,12 +27,12 @@ const state = {
   instances: [] as PracticeInstance[],
   logs: [] as PracticeLog[],
   currentDay: TODAY,
-  profile: { firstRecordReassuranceShown: true },
+  remoteRestoreSettled: true,
+  profile: {},
   playerSession: null,
   logPractice: vi.fn(),
   setPlayerSession: vi.fn(),
-  markFirstRecordReassuranceShown: vi.fn(),
-  markMissedSheetShown: vi.fn(),
+  markMissedSheetShown: vi.fn().mockResolvedValue(undefined),
 };
 
 vi.mock('@/stores/appStore', () => ({
@@ -171,6 +171,19 @@ describe('Practice home day switcher', () => {
     expect(within(row).getByLabelText('Completed')).toBeTruthy();
     expect(within(row).queryByRole('button')).toBeNull();
     expect(statValues()).toEqual(['3', '65']);
+  });
+
+  it('tells two removed instances of one practice apart', () => {
+    state.logs = [
+      ...state.logs,
+      { ...log('gone-1', 'angamardana', YESTERDAY, 30), timestamp: Date.parse(`${YESTERDAY}T07:00:00`) },
+      { ...log('gone-2', 'angamardana', YESTERDAY, 30), timestamp: Date.parse(`${YESTERDAY}T18:00:00`) },
+    ];
+    renderHome();
+    fireEvent.click(screen.getByLabelText('Show yesterday'));
+
+    expect(screen.getByText('1st')).toBeTruthy();
+    expect(screen.getByText('2nd')).toBeTruthy();
   });
 
   it('returns to Today when the day rolls over', () => {

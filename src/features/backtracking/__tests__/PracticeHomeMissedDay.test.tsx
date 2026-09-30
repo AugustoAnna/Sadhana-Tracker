@@ -22,12 +22,12 @@ const state = {
   instances: [] as PracticeInstance[],
   logs: [] as PracticeLog[],
   currentDay: TODAY,
-  profile: { name: 'Asha', firstRecordReassuranceShown: true, missedSheetRunKey: null as string | null },
+  remoteRestoreSettled: true,
+  profile: { name: 'Asha', missedSheetRunKey: null as string | null },
   playerSession: null,
   logPractice: vi.fn(),
   setPlayerSession: vi.fn(),
-  markFirstRecordReassuranceShown: vi.fn(),
-  markMissedSheetShown: vi.fn(),
+  markMissedSheetShown: vi.fn().mockResolvedValue(undefined),
 };
 
 vi.mock('@/stores/appStore', () => ({
@@ -55,9 +55,11 @@ const home = () => (
 beforeEach(() => {
   vi.clearAllMocks();
   state.currentDay = TODAY;
+  state.remoteRestoreSettled = true;
+  state.markMissedSheetShown.mockResolvedValue(undefined);
   state.instances = [{ id: 'surya', practiceId: 'surya-kriya', instanceNumber: 1, order: 0, addedAt: Date.parse('2026-09-01T09:00:00') }];
   state.logs = [log('2026-09-28')];
-  state.profile = { name: 'Asha', firstRecordReassuranceShown: true, missedSheetRunKey: null };
+  state.profile = { name: 'Asha', missedSheetRunKey: null };
 });
 
 describe('Missed-day sheet on practice home', () => {
@@ -161,5 +163,54 @@ describe('Missed-day sheet on practice home', () => {
 
     expect(screen.getByText('Did you practice yesterday?')).toBeTruthy();
     expect(state.markMissedSheetShown).toHaveBeenCalledWith(TODAY);
+  });
+
+  it('waits for the launch-time server pull before deciding', () => {
+    state.remoteRestoreSettled = false;
+    const { rerender } = render(home());
+    expect(screen.queryByText('Did you practice yesterday?')).toBeNull();
+
+    // Another device had logged yesterday; the pull brings it in.
+    state.logs = [...state.logs, log(YESTERDAY)];
+    state.remoteRestoreSettled = true;
+    rerender(home());
+
+    expect(screen.queryByText('Did you practice yesterday?')).toBeNull();
+    expect(state.markMissedSheetShown).not.toHaveBeenCalled();
+  });
+
+  it('asks once the pull settles when yesterday is still empty', () => {
+    state.remoteRestoreSettled = false;
+    const { rerender } = render(home());
+
+    state.remoteRestoreSettled = true;
+    rerender(home());
+
+    expect(screen.getByText('Did you practice yesterday?')).toBeTruthy();
+  });
+
+  it('waits for an open sheet to close instead of stacking on it', () => {
+    state.instances = [{ id: 'aum', practiceId: 'aum-chanting', instanceNumber: 1, order: 0, addedAt: Date.parse('2026-09-01T09:00:00') }];
+    state.logs = [{ ...log(YESTERDAY), instanceId: 'aum', practiceId: 'aum-chanting' }];
+    const { rerender } = render(home());
+    fireEvent.click(screen.getByLabelText('Log minutes'));
+
+    // Midnight passes with the picker open; 30 Sep had no log.
+    state.currentDay = '2026-10-01';
+    rerender(home());
+    expect(screen.queryByText('Did you practice yesterday?')).toBeNull();
+
+    fireEvent.click(screen.getByLabelText('Close'));
+    expect(screen.getByText('Did you practice yesterday?')).toBeTruthy();
+  });
+
+  it('survives failing to save the run key', async () => {
+    state.markMissedSheetShown.mockRejectedValue(new Error('IndexedDB unavailable'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(home());
+
+    await vi.waitFor(() => expect(consoleError).toHaveBeenCalled());
+    expect(screen.getByText('Did you practice yesterday?')).toBeTruthy();
+    consoleError.mockRestore();
   });
 });

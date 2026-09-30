@@ -269,7 +269,7 @@ export async function restoreFromServer(
       .order('created_at'),
     supabase
       .from('practice_completed')
-      .select('id, practice_id, instance, minutes, mode, was_offline, local_date, occurred_at')
+      .select('id, practice_id, instance, minutes, mode, was_offline, local_date, occurred_at, backtrack, route')
       .eq('participant_id', participant.id),
   ]);
   if (remoteInstances.error || remoteLogs.error) {
@@ -319,6 +319,8 @@ export async function restoreFromServer(
       localDate: row.local_date,
       source: sourceFromLogMode(row.mode as 'logged' | 'minutes_added' | 'guided'),
       wasOffline: row.was_offline ?? false,
+      // Carried back so syncFullState's re-upload doesn't clear the marker.
+      ...(row.backtrack && { backtrack: true, route: row.route ?? 'switcher' }),
     });
   }
 

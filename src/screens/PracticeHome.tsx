@@ -8,8 +8,8 @@ import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
 import { getResolvedKind } from '@/data/practiceAssets';
 import {
-  getPracticesCompletedOn, getMinutesForDay,
-  isInstanceCompletedOn, isInstanceCompletedTwiceOn, getTimedMinutesOn,
+  getLogsForDay, getPracticesCompletedOn, getMinutesForDay,
+  isInstanceCompletedOn, getTimedMinutesOn,
 } from '@/utils/dates';
 import { sortTrackingInstances } from '@/utils/sortInstances';
 import { useHaptic } from '@/hooks';
@@ -30,8 +30,8 @@ export function PracticeHome() {
   const logPractice = useAppStore((s) => s.logPractice);
   const setPlayerSession = useAppStore((s) => s.setPlayerSession);
   const profile = useAppStore((s) => s.profile);
-  const markFirstRecordReassuranceShown = useAppStore((s) => s.markFirstRecordReassuranceShown);
   const markMissedSheetShown = useAppStore((s) => s.markMissedSheetShown);
+  const remoteRestoreSettled = useAppStore((s) => s.remoteRestoreSettled);
   const playerSession = useAppStore((s) => s.playerSession);
   const haptic = useHaptic();
 
@@ -49,8 +49,6 @@ export function PracticeHome() {
   const [missedSheet, setMissedSheet] = useState<{ variant: MissedVariant } | null>(null);
   const shownRunKeyRef = useRef<LocalDate | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [reassuranceOpen, setReassuranceOpen] = useState(false);
-  const reassuranceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sortedInstances = useMemo(() => sortTrackingInstances(instances), [instances]);
 
@@ -62,24 +60,39 @@ export function PracticeHome() {
   const onYesterday = day === 'yesterday';
   const selectedDate = onYesterday ? yesterdayOf(today) : today;
   const route = onYesterday ? yesterdayPick?.route : undefined;
-  const dayMinutes = getMinutesForDay(logs, selectedDate);
-  const dayCompleted = getPracticesCompletedOn(logs, selectedDate);
+  // The day's logs once per change, not a full-history scan per row.
+  const dayLogs = useMemo(() => getLogsForDay(logs, selectedDate), [logs, selectedDate]);
+  const dayMinutes = getMinutesForDay(dayLogs, selectedDate);
+  const dayCompleted = getPracticesCompletedOn(dayLogs, selectedDate);
   const removedPractices = useMemo(
-    () => (onYesterday ? removedPracticesOn(logs, instances, selectedDate) : []),
-    [onYesterday, logs, instances, selectedDate],
+    () => (onYesterday ? removedPracticesOn(dayLogs, instances, selectedDate) : []),
+    [onYesterday, dayLogs, instances, selectedDate],
+  );
+  const removedInstances = useMemo(
+    () => removedPractices.map((r) => ({
+      id: r.instanceId, practiceId: r.practiceId, instanceNumber: r.instanceNumber, order: r.instanceNumber, addedAt: 0,
+    })),
+    [removedPractices],
   );
 
   // Ask about yesterday when the screen opens and when the day changes — not
-  // on every log. The run key is saved at once, so a reload doesn't ask again;
-  // the ref covers the gap before that save lands (and StrictMode's re-run).
+  // on every log. It waits for the launch-time server pull (another device may
+  // have logged yesterday) and for any open sheet to close, rather than
+  // stacking on it. The run key is saved at once, so a reload doesn't ask
+  // again; the ref covers the gap before that save lands (and StrictMode's
+  // re-run).
+  const otherSheetOpen = !!minuteSheet;
   useEffect(() => {
+    if (!remoteRestoreSettled || otherSheetOpen) return;
     const decision = missedDayDecision(logs, instances, profile?.missedSheetRunKey, today);
     if (!decision.show || decision.runKey === shownRunKeyRef.current) return;
     shownRunKeyRef.current = decision.runKey;
     setMissedSheet({ variant: decision.variant });
-    void markMissedSheetShown(decision.runKey);
+    markMissedSheetShown(decision.runKey).catch((err) => {
+      console.error('Failed to save the missed-day run key:', err);
+    });
     track(EVENTS.missedSheetShown, { variant: decision.variant, gap_days: decision.gapDays });
-  }, [today]);
+  }, [today, remoteRestoreSettled, otherSheetOpen]);
 
   const answerMissedDay = (answer: MissedDayAnswer) => {
     if (missedSheet) track(EVENTS.missedSheetAnswered, { variant: missedSheet.variant, answer });
@@ -117,22 +130,9 @@ export function PracticeHome() {
 
   const handleCheckbox = async (instanceId: string) => {
     haptic();
-    const showReassurance = !profile?.firstRecordReassuranceShown;
     await logPractice(instanceId, getDefaultLogMinutes(
       instances.find((i) => i.id === instanceId)!.practiceId,
     ), 'checkbox', { date: selectedDate, route });
-    if (showReassurance) {
-      if (reassuranceTimerRef.current) clearTimeout(reassuranceTimerRef.current);
-      reassuranceTimerRef.current = setTimeout(() => {
-        setReassuranceOpen(true);
-        reassuranceTimerRef.current = null;
-      }, 500);
-    }
-  };
-
-  const handleDismissReassurance = () => {
-    setReassuranceOpen(false);
-    void markFirstRecordReassuranceShown();
   };
 
   const handleConfirmMinutes = async () => {
@@ -237,9 +237,8 @@ export function PracticeHome() {
                   instance={inst}
                   allInstances={instances}
                   day={day}
-                  completed={isInstanceCompletedOn(logs, inst.id, selectedDate)}
-                  completedTwice={isInstanceCompletedTwiceOn(logs, inst.id, selectedDate)}
-                  timedMinutesToday={getTimedMinutesOn(logs, inst.id, selectedDate)}
+                  completed={isInstanceCompletedOn(dayLogs, inst.id, selectedDate)}
+                  timedMinutesToday={getTimedMinutesOn(dayLogs, inst.id, selectedDate)}
                   onCheckbox={() => handleCheckbox(inst.id)}
                   onPlus={() => openMinuteSheet(inst.id, 'log')}
                   // Nothing is played "for yesterday": logging only.
@@ -247,14 +246,13 @@ export function PracticeHome() {
                   playSessionActive={playerSession?.practiceInstanceIds[0] === inst.id}
                 />
               ))}
-              {removedPractices.map((r) => (
+              {removedPractices.map((r, i) => (
                 <PracticeCard
                   key={r.instanceId}
-                  instance={{ id: r.instanceId, practiceId: r.practiceId, instanceNumber: 1, order: 0, addedAt: 0 }}
-                  allInstances={[]}
+                  instance={removedInstances[i]}
+                  allInstances={removedInstances}
                   day={day}
                   completed
-                  completedTwice={false}
                   timedMinutesToday={r.minutes}
                   readOnly
                 />
@@ -297,21 +295,6 @@ export function PracticeHome() {
         practiceId={sortedInstances[0]?.practiceId ?? 'default'}
         onAnswer={answerMissedDay}
       />
-
-      <BottomSheet
-        open={reassuranceOpen}
-        onClose={handleDismissReassurance}
-        title="That's recorded"
-        hideCloseButton
-        dismissOnBackdrop={false}
-      >
-        <p className="text-label text-secondary mb-6">
-          Nothing to confirm and nothing to save. You can close the app — it is kept, even without internet.
-        </p>
-        <Button fullWidth onClick={handleDismissReassurance}>
-          Got it
-        </Button>
-      </BottomSheet>
     </div>
   );
 }

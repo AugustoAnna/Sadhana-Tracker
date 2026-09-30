@@ -79,6 +79,21 @@ describe('BottomSheet swipe to dismiss', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('springs back when a quick short drag pauses before release', () => {
+    const onClose = vi.fn();
+    sheet(onClose);
+
+    fireEvent.pointerDown(panel(), { pointerId: 1, clientY: 100 });
+    now += 10;
+    fireEvent.pointerMove(panel(), { pointerId: 1, clientY: 120 });
+    now += 10;
+    fireEvent.pointerMove(panel(), { pointerId: 1, clientY: 140 }); // 2 px/ms
+    now += 800; // held still, then lifted
+    fireEvent.pointerUp(panel(), { pointerId: 1, clientY: 140 });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('follows the finger while dragging', () => {
     sheet(vi.fn());
 
