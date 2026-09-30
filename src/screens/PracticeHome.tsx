@@ -14,6 +14,13 @@ import {
 import { sortTrackingInstances } from '@/utils/sortInstances';
 import { useHaptic } from '@/hooks';
 import { track } from '@/services/instrumentation';
+import { COPY } from '@/copy/strings';
+import { BACKTRACK_ENABLED } from '@/features/backtracking/config';
+import { EVENTS } from '@/features/backtracking/analyticsNames';
+import { yesterdayOf } from '@/features/backtracking/dates';
+import { DaySwitcher } from '@/features/backtracking/DaySwitcher';
+import { removedPracticesOn } from '@/features/backtracking/removedPractices';
+import type { BacktrackRoute, DayKey, LocalDate } from '@/features/backtracking/types';
 
 export function PracticeHome() {
   const navigate = useNavigate();
@@ -30,6 +37,13 @@ export function PracticeHome() {
   const [minuteMode, setMinuteMode] = useState<'log' | 'play'>('log');
   const [selectedMinutes, setSelectedMinutes] = useState(10);
   const [minuteDefault, setMinuteDefault] = useState(10);
+  // The day a log-mode picker writes to, fixed when it opens: Add after
+  // midnight still lands on the day the picker was opened for.
+  const [pickerDay, setPickerDay] = useState<{ date: LocalDate; referenceDay: LocalDate; route?: BacktrackRoute } | null>(null);
+  // Yesterday, and the day it was chosen on. The choice only holds while that
+  // day is still today, so a rollover drops back to Today in the same render.
+  // Screen state, so every new visit to this screen opens on Today.
+  const [yesterdayPick, setYesterdayPick] = useState<{ madeOn: LocalDate; route: BacktrackRoute } | null>(null);
   const [reassuranceOpen, setReassuranceOpen] = useState(false);
   const reassuranceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -38,8 +52,22 @@ export function PracticeHome() {
   // Read the day from the store rather than the clock: this is what re-renders
   // the screen when the app is resumed after midnight (see initDayRollover).
   const today = useAppStore((s) => s.currentDay);
-  const todayMinutes = getMinutesForDay(logs, today);
-  const completedToday = getPracticesCompletedOn(logs, today);
+  const canSwitchDay = BACKTRACK_ENABLED && instances.length > 0;
+  const day: DayKey = canSwitchDay && yesterdayPick?.madeOn === today ? 'yesterday' : 'today';
+  const onYesterday = day === 'yesterday';
+  const selectedDate = onYesterday ? yesterdayOf(today) : today;
+  const route = onYesterday ? yesterdayPick?.route : undefined;
+  const dayMinutes = getMinutesForDay(logs, selectedDate);
+  const dayCompleted = getPracticesCompletedOn(logs, selectedDate);
+  const removedPractices = useMemo(
+    () => (onYesterday ? removedPracticesOn(logs, instances, selectedDate) : []),
+    [onYesterday, logs, instances, selectedDate],
+  );
+
+  const switchDay = (to: DayKey) => {
+    setYesterdayPick(to === 'yesterday' ? { madeOn: today, route: 'switcher' } : null);
+    track(EVENTS.daySwitched, to === 'yesterday' ? { to, route: 'switcher' } : { to });
+  };
 
   const bellAction = (
     <button onClick={() => navigate('/reminders')} aria-label="Reminders" className="w-11 h-11 flex items-center justify-center">
@@ -57,6 +85,7 @@ export function PracticeHome() {
     setMinuteDefault(defaultMin);
     setSelectedMinutes(defaultMin);
     setMinuteMode(mode);
+    setPickerDay({ date: selectedDate, referenceDay: today, route });
     setMinuteSheet(instanceId);
   };
 
@@ -65,7 +94,7 @@ export function PracticeHome() {
     const showReassurance = !profile?.firstRecordReassuranceShown;
     await logPractice(instanceId, getDefaultLogMinutes(
       instances.find((i) => i.id === instanceId)!.practiceId,
-    ), 'checkbox');
+    ), 'checkbox', { date: selectedDate, route });
     if (showReassurance) {
       if (reassuranceTimerRef.current) clearTimeout(reassuranceTimerRef.current);
       reassuranceTimerRef.current = setTimeout(() => {
@@ -98,7 +127,7 @@ export function PracticeHome() {
       });
       navigate('/player');
     } else {
-      await logPractice(minuteSheet, selectedMinutes, 'minutes');
+      await logPractice(minuteSheet, selectedMinutes, 'minutes', pickerDay ?? undefined);
     }
     setMinuteSheet(null);
   };
@@ -130,15 +159,23 @@ export function PracticeHome() {
       </header>
 
       <div className="px-4">
-        <section className="mt-5">
-          <p className="section-header mb-2">Today</p>
+        <section className={canSwitchDay ? 'mt-3' : 'mt-5'}>
+          {/* The switcher is the heading for the day: it governs the stat cards
+              and the ticks below, never the cumulative progress further down. */}
+          {canSwitchDay ? (
+            <div className="mb-1">
+              <DaySwitcher day={day} onChange={switchDay} />
+            </div>
+          ) : (
+            <p className="section-header mb-2">{COPY.tracker.day.today}</p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-card rounded-[14px] p-3 border border-hairline">
-              <p className="text-stat text-ink">{completedToday}</p>
+              <p className="text-stat text-ink">{dayCompleted}</p>
               <p className="text-label text-secondary mt-1">practices completed</p>
             </div>
             <div className="bg-card rounded-[14px] p-3 border border-hairline">
-              <p className="text-stat text-ink">{todayMinutes}</p>
+              <p className="text-stat text-ink">{dayMinutes}</p>
               <p className="text-label text-secondary mt-1">minutes practiced</p>
             </div>
           </div>
@@ -173,13 +210,27 @@ export function PracticeHome() {
                   key={inst.id}
                   instance={inst}
                   allInstances={instances}
-                  completed={isInstanceCompletedOn(logs, inst.id, today)}
-                  completedTwice={isInstanceCompletedTwiceOn(logs, inst.id, today)}
-                  timedMinutesToday={getTimedMinutesOn(logs, inst.id, today)}
+                  day={day}
+                  completed={isInstanceCompletedOn(logs, inst.id, selectedDate)}
+                  completedTwice={isInstanceCompletedTwiceOn(logs, inst.id, selectedDate)}
+                  timedMinutesToday={getTimedMinutesOn(logs, inst.id, selectedDate)}
                   onCheckbox={() => handleCheckbox(inst.id)}
                   onPlus={() => openMinuteSheet(inst.id, 'log')}
-                  onPlay={() => handlePlay(inst.id)}
+                  // Nothing is played "for yesterday": logging only.
+                  onPlay={onYesterday ? undefined : () => handlePlay(inst.id)}
                   playSessionActive={playerSession?.practiceInstanceIds[0] === inst.id}
+                />
+              ))}
+              {removedPractices.map((r) => (
+                <PracticeCard
+                  key={r.instanceId}
+                  instance={{ id: r.instanceId, practiceId: r.practiceId, instanceNumber: 1, order: 0, addedAt: 0 }}
+                  allInstances={[]}
+                  day={day}
+                  completed
+                  completedTwice={false}
+                  timedMinutesToday={r.minutes}
+                  readOnly
                 />
               ))}
             </div>
@@ -198,7 +249,13 @@ export function PracticeHome() {
       <BottomSheet
         open={!!minuteSheet}
         onClose={() => setMinuteSheet(null)}
-        title={minuteMode === 'play' ? 'How long will you practice?' : 'How long did you practice?'}
+        title={
+          minuteMode === 'play'
+            ? 'How long will you practice?'
+            : pickerDay && pickerDay.date !== pickerDay.referenceDay
+              ? COPY.tracker.minutePicker.titleYesterday
+              : COPY.tracker.minutePicker.titleToday
+        }
         key={minuteSheet ?? 'closed'}
       >
         <MinutePicker initialValue={minuteDefault} onChange={setSelectedMinutes} />

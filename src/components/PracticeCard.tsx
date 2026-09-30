@@ -16,6 +16,10 @@ interface PracticeCardProps {
   onAdd?: () => void;
   showAdd?: boolean;
   playSessionActive?: boolean;
+  /** Which day the row is showing; a past day drops "so far" from timed minutes. */
+  day?: 'today' | 'yesterday';
+  /** A done row with no controls — a practice logged that day but since removed. */
+  readOnly?: boolean;
 }
 
 function formatDuration(minutes: number | null): string {
@@ -35,6 +39,8 @@ export function PracticeCard({
   onAdd,
   showAdd,
   playSessionActive = false,
+  day = 'today',
+  readOnly = false,
 }: PracticeCardProps) {
   const practice = getPractice(instance.practiceId);
   if (!practice) return null;
@@ -43,7 +49,11 @@ export function PracticeCard({
 
   const metadataLine = (() => {
     if (kind === 'timed') {
-      if (timedMinutesToday > 0) return `${timedMinutesToday} mins practiced so far`;
+      if (timedMinutesToday > 0) {
+        return day === 'today'
+          ? `${timedMinutesToday} mins practiced so far`
+          : `${timedMinutesToday} mins practiced`;
+      }
       return null;
     }
     return formatDuration(practice.minutes);
@@ -51,7 +61,13 @@ export function PracticeCard({
 
   return (
     <div className="flex items-center gap-3 py-3 px-3">
-      {showAdd ? (
+      {readOnly ? (
+        <div className="w-11 h-11 flex items-center justify-center flex-shrink-0" aria-label="Completed">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D8A4E" strokeWidth="2.5">
+            <path d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+      ) : showAdd ? (
         <button
           onClick={onAdd}
           className="px-3 py-1.5 rounded-[7px] bg-primary text-white text-meta font-semibold flex-shrink-0 min-h-11"
@@ -97,7 +113,7 @@ export function PracticeCard({
         )}
       </div>
 
-      {(kind === 'guided' || kind === 'timed') && onPlay && (
+      {(kind === 'guided' || kind === 'timed') && onPlay && !readOnly && (
         <button
           onClick={onPlay}
           disabled={playSessionActive}

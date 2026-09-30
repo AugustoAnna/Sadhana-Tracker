@@ -3,6 +3,16 @@ export const COPY = {
     header: {
       title: 'My Practices',
     },
+    day: {
+      today: 'Today',
+      yesterday: 'Yesterday',
+      showToday: 'Show today',
+      showYesterday: 'Show yesterday',
+    },
+    minutePicker: {
+      titleToday: 'How long did you practice?',
+      titleYesterday: 'How long did you practice yesterday?',
+    },
   },
   setup: {
     header: {
