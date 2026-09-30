@@ -18,7 +18,9 @@ Method:
   - Restrict to named, non-test participants (collapsed by name) who have a
     timezone recorded on at least one of their device-rows.
   - For each such person, convert every practice_completed.occurred_at (UTC)
-    to their local wall-clock time using their timezone (zoneinfo).
+    to their local wall-clock time using their timezone (zoneinfo). Logs
+    made for yesterday (backtrack = true) are left out: their occurred_at is
+    when they were entered, not when the practice happened.
   - Reminder group: people with >=1 enabled reminder (reminders.enabled =
     true). A log "converts" if its local time-of-day falls within
     [reminder_time_local, reminder_time_local + 3h) for ANY of that person's
@@ -135,6 +137,8 @@ def main():
     for r in completed:
         name = pid_to_name.get(r["participant_id"])
         if name is None or name not in eligible_names:
+            continue
+        if r.get("backtrack", "").lower() in ("true", "t"):
             continue
         tz = ZoneInfo(name_tz[name])
         utc_dt = parse_utc(r["occurred_at"])

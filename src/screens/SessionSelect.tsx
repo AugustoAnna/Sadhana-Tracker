@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BackHeader, StickyAction, PracticeIllustration } from '@/components';
 import { useAppStore } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
-import { isInstanceCompletedTwiceToday } from '@/utils/dates';
+import { isInstanceCompletedOn, isInstanceCompletedTwiceOn } from '@/utils/dates';
 import { formatInstanceName, getInstanceSuffix } from '@/utils/instances';
 
 export function SessionSelect() {
@@ -12,19 +12,19 @@ export function SessionSelect() {
   const logs = useAppStore((s) => s.logs);
   const savedSessions = useAppStore((s) => s.savedSessions);
   const setSessionDraft = useAppStore((s) => s.setSessionDraft);
+  const today = useAppStore((s) => s.currentDay);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [otherOpen, setOtherOpen] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   const availableInstances = instances.filter(
-    (i) => !isInstanceCompletedTwiceToday(logs, i.id),
+    (i) => !isInstanceCompletedTwiceOn(logs, i.id, today),
   );
 
   const primaryInstances = availableInstances.filter((i) => {
-    const completedOnce = logs.some(
-      (l) => l.instanceId === i.id && new Date(l.timestamp).toDateString() === new Date().toDateString(),
-    );
+    // By localDate, not timestamp: a log added today for yesterday is not done today.
+    const completedOnce = isInstanceCompletedOn(logs, i.id, today);
     if (completedOnce && i.instanceNumber === 1) return false;
     return !completedOnce;
   });
@@ -51,7 +51,7 @@ export function SessionSelect() {
     const newSelected = new Set<string>();
     let needsExpand = false;
     for (const id of instanceIds) {
-      if (!isInstanceCompletedTwiceToday(logs, id)) {
+      if (!isInstanceCompletedTwiceOn(logs, id, today)) {
         const inst = instances.find((i) => i.id === id);
         if (!inst) continue;
         if (otherInstances.some((o) => o.id === id)) needsExpand = true;

@@ -185,7 +185,6 @@ async function seedDatabase(database: SadhanaDB): Promise<void> {
           durationPreference: null,
           onboardingComplete: false,
           instanceEducationShown: false,
-          firstRecordReassuranceShown: false,
           notificationPermissionAsked: false,
           trackerIntroSeen: false,
           featureDiscoveryStep: 0,

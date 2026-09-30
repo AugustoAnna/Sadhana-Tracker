@@ -1,6 +1,7 @@
 import { APP_ENV } from '@/config/environment';
 import { getDb, isDemoDatabaseActive } from '@/db';
 import { formatDateKey } from '@/utils/dates';
+import type { BacktrackEvent } from '@/features/backtracking/analyticsNames';
 import { queueSync } from './sync';
 
 export type InstrumentEvent =
@@ -20,7 +21,8 @@ export type InstrumentEvent =
   | 'sign_in_completed'
   | 'sign_out'
   | 'passkey_registered'
-  | 'passkey_removed';
+  | 'passkey_removed'
+  | BacktrackEvent;
 
 interface TrackPayload {
   [key: string]: unknown;

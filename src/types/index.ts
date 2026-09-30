@@ -1,3 +1,5 @@
+import type { BacktrackRoute } from '@/features/backtracking/types';
+
 export type PracticeType = 'guided' | 'unguided' | 'timed';
 
 export type LogSource = 'checkbox' | 'minutes' | 'player';
@@ -31,6 +33,10 @@ export interface PracticeLog {
   localDate: string;
   source: LogSource;
   wasOffline?: boolean;
+  /** True when localDate was the day before the write. Absent on older rows = false. */
+  backtrack?: boolean;
+  /** How the user reached Yesterday for this write. Present only when backtrack. */
+  route?: BacktrackRoute;
 }
 
 export interface Profile {
@@ -43,10 +49,11 @@ export interface Profile {
   /** ISO timestamp of finishing setup; mirrors participants.onboarding_completed_at. */
   onboardingCompletedAt?: string;
   instanceEducationShown: boolean;
-  firstRecordReassuranceShown: boolean;
   notificationPermissionAsked: boolean;
   trackerIntroSeen: boolean;
   featureDiscoveryStep: number;
+  /** Start of the empty-day run the missed-day sheet last showed for (yyyy-MM-dd). Local only. */
+  missedSheetRunKey?: string | null;
 }
 
 export type ReminderSlot = 1 | 2 | 3;
