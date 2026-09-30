@@ -8,8 +8,8 @@ import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
 import { getResolvedKind } from '@/data/practiceAssets';
 import {
-  getPracticesCompletedToday, getMinutesForDay,
-  isInstanceCompletedToday, isInstanceCompletedTwiceToday, getTimedMinutesToday,
+  getPracticesCompletedOn, getMinutesForDay,
+  isInstanceCompletedOn, isInstanceCompletedTwiceOn, getTimedMinutesOn,
 } from '@/utils/dates';
 import { sortTrackingInstances } from '@/utils/sortInstances';
 import { useHaptic } from '@/hooks';
@@ -39,7 +39,7 @@ export function PracticeHome() {
   // the screen when the app is resumed after midnight (see initDayRollover).
   const today = useAppStore((s) => s.currentDay);
   const todayMinutes = getMinutesForDay(logs, today);
-  const completedToday = getPracticesCompletedToday(logs);
+  const completedToday = getPracticesCompletedOn(logs, today);
 
   const bellAction = (
     <button onClick={() => navigate('/reminders')} aria-label="Reminders" className="w-11 h-11 flex items-center justify-center">
@@ -173,9 +173,9 @@ export function PracticeHome() {
                   key={inst.id}
                   instance={inst}
                   allInstances={instances}
-                  completed={isInstanceCompletedToday(logs, inst.id)}
-                  completedTwice={isInstanceCompletedTwiceToday(logs, inst.id)}
-                  timedMinutesToday={getTimedMinutesToday(logs, inst.id)}
+                  completed={isInstanceCompletedOn(logs, inst.id, today)}
+                  completedTwice={isInstanceCompletedTwiceOn(logs, inst.id, today)}
+                  timedMinutesToday={getTimedMinutesOn(logs, inst.id, today)}
                   onCheckbox={() => handleCheckbox(inst.id)}
                   onPlus={() => openMinuteSheet(inst.id, 'log')}
                   onPlay={() => handlePlay(inst.id)}

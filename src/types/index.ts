@@ -1,3 +1,5 @@
+import type { BacktrackRoute } from '@/features/backtracking/types';
+
 export type PracticeType = 'guided' | 'unguided' | 'timed';
 
 export type LogSource = 'checkbox' | 'minutes' | 'player';
@@ -31,6 +33,10 @@ export interface PracticeLog {
   localDate: string;
   source: LogSource;
   wasOffline?: boolean;
+  /** True when localDate was the day before the write. Absent on older rows = false. */
+  backtrack?: boolean;
+  /** How the user reached Yesterday for this write. Present only when backtrack. */
+  route?: BacktrackRoute;
 }
 
 export interface Profile {

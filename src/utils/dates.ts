@@ -55,34 +55,40 @@ export function getCurrentStreak(logs: PracticeLog[]): number {
   return streak;
 }
 
-export function getCompletionCountToday(
+// The per-day helpers take the day explicitly rather than reading the clock:
+// callers pass the store's currentDay (or the day the switcher shows), so a
+// screen never mixes two notions of "today" around midnight.
+
+export function getCompletionCountOn(
   logs: PracticeLog[],
   instanceId: string,
+  dateKey: string,
 ): number {
-  const today = todayKey();
-  return getLogsForDay(logs, today).filter((l) => l.instanceId === instanceId).length;
+  return getLogsForDay(logs, dateKey).filter((l) => l.instanceId === instanceId).length;
 }
 
-export function isInstanceCompletedToday(
+export function isInstanceCompletedOn(
   logs: PracticeLog[],
   instanceId: string,
+  dateKey: string,
 ): boolean {
-  return getCompletionCountToday(logs, instanceId) > 0;
+  return getCompletionCountOn(logs, instanceId, dateKey) > 0;
 }
 
-export function isInstanceCompletedTwiceToday(
+export function isInstanceCompletedTwiceOn(
   logs: PracticeLog[],
   instanceId: string,
+  dateKey: string,
 ): boolean {
-  return getCompletionCountToday(logs, instanceId) >= 2;
+  return getCompletionCountOn(logs, instanceId, dateKey) >= 2;
 }
 
-export function getTimedMinutesToday(
+export function getTimedMinutesOn(
   logs: PracticeLog[],
   instanceId: string,
+  dateKey: string,
 ): number {
-  const today = todayKey();
-  return getLogsForDay(logs, today)
+  return getLogsForDay(logs, dateKey)
     .filter((l) => l.instanceId === instanceId)
     .reduce((sum, l) => sum + l.minutes, 0);
 }
@@ -120,10 +126,9 @@ export function getWeekMinutes(logs: PracticeLog[]): number {
     .reduce((sum, l) => sum + l.minutes, 0);
 }
 
-export function getPracticesCompletedToday(logs: PracticeLog[]): number {
-  const today = todayKey();
+export function getPracticesCompletedOn(logs: PracticeLog[], dateKey: string): number {
   const instanceIds = new Set(
-    getLogsForDay(logs, today).map((l) => l.instanceId),
+    getLogsForDay(logs, dateKey).map((l) => l.instanceId),
   );
   return instanceIds.size;
 }

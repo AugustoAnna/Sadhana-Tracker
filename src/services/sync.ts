@@ -4,6 +4,7 @@ import type { PracticeInstance, PracticeLog, Profile, Reminder } from '@/types';
 import { getAuthUser, getAuthUserId } from './auth';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { isFeatureEnabled } from '@/features';
+import { SYNC_BACKTRACK_COLUMNS } from '@/features/backtracking/config';
 
 export type SyncTable =
   | 'participants'
@@ -421,6 +422,13 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
         local_date: log.localDate,
         occurred_at: new Date(log.timestamp).toISOString(),
         environment: APP_ENV,
+        // Only once the columns exist (backend B3): an upsert naming an unknown
+        // column fails, and a failed item retries forever, so the practice
+        // would never sync. The practice_backtracked event records it meanwhile.
+        ...(SYNC_BACKTRACK_COLUMNS ? {
+          backtrack: log.backtrack ?? false,
+          route: log.backtrack ? (log.route ?? 'switcher') : null,
+        } : {}),
       });
       return !error;
     }

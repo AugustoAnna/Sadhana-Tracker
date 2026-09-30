@@ -10,6 +10,10 @@ import { enterDemoMode as enterDemoModeService, exitDemoMode as exitDemoModeServ
 import { syncPracticeReminders } from '@/utils/practiceReminders';
 import { precachePracticeAudio } from '@/services/audio';
 import { getResolvedKind } from '@/data/practiceAssets';
+import { track } from '@/services/instrumentation';
+import { EVENTS } from '@/features/backtracking/analyticsNames';
+import { yesterdayOf } from '@/features/backtracking/dates';
+import type { BacktrackRoute, LocalDate } from '@/features/backtracking/types';
 
 interface AppStore {
   profile: Profile | null;
@@ -41,7 +45,12 @@ interface AppStore {
   removeAllInstancesForPractice: (practiceId: string) => Promise<void>;
   setPracticeInstanceCount: (practiceId: string, count: 1 | 2) => Promise<void>;
   confirmPracticeInstances: (fromFirstSetup: boolean) => Promise<void>;
-  logPractice: (instanceId: string, minutes: number, source: 'checkbox' | 'minutes' | 'player') => Promise<void>;
+  logPractice: (
+    instanceId: string,
+    minutes: number,
+    source: 'checkbox' | 'minutes' | 'player',
+    opts?: { date?: LocalDate; route?: BacktrackRoute; referenceDay?: LocalDate },
+  ) => Promise<void>;
   setReminder: (id: ReminderKey, time: string, enabled: boolean) => Promise<void>;
   ensureSadhguruPresenceReminder: () => Promise<void>;
   setSessionDraft: (draft: SessionDraft | null) => void;
@@ -286,10 +295,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // instances already persisted on add
   },
 
-  logPractice: async (instanceId, minutes, source) => {
+  logPractice: async (instanceId, minutes, source, opts = {}) => {
     const db = getDb();
     const instance = get().instances.find((i) => i.id === instanceId);
     if (!instance) return;
+
+    // referenceDay is normally currentDay; the minute picker passes the day that
+    // was current when it opened, so an Add after midnight still lands on the
+    // day the picker was opened for.
+    const referenceDay = opts.referenceDay ?? get().currentDay;
+    const date = opts.date ?? referenceDay;
+    if (date !== referenceDay && date !== yesterdayOf(referenceDay)) {
+      console.warn(`logPractice: ${date} is outside today/yesterday of ${referenceDay}; not logged`);
+      return;
+    }
+    const backtrack = date !== referenceDay;
 
     const log: PracticeLog = {
       id: generateId(),
@@ -297,13 +317,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
       instanceId,
       minutes,
       timestamp: Date.now(),
-      localDate: todayKey(),
+      localDate: date,
       source,
       wasOffline: !navigator.onLine,
+      ...(backtrack && { backtrack: true, route: opts.route ?? 'switcher' }),
     };
 
     await db.practiceLogs.add(log);
     await queueSync({ table: 'practice_completed', operation: 'insert', payload: log });
+    if (backtrack) {
+      void track(EVENTS.practiceBacktracked, {
+        log_id: log.id,
+        practice_id: log.practiceId,
+        instance: instance.instanceNumber,
+        minutes,
+        local_date: date,
+        route: log.route,
+      });
+    }
 
     const prevTotal = get().logs.reduce((s, l) => s + l.minutes, 0);
     const newTotal = prevTotal + minutes;
@@ -316,7 +347,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       await db.appMeta.update('meta', { pendingJourneyMinutes: pending });
 
       let levelCrossed = get().levelCrossed;
-      if (newLevel > prevLevel) {
+      // A yesterday write adds to the journey but never triggers a level-up screen.
+      if (newLevel > prevLevel && !backtrack) {
         const today = todayKey();
         if (meta?.lastLevelUpDate !== today) {
           levelCrossed = newLevel;
