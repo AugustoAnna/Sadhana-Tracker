@@ -15,7 +15,6 @@ import { sortTrackingInstances } from '@/utils/sortInstances';
 import { useHaptic } from '@/hooks';
 import { track } from '@/services/instrumentation';
 import { COPY } from '@/copy/strings';
-import { BACKTRACK_ENABLED } from '@/features/backtracking/config';
 import { EVENTS } from '@/features/backtracking/analyticsNames';
 import { yesterdayOf } from '@/features/backtracking/dates';
 import { DaySwitcher } from '@/features/backtracking/DaySwitcher';
@@ -52,7 +51,7 @@ export function PracticeHome() {
   // Read the day from the store rather than the clock: this is what re-renders
   // the screen when the app is resumed after midnight (see initDayRollover).
   const today = useAppStore((s) => s.currentDay);
-  const canSwitchDay = BACKTRACK_ENABLED && instances.length > 0;
+  const canSwitchDay = instances.length > 0;
   const day: DayKey = canSwitchDay && yesterdayPick?.madeOn === today ? 'yesterday' : 'today';
   const onYesterday = day === 'yesterday';
   const selectedDate = onYesterday ? yesterdayOf(today) : today;
