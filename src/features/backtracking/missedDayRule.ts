@@ -1,7 +1,5 @@
-import type { PracticeInstance, PracticeLog } from '@/types';
-import { formatDateKey } from '@/utils/dates';
-import { dayAfter, daysBetween, yesterdayOf } from './dates';
-import type { LocalDate } from './types';
+import type { LocalDate, PracticeInstance, PracticeLog } from '@/types';
+import { dayAfter, daysBetween, formatDateKey, yesterdayOf } from '@/utils/dates';
 
 /** 1 = yesterday was the only empty day, 2 = 2–7 empty days, 3 = 8 or more. */
 export type MissedVariant = 1 | 2 | 3;
