@@ -18,7 +18,8 @@ function Chevron({ direction }: { direction: 'left' | 'right' }) {
 export function DaySwitcher({ day, onChange }: { day: DayKey; onChange: (day: DayKey) => void }) {
   const onToday = day === 'today';
   return (
-    <div className="flex items-center justify-center text-ink">
+    // A card like the stat cards below, chevrons at its edges.
+    <div className="flex items-center justify-between bg-card rounded-[14px] border border-hairline px-1 text-ink">
       <button
         type="button"
         aria-label={COPY.tracker.day.showYesterday}
@@ -28,7 +29,7 @@ export function DaySwitcher({ day, onChange }: { day: DayKey; onChange: (day: Da
       >
         <Chevron direction="left" />
       </button>
-      <p aria-live="polite" className="min-w-[110px] text-center text-[16px] font-semibold">
+      <p aria-live="polite" className="flex-1 text-center text-[16px] font-semibold">
         {onToday ? COPY.tracker.day.today : COPY.tracker.day.yesterday}
       </p>
       <button
