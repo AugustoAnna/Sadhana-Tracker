@@ -34,6 +34,16 @@ export function isFirstMorningGeneric(reminder: MorningReminder, enabled: Mornin
   return first?.id === reminder.id;
 }
 
+/**
+ * Which environments get the push, from the BACKTRACK_PUSH_ENABLED secret:
+ * a comma-separated list such as "lab" or "lab,study". Unset or empty means
+ * none. Anything else (e.g. "true") matches no environment, so the study is
+ * only ever included by naming it.
+ */
+export function pushEnvironments(value: string | undefined): Set<string> {
+  return new Set((value ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+}
+
 /** The days the eligibility check looks at, around local day `today`. */
 export function backtrackWindow(today: string): { yesterday: string; from: string; to: string } {
   return {
