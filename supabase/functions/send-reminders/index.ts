@@ -111,9 +111,11 @@ async function sendOne(
   participant: ParticipantRow,
   subscription: PushSubscriptionRow,
   localDate: string,
-  // Set when this occurrence carries the backtracking push instead.
-  backtrackFor: { yesterday: string } | null,
-): Promise<SendOutcome> {
+  // Asked only after the claim succeeds (later runs inside the catch-up
+  // window hit the duplicate and never pay for it): whether this occurrence
+  // carries the backtracking push instead.
+  decideBacktrack: () => Promise<{ yesterday: string } | null>,
+): Promise<{ outcome: SendOutcome; backtrack: boolean }> {
   // Claim the occurrence first. If another run already holds a pending/sent
   // row for this (reminder, device, day) the unique index rejects the insert
   // and we skip — that is the idempotency guarantee, not the time check.
@@ -124,7 +126,7 @@ async function sendOne(
       reminder_id: reminder.id,
       subscription_id: subscription.id,
       environment: reminder.environment,
-      kind: backtrackFor ? "backtrack" : reminder.kind,
+      kind: reminder.kind,
       slot: reminder.slot,
       practice_id: reminder.practice_id,
       time_local: reminder.time_local,
@@ -136,11 +138,15 @@ async function sendOne(
 
   if (claimError || !claimed) {
     // 23505 = unique_violation: already sent (or in flight) for this occurrence.
-    if (claimError?.code === "23505") return "duplicate";
+    if (claimError?.code === "23505") return { outcome: "duplicate", backtrack: false };
     console.error("reminder_sends insert error:", claimError);
     // Without a row we have no idempotency guard, so do not push.
-    return "failed";
+    return { outcome: "failed", backtrack: false };
   }
+
+  const backtrackFor = await decideBacktrack();
+  // Recorded with the result, so the claim needs no extra round trip.
+  const sendKind = backtrackFor ? { kind: "backtrack" } : {};
 
   const isPresence = reminder.practice_id === "sadhguru-presence";
   // Flat payload — the service worker push handler reads slot/kind/send_id
@@ -171,9 +177,9 @@ async function sendOne(
     );
     await supabase
       .from("reminder_sends")
-      .update({ status: "sent", status_code: result.statusCode })
+      .update({ status: "sent", status_code: result.statusCode, ...sendKind })
       .eq("id", claimed.id);
-    return "sent";
+    return { outcome: "sent", backtrack: !!backtrackFor };
   } catch (pushError: any) {
     const statusCode: number | null = pushError?.statusCode ?? null;
     // 410 Gone / 404 Not Registered: the device unsubscribed or the browser
@@ -185,15 +191,16 @@ async function sendOne(
       .update({
         status: expired ? "expired" : "failed",
         status_code: statusCode,
+        ...sendKind,
         error: String(pushError?.body ?? pushError?.message ?? pushError).slice(0, 500),
       })
       .eq("id", claimed.id);
     if (expired) {
       await supabase.from("push_subscriptions").delete().eq("id", subscription.id);
-      return "expired";
+      return { outcome: "expired", backtrack: false };
     }
     console.error("Push error:", statusCode, pushError?.message);
-    return "failed";
+    return { outcome: "failed", backtrack: false };
   }
 }
 
@@ -304,8 +311,9 @@ serve(async (req) => {
       if (!pid) continue;
       remindersByParticipant.set(pid, [...(remindersByParticipant.get(pid) ?? []), r]);
     }
-    // One eligibility answer per participant per run, so every device gets
-    // the same message even after the first send marks the participant.
+    // One eligibility answer per participant and day within a run: the first
+    // accepted send stamps the participant, and their other devices must
+    // still get the same message rather than re-check and see "already sent".
     const eligibility = new Map<string, Promise<boolean>>();
 
     for (const reminder of (dueReminders ?? []) as unknown as ReminderRow[]) {
@@ -326,33 +334,36 @@ serve(async (req) => {
         (sub) => sub.environment === reminder.environment,
       );
 
-      let backtrackFor: { yesterday: string } | null = null;
-      if (
-        BACKTRACK_PUSH_ENABLED
-        && subscriptions.length > 0
-        && isFirstMorningGeneric(reminder, remindersByParticipant.get(participant.id) ?? [])
-      ) {
+      const mayBacktrack = BACKTRACK_PUSH_ENABLED
+        && isFirstMorningGeneric(reminder, remindersByParticipant.get(participant.id) ?? []);
+      const decideBacktrack = async () => {
+        if (!mayBacktrack) return null;
         const key = `${participant.id}:${localDate}`;
         if (!eligibility.has(key)) {
           eligibility.set(key, backtrackEligible(supabase, participant.id, localDate));
         }
-        if (await eligibility.get(key)) {
-          backtrackFor = { yesterday: backtrackWindow(localDate).yesterday };
-        }
-      }
+        return (await eligibility.get(key)) ? { yesterday: backtrackWindow(localDate).yesterday } : null;
+      };
 
       for (const subscription of subscriptions) {
-        const outcome = await sendOne(supabase, reminder, participant, subscription, localDate, backtrackFor);
+        const { outcome, backtrack } = await sendOne(
+          supabase, reminder, participant, subscription, localDate, decideBacktrack,
+        );
         if (outcome === "expired") counts.deleted++;
         else counts[outcome]++;
-        if (backtrackFor && outcome === "sent") {
+        if (backtrack && outcome === "sent") {
           counts.backtrack++;
           // Once per person, ever. Only the first accepted send stamps it.
-          await supabase
+          const { error: stampError } = await supabase
             .from("participants")
             .update({ backtrack_push_sent_at: new Date().toISOString() })
             .eq("id", participant.id)
             .is("backtrack_push_sent_at", null);
+          if (stampError) {
+            // The push went out but isn't recorded: it could go out again on
+            // a later morning that matches the same pattern.
+            console.error("backtrack_push_sent_at stamp failed:", participant.id, stampError.message);
+          }
         }
       }
     }

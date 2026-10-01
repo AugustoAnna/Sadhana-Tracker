@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, within, act } from '@testing-library/react';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import type { PracticeInstance, PracticeLog } from '@/types';
 
 const TODAY = '2026-09-30';
@@ -24,7 +24,7 @@ const state = {
   currentDay: TODAY,
   remoteRestoreSettled: true,
   discoveryShownOn: null as string | null,
-  enteredViaPush: false,
+  pushEntryOn: null as string | null,
   profile: {
     name: 'Asha',
     onboardingComplete: true,
@@ -37,7 +37,8 @@ const state = {
   markMissedSheetShown: vi.fn().mockResolvedValue(undefined),
   setFeatureDiscoveryStep: vi.fn().mockResolvedValue(undefined),
   markDiscoveryShownOn: vi.fn(),
-  markEnteredViaPush: vi.fn(() => { state.enteredViaPush = true; }),
+  markPushEntryOn: vi.fn((day: string) => { state.pushEntryOn = day; }),
+  refreshDay: vi.fn(),
 };
 
 vi.mock('@/stores/appStore', () => ({
@@ -72,8 +73,11 @@ const pushUrl = (forDay: string) => `/practice-home?day=yesterday&via=push&for=$
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The clock agrees with the store unless a test says otherwise.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 8, 30, 6, 5));
   state.currentDay = TODAY;
-  state.enteredViaPush = false;
+  state.pushEntryOn = null;
   state.instances = [{ id: 'surya', practiceId: 'surya-kriya', instanceNumber: 1, order: 0, addedAt: Date.parse('2026-09-01T09:00:00') }];
   // Pre-release user, yesterday empty: both the tip and the missed-day sheet would qualify.
   state.logs = [log('2026-09-27')];
@@ -81,6 +85,8 @@ beforeEach(() => {
   state.markMissedSheetShown.mockResolvedValue(undefined);
   state.setFeatureDiscoveryStep.mockResolvedValue(undefined);
 });
+
+afterEach(() => vi.useRealTimers());
 
 describe('Opening practice home from the backtracking push', () => {
   it('lands on Yesterday when it is still yesterday and still empty', () => {
@@ -127,21 +133,68 @@ describe('Opening practice home from the backtracking push', () => {
     expect(screen.queryByText('Did you practice yesterday?')).toBeNull();
     expect(state.setFeatureDiscoveryStep).not.toHaveBeenCalled();
     expect(state.markMissedSheetShown).not.toHaveBeenCalled();
-    expect(state.markEnteredViaPush).toHaveBeenCalled();
+    expect(state.markPushEntryOn).toHaveBeenCalledWith(TODAY);
   });
 
-  it('keeps the sheets away for the rest of this load', () => {
-    state.enteredViaPush = true;
+  it('keeps the sheets away for the rest of that day', () => {
+    state.pushEntryOn = TODAY;
     renderAt('/practice-home');
 
     expect(screen.queryByText('Log yesterday')).toBeNull();
     expect(screen.queryByText('Did you practice yesterday?')).toBeNull();
   });
 
+  it('lets the sheets back on a later day, without a restart', () => {
+    state.pushEntryOn = '2026-09-28';
+    renderAt('/practice-home');
+
+    expect(screen.getByText('Log yesterday')).toBeTruthy();
+  });
+
+  it('decides against the clock when the app was resumed before its date caught up', () => {
+    // Backgrounded overnight: the store still says 29 Sep; it is 30 Sep 06:05.
+    state.currentDay = YESTERDAY;
+    state.refreshDay.mockImplementation(() => { state.currentDay = TODAY; });
+    const { rerender } = renderAt(pushUrl(YESTERDAY));
+
+    expect(state.refreshDay).toHaveBeenCalled();
+    expect(track).toHaveBeenCalledWith('backtrack_push_opened', { landed: 'yesterday' });
+    rerender(
+      <MemoryRouter initialEntries={['/practice-home']}>
+        <PracticeHome />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Yesterday')).toBeTruthy();
+  });
+
+  it('handles a tap while practice home is already on screen', () => {
+    let goTo: (to: string) => void = () => {};
+    function Navigator() {
+      const navigate = useNavigate();
+      goTo = (to) => navigate(to, { replace: true });
+      return null;
+    }
+    state.profile.featureDiscoveryStep = 1;
+    state.profile.missedSheetRunKey = '2026-09-28';
+    render(
+      <MemoryRouter initialEntries={['/practice-home']}>
+        <PracticeHome />
+        <Navigator />
+        <Location />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Today')).toBeTruthy();
+
+    act(() => goTo(pushUrl(YESTERDAY)));
+
+    expect(screen.getByText('Yesterday')).toBeTruthy();
+    expect(screen.getByTestId('location').textContent).toBe('/practice-home');
+  });
+
   it('ignores an ordinary visit', () => {
     renderAt('/practice-home');
 
     expect(track).not.toHaveBeenCalledWith('backtrack_push_opened', expect.anything());
-    expect(state.markEnteredViaPush).not.toHaveBeenCalled();
+    expect(state.markPushEntryOn).not.toHaveBeenCalled();
   });
 });

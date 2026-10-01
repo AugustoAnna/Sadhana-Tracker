@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/stores/appStore';
+import { todayKey } from '@/utils/dates';
 
 /**
  * Tapping the backtracking push while the app is already open only focuses
@@ -9,6 +10,10 @@ import { useAppStore } from '@/stores/appStore';
  */
 export function PushTapNavigator() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     const onMessage = (event: MessageEvent) => {
@@ -16,8 +21,10 @@ export function PushTapNavigator() {
       if (data?.type !== 'REMINDER_TAPPED' || data.kind !== 'backtrack') return;
       // In-app paths only.
       if (typeof data.url !== 'string' || !data.url.startsWith('/') || data.url.startsWith('//')) return;
-      // Already handled this load (the cold-open window gets the message too).
-      if (useAppStore.getState().enteredViaPush) return;
+      // Already handled today (the cold-open window gets the message too).
+      if (useAppStore.getState().pushEntryOn === todayKey()) return;
+      // Never pull someone out of a practice in progress.
+      if (pathnameRef.current === '/player') return;
       navigate(data.url, { replace: true });
     };
     navigator.serviceWorker.addEventListener('message', onMessage);

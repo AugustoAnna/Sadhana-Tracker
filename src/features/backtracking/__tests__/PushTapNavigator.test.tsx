@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/stores/appStore';
+import { todayKey } from '@/utils/dates';
 import { PushTapNavigator } from '../PushTapNavigator';
 
 // jsdom has no service worker; a plain EventTarget stands in for its messages.
@@ -11,7 +12,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  useAppStore.setState({ enteredViaPush: false });
+  useAppStore.setState({ pushEntryOn: null });
 });
 
 function Location() {
@@ -25,9 +26,9 @@ function post(data: unknown) {
   });
 }
 
-function renderApp() {
+function renderApp(at = '/reminders') {
   render(
-    <MemoryRouter initialEntries={['/reminders']}>
+    <MemoryRouter initialEntries={[at]}>
       <PushTapNavigator />
       <Location />
     </MemoryRouter>,
@@ -62,8 +63,16 @@ describe('PushTapNavigator', () => {
     expect(screen.getByTestId('location').textContent).toBe('/reminders');
   });
 
-  it('does nothing once this load already came in through the push', () => {
-    useAppStore.setState({ enteredViaPush: true });
+  it('never pulls someone out of a practice in progress', () => {
+    renderApp('/player');
+
+    post({ type: 'REMINDER_TAPPED', kind: 'backtrack', url });
+
+    expect(screen.getByTestId('location').textContent).toBe('/player');
+  });
+
+  it('does nothing once today already came in through the push', () => {
+    useAppStore.setState({ pushEntryOn: todayKey() });
     renderApp();
 
     post({ type: 'REMINDER_TAPPED', kind: 'backtrack', url });

@@ -8,7 +8,7 @@ import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
 import { getResolvedKind } from '@/data/practiceAssets';
 import {
-  getLogsForDay, getPracticesCompletedOn, getMinutesForDay,
+  getLogsForDay, getPracticesCompletedOn, getMinutesForDay, todayKey,
   isInstanceCompletedOn, getTimedMinutesOn,
 } from '@/utils/dates';
 import { sortTrackingInstances } from '@/utils/sortInstances';
@@ -38,9 +38,10 @@ export function PracticeHome() {
   const setFeatureDiscoveryStep = useAppStore((s) => s.setFeatureDiscoveryStep);
   const discoveryShownOn = useAppStore((s) => s.discoveryShownOn);
   const markDiscoveryShownOn = useAppStore((s) => s.markDiscoveryShownOn);
-  const enteredViaPush = useAppStore((s) => s.enteredViaPush);
-  const markEnteredViaPush = useAppStore((s) => s.markEnteredViaPush);
-  const enteredViaPushRef = useRef(false);
+  const pushEntryOn = useAppStore((s) => s.pushEntryOn);
+  const markPushEntryOn = useAppStore((s) => s.markPushEntryOn);
+  const refreshDay = useAppStore((s) => s.refreshDay);
+  const pushEntryOnRef = useRef<LocalDate | null>(null);
   const playerSession = useAppStore((s) => s.playerSession);
   const haptic = useHaptic();
 
@@ -99,15 +100,20 @@ export function PracticeHome() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('via') !== 'push') return;
-    enteredViaPushRef.current = true;
-    markEnteredViaPush();
+    // An app resumed from overnight can still be on yesterday's date until
+    // refreshDay catches up, and the tap may arrive first: decide against the
+    // clock, and catch the store up.
+    const now = todayKey();
+    if (now !== today) void refreshDay();
+    pushEntryOnRef.current = now;
+    markPushEntryOn(now);
     const forDay = params.get('for');
     const landed: DayKey = params.get('day') === 'yesterday'
       && canSwitchDay
-      && forDay === yesterdayOf(today)
+      && forDay === yesterdayOf(now)
       && !logs.some((l) => l.localDate === forDay)
       ? 'yesterday' : 'today';
-    setYesterdayPick(landed === 'yesterday' ? { madeOn: today, route: 'push' } : null);
+    setYesterdayPick(landed === 'yesterday' ? { madeOn: now, route: 'push' } : null);
     // No prompts over what the push already asked.
     setMissedSheet(null);
     setDiscoveryOpen(false);
@@ -118,8 +124,8 @@ export function PracticeHome() {
   const otherSheetOpen = !!minuteSheet || discoveryOpen;
   useEffect(() => {
     if (!remoteRestoreSettled || otherSheetOpen) return;
-    // A push tap skips both sheets for this load; the tip can show next time.
-    if (enteredViaPushRef.current || enteredViaPush) return;
+    // A push tap skips both sheets for that day; the tip can show next time.
+    if (pushEntryOnRef.current === today || pushEntryOn === today) return;
     if (!discoveryShownOnRef.current && shouldShowDiscovery(profile, instances)) {
       discoveryShownOnRef.current = today;
       setDiscoveryOpen(true);
