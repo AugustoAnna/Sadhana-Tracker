@@ -189,7 +189,7 @@ export function PracticeHome() {
           {/* The switcher is the heading for the day: it governs the stat cards
               and the ticks below, never the cumulative progress further down. */}
           {canSwitchDay ? (
-            <div className="mb-1">
+            <div className="mb-3">
               <DaySwitcher day={day} onChange={switchDay} />
             </div>
           ) : (
