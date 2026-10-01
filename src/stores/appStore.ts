@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { isFeatureEnabled } from '@/features';
 import { getDb } from '@/db';
-import type { PracticeInstance, PracticeLog, Profile, Reminder, ReminderKey, SavedSession, SessionDraft, DrawnToType, DurationPreference } from '@/types';
+import type { BacktrackRoute, LocalDate, PracticeInstance, PracticeLog, Profile, Reminder, ReminderKey, SavedSession, SessionDraft, DrawnToType, DurationPreference } from '@/types';
 import { getPractice } from '@/data/catalogue';
 import { computeCurrentLevel } from '@/data/journey';
-import { generateId, todayKey, formatDateKey } from '@/utils/dates';
+import { generateId, todayKey, formatDateKey, yesterdayOf } from '@/utils/dates';
 import { queueSync } from '@/services/sync';
 import { enterDemoMode as enterDemoModeService, exitDemoMode as exitDemoModeService, type DemoStateId } from '@/services/demoMode';
 import { syncPracticeReminders } from '@/utils/practiceReminders';
@@ -12,8 +12,6 @@ import { precachePracticeAudio } from '@/services/audio';
 import { getResolvedKind } from '@/data/practiceAssets';
 import { track } from '@/services/instrumentation';
 import { EVENTS } from '@/features/backtracking/analyticsNames';
-import { yesterdayOf } from '@/features/backtracking/dates';
-import type { BacktrackRoute, LocalDate } from '@/features/backtracking/types';
 
 interface AppStore {
   profile: Profile | null;
@@ -486,9 +484,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   markMissedSheetShown: async (runKey) => {
-    const db = getDb();
-    await db.profile.update('profile', { missedSheetRunKey: runKey });
+    // Store first: practice home re-checks from the store, possibly before
+    // the write lands (StrictMode runs the check twice).
     set({ profile: { ...get().profile!, missedSheetRunKey: runKey } });
+    await getDb().profile.update('profile', { missedSheetRunKey: runKey });
   },
 
   setFeatureDiscoveryStep: async (step) => {

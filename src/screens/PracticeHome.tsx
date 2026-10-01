@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useState, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   PracticeCard, BottomSheet, MinutePicker, Button,
   PracticeCalendar, ProgressStatBoxes,
@@ -8,40 +8,25 @@ import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
 import { getResolvedKind } from '@/data/practiceAssets';
 import {
-  getLogsForDay, getPracticesCompletedOn, getMinutesForDay, todayKey,
-  isInstanceCompletedOn, getTimedMinutesOn,
+  getLogsForDay, getPracticesCompletedOn, getMinutesForDay,
+  isInstanceCompletedOn, getTimedMinutesOn, yesterdayOf,
 } from '@/utils/dates';
 import { sortTrackingInstances } from '@/utils/sortInstances';
 import { useHaptic } from '@/hooks';
 import { track } from '@/services/instrumentation';
 import { COPY } from '@/copy/strings';
+import type { BacktrackRoute, DayKey, LocalDate } from '@/types';
 import { EVENTS } from '@/features/backtracking/analyticsNames';
-import { yesterdayOf } from '@/features/backtracking/dates';
 import { DaySwitcher } from '@/features/backtracking/DaySwitcher';
 import { removedPracticesOn } from '@/features/backtracking/removedPractices';
-import { missedDayDecision, type MissedVariant } from '@/features/backtracking/missedDayRule';
-import { MissedDaySheet, type MissedDayAnswer } from '@/features/backtracking/MissedDaySheet';
-import { shouldShowDiscovery } from '@/features/backtracking/discoveryRule';
-import { DiscoverySheet, type DiscoveryDismissal } from '@/features/backtracking/DiscoverySheet';
-import type { BacktrackRoute, DayKey, LocalDate } from '@/features/backtracking/types';
+import { BacktrackPrompts, type YesterdayPick } from '@/features/backtracking/BacktrackPrompts';
 
 export function PracticeHome() {
   const navigate = useNavigate();
-  const location = useLocation();
   const instances = useAppStore((s) => s.instances);
   const logs = useAppStore((s) => s.logs);
   const logPractice = useAppStore((s) => s.logPractice);
   const setPlayerSession = useAppStore((s) => s.setPlayerSession);
-  const profile = useAppStore((s) => s.profile);
-  const markMissedSheetShown = useAppStore((s) => s.markMissedSheetShown);
-  const remoteRestoreSettled = useAppStore((s) => s.remoteRestoreSettled);
-  const setFeatureDiscoveryStep = useAppStore((s) => s.setFeatureDiscoveryStep);
-  const discoveryShownOn = useAppStore((s) => s.discoveryShownOn);
-  const markDiscoveryShownOn = useAppStore((s) => s.markDiscoveryShownOn);
-  const pushEntryOn = useAppStore((s) => s.pushEntryOn);
-  const markPushEntryOn = useAppStore((s) => s.markPushEntryOn);
-  const refreshDay = useAppStore((s) => s.refreshDay);
-  const pushEntryOnRef = useRef<LocalDate | null>(null);
   const playerSession = useAppStore((s) => s.playerSession);
   const haptic = useHaptic();
 
@@ -55,11 +40,7 @@ export function PracticeHome() {
   // Yesterday, and the day it was chosen on. The choice only holds while that
   // day is still today, so a rollover drops back to Today in the same render.
   // Screen state, so every new visit to this screen opens on Today.
-  const [yesterdayPick, setYesterdayPick] = useState<{ madeOn: LocalDate; route: BacktrackRoute } | null>(null);
-  const [missedSheet, setMissedSheet] = useState<{ variant: MissedVariant } | null>(null);
-  const shownRunKeyRef = useRef<LocalDate | null>(null);
-  const [discoveryOpen, setDiscoveryOpen] = useState(false);
-  const discoveryShownOnRef = useRef<LocalDate | null>(null);
+  const [yesterdayPick, setYesterdayPick] = useState<YesterdayPick | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const sortedInstances = useMemo(() => sortTrackingInstances(instances), [instances]);
@@ -80,87 +61,11 @@ export function PracticeHome() {
     () => (onYesterday ? removedPracticesOn(dayLogs, instances, selectedDate) : []),
     [onYesterday, dayLogs, instances, selectedDate],
   );
-  const removedInstances = useMemo(
-    () => removedPractices.map((r) => ({
-      id: r.instanceId, practiceId: r.practiceId, instanceNumber: r.instanceNumber, order: r.instanceNumber, addedAt: 0,
-    })),
-    [removedPractices],
-  );
 
-  // The one-time backtracking tip, then the missed-day question. Checked when
-  // the screen opens and when the day changes — not on every log — once the
-  // launch-time server pull is in (another device may have logged yesterday)
-  // and no other sheet is open, rather than stacking on it. Each sheet saves
-  // its marker at once so a reload doesn't repeat it; the refs cover the gap
-  // before that save lands (and StrictMode's re-run).
-  // Arriving from the backtracking push (?day=yesterday&via=push&for=…):
-  // open on Yesterday if that day is still yesterday and still empty —
-  // otherwise Today (a tap the next day, or a log the server hadn't seen) —
-  // then drop the query. Declared before the sheets check so it runs first.
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('via') !== 'push') return;
-    // An app resumed from overnight can still be on yesterday's date until
-    // refreshDay catches up, and the tap may arrive first: decide against the
-    // clock, and catch the store up.
-    const now = todayKey();
-    if (now !== today) void refreshDay();
-    pushEntryOnRef.current = now;
-    markPushEntryOn(now);
-    const forDay = params.get('for');
-    const landed: DayKey = params.get('day') === 'yesterday'
-      && canSwitchDay
-      && forDay === yesterdayOf(now)
-      && !logs.some((l) => l.localDate === forDay)
-      ? 'yesterday' : 'today';
-    setYesterdayPick(landed === 'yesterday' ? { madeOn: now, route: 'push' } : null);
-    // No prompts over what the push already asked.
-    setMissedSheet(null);
-    setDiscoveryOpen(false);
-    track(EVENTS.backtrackPushOpened, { landed });
-    navigate(location.pathname, { replace: true });
-  }, [location.search]);
-
-  const otherSheetOpen = !!minuteSheet || discoveryOpen;
-  useEffect(() => {
-    if (!remoteRestoreSettled || otherSheetOpen) return;
-    // A push tap skips both sheets for that day; the tip can show next time.
-    if (pushEntryOnRef.current === today || pushEntryOn === today) return;
-    if (!discoveryShownOnRef.current && shouldShowDiscovery(profile, instances)) {
-      discoveryShownOnRef.current = today;
-      setDiscoveryOpen(true);
-      markDiscoveryShownOn(today);
-      setFeatureDiscoveryStep(1).catch((err) => {
-        console.error('Failed to save the discovery step:', err);
-      });
-      track(EVENTS.discoverySheetShown, { feature: 'backtracking' });
-      return;
-    }
-    // One sheet a day: after the tip, the missed-day question waits. The ref
-    // covers a re-run before the store's copy reaches this render.
-    if (discoveryShownOnRef.current === today || discoveryShownOn === today) return;
-    const decision = missedDayDecision(logs, instances, profile?.missedSheetRunKey, today);
-    if (!decision.show || decision.runKey === shownRunKeyRef.current) return;
-    shownRunKeyRef.current = decision.runKey;
-    setMissedSheet({ variant: decision.variant });
-    markMissedSheetShown(decision.runKey).catch((err) => {
-      console.error('Failed to save the missed-day run key:', err);
-    });
-    track(EVENTS.missedSheetShown, { variant: decision.variant, gap_days: decision.gapDays });
-  }, [today, remoteRestoreSettled, otherSheetOpen]);
-
-  const dismissDiscovery = (via: DiscoveryDismissal) => {
-    track(EVENTS.discoverySheetDismissed, { feature: 'backtracking', via });
-    setDiscoveryOpen(false);
-  };
-
-  const answerMissedDay = (answer: MissedDayAnswer) => {
-    if (missedSheet) track(EVENTS.missedSheetAnswered, { variant: missedSheet.variant, answer });
-    setMissedSheet(null);
-    if (answer === 'log') {
-      setYesterdayPick({ madeOn: today, route: 'sheet' });
-      if (scrollRef.current) scrollRef.current.scrollTop = 0;
-    }
+  // From the missed-day sheet or the push: Yesterday (or back to Today), from the top.
+  const pickYesterday = (pick: YesterdayPick | null) => {
+    setYesterdayPick(pick);
+    if (pick && scrollRef.current) scrollRef.current.scrollTop = 0;
   };
 
   const switchDay = (to: DayKey) => {
@@ -306,11 +211,11 @@ export function PracticeHome() {
                   playSessionActive={playerSession?.practiceInstanceIds[0] === inst.id}
                 />
               ))}
-              {removedPractices.map((r, i) => (
+              {removedPractices.map((r) => (
                 <PracticeCard
-                  key={r.instanceId}
-                  instance={removedInstances[i]}
-                  allInstances={removedInstances}
+                  key={r.id}
+                  instance={r}
+                  allInstances={removedPractices}
                   day={day}
                   completed
                   timedMinutesToday={r.minutes}
@@ -348,14 +253,7 @@ export function PracticeHome() {
         </Button>
       </BottomSheet>
 
-      <MissedDaySheet
-        open={!!missedSheet}
-        variant={missedSheet?.variant ?? 1}
-        name={profile?.name?.trim() ?? ''}
-        onAnswer={answerMissedDay}
-      />
-
-      <DiscoverySheet open={discoveryOpen} onDismiss={dismissDiscovery} />
+      <BacktrackPrompts sheetOpen={!!minuteSheet} onPick={pickYesterday} />
     </div>
   );
 }

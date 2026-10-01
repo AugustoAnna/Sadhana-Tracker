@@ -19,7 +19,7 @@ const mockState = {
 };
 
 vi.mock('@/stores/appStore', () => ({
-  useAppStore: (selector: (s: typeof mockState) => unknown) => selector(mockState),
+  useAppStore: Object.assign((selector: (s: typeof mockState) => unknown) => selector(mockState), { getState: () => mockState }),
   getDefaultLogMinutes: () => 14,
 }));
 

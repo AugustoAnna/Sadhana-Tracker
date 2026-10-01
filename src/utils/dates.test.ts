@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { PracticeLog } from '@/types';
 import {
-  isInstanceCompletedOn, isInstanceCompletedTwiceOn, getTimedMinutesOn, getPracticesCompletedOn,
-} from '@/utils/dates';
-import { yesterdayOf } from '../dates';
+  isInstanceCompletedOn, isInstanceCompletedTwiceOn, getTimedMinutesOn, getPracticesCompletedOn, yesterdayOf,
+} from './dates';
 
 describe('yesterdayOf', () => {
   it.each([

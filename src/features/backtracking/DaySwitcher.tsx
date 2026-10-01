@@ -1,5 +1,5 @@
 import { COPY } from '@/copy/strings';
-import type { DayKey } from './types';
+import type { DayKey } from '@/types';
 
 function Chevron({ direction }: { direction: 'left' | 'right' }) {
   return (
