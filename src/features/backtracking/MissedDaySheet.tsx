@@ -19,21 +19,18 @@ export function MissedDaySheet({
   open,
   variant,
   name,
-  practiceId,
   onAnswer,
 }: {
   open: boolean;
   variant: MissedVariant;
   name: string;
-  /** Whose illustration to show: one of the user's own practices. */
-  practiceId: string;
   onAnswer: (answer: MissedDayAnswer) => void;
 }) {
   return (
     <BottomSheet open={open} onClose={() => onAnswer('dismiss')} swipeToDismiss>
       <div className="flex flex-col items-center text-center">
         <div className="rounded-[20px] overflow-hidden">
-          <PracticeIllustration practiceId={practiceId} size={96} />
+          <PracticeIllustration practiceId="shambhavi" size={96} />
         </div>
         <h2 className="font-serif text-ink mt-4" style={{ fontSize: '20px' }}>{titleFor(variant, name)}</h2>
         <p className="text-secondary mt-2 mb-6" style={{ fontSize: '14.5px' }}>{BODY[variant]}</p>

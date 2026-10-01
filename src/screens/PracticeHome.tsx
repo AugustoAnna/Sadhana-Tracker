@@ -21,6 +21,8 @@ import { DaySwitcher } from '@/features/backtracking/DaySwitcher';
 import { removedPracticesOn } from '@/features/backtracking/removedPractices';
 import { missedDayDecision, type MissedVariant } from '@/features/backtracking/missedDayRule';
 import { MissedDaySheet, type MissedDayAnswer } from '@/features/backtracking/MissedDaySheet';
+import { shouldShowDiscovery } from '@/features/backtracking/discoveryRule';
+import { DiscoverySheet, type DiscoveryDismissal } from '@/features/backtracking/DiscoverySheet';
 import type { BacktrackRoute, DayKey, LocalDate } from '@/features/backtracking/types';
 
 export function PracticeHome() {
@@ -32,6 +34,9 @@ export function PracticeHome() {
   const profile = useAppStore((s) => s.profile);
   const markMissedSheetShown = useAppStore((s) => s.markMissedSheetShown);
   const remoteRestoreSettled = useAppStore((s) => s.remoteRestoreSettled);
+  const setFeatureDiscoveryStep = useAppStore((s) => s.setFeatureDiscoveryStep);
+  const discoveryShownOn = useAppStore((s) => s.discoveryShownOn);
+  const markDiscoveryShownOn = useAppStore((s) => s.markDiscoveryShownOn);
   const playerSession = useAppStore((s) => s.playerSession);
   const haptic = useHaptic();
 
@@ -48,6 +53,8 @@ export function PracticeHome() {
   const [yesterdayPick, setYesterdayPick] = useState<{ madeOn: LocalDate; route: BacktrackRoute } | null>(null);
   const [missedSheet, setMissedSheet] = useState<{ variant: MissedVariant } | null>(null);
   const shownRunKeyRef = useRef<LocalDate | null>(null);
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
+  const discoveryShownOnRef = useRef<LocalDate | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const sortedInstances = useMemo(() => sortTrackingInstances(instances), [instances]);
@@ -75,15 +82,28 @@ export function PracticeHome() {
     [removedPractices],
   );
 
-  // Ask about yesterday when the screen opens and when the day changes — not
-  // on every log. It waits for the launch-time server pull (another device may
-  // have logged yesterday) and for any open sheet to close, rather than
-  // stacking on it. The run key is saved at once, so a reload doesn't ask
-  // again; the ref covers the gap before that save lands (and StrictMode's
-  // re-run).
-  const otherSheetOpen = !!minuteSheet;
+  // The one-time backtracking tip, then the missed-day question. Checked when
+  // the screen opens and when the day changes — not on every log — once the
+  // launch-time server pull is in (another device may have logged yesterday)
+  // and no other sheet is open, rather than stacking on it. Each sheet saves
+  // its marker at once so a reload doesn't repeat it; the refs cover the gap
+  // before that save lands (and StrictMode's re-run).
+  const otherSheetOpen = !!minuteSheet || discoveryOpen;
   useEffect(() => {
     if (!remoteRestoreSettled || otherSheetOpen) return;
+    if (!discoveryShownOnRef.current && shouldShowDiscovery(profile, instances)) {
+      discoveryShownOnRef.current = today;
+      setDiscoveryOpen(true);
+      markDiscoveryShownOn(today);
+      setFeatureDiscoveryStep(1).catch((err) => {
+        console.error('Failed to save the discovery step:', err);
+      });
+      track(EVENTS.discoverySheetShown, { feature: 'backtracking' });
+      return;
+    }
+    // One sheet a day: after the tip, the missed-day question waits. The ref
+    // covers a re-run before the store's copy reaches this render.
+    if (discoveryShownOnRef.current === today || discoveryShownOn === today) return;
     const decision = missedDayDecision(logs, instances, profile?.missedSheetRunKey, today);
     if (!decision.show || decision.runKey === shownRunKeyRef.current) return;
     shownRunKeyRef.current = decision.runKey;
@@ -93,6 +113,11 @@ export function PracticeHome() {
     });
     track(EVENTS.missedSheetShown, { variant: decision.variant, gap_days: decision.gapDays });
   }, [today, remoteRestoreSettled, otherSheetOpen]);
+
+  const dismissDiscovery = (via: DiscoveryDismissal) => {
+    track(EVENTS.discoverySheetDismissed, { feature: 'backtracking', via });
+    setDiscoveryOpen(false);
+  };
 
   const answerMissedDay = (answer: MissedDayAnswer) => {
     if (missedSheet) track(EVENTS.missedSheetAnswered, { variant: missedSheet.variant, answer });
@@ -292,9 +317,10 @@ export function PracticeHome() {
         open={!!missedSheet}
         variant={missedSheet?.variant ?? 1}
         name={profile?.name?.trim() ?? ''}
-        practiceId={sortedInstances[0]?.practiceId ?? 'default'}
         onAnswer={answerMissedDay}
       />
+
+      <DiscoverySheet open={discoveryOpen} onDismiss={dismissDiscovery} />
     </div>
   );
 }
