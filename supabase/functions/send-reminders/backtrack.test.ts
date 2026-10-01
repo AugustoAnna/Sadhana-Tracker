@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { backtrackPayload, backtrackWindow, isFirstMorningGeneric, pushEnvironments, type MorningReminder } from './backtrack';
+import { backtrackPayload, backtrackWindow, isFirstMorningGeneric, type MorningReminder } from './backtrack';
 
 function reminder(id: string, time_local: string, overrides: Partial<MorningReminder> = {}): MorningReminder {
   return { id, kind: 'generic', time_local, environment: 'study', ...overrides };
@@ -36,23 +36,6 @@ describe('isFirstMorningGeneric', () => {
     const x = reminder('x', '07:00:00');
     const y = reminder('y', '07:00:00');
     expect([isFirstMorningGeneric(x, [x, y]), isFirstMorningGeneric(y, [x, y])]).toEqual([true, false]);
-  });
-});
-
-describe('pushEnvironments', () => {
-  it('reads one environment or a list', () => {
-    expect([...pushEnvironments('lab')]).toEqual(['lab']);
-    expect([...pushEnvironments(' lab , study ')]).toEqual(['lab', 'study']);
-  });
-
-  it('is off when unset or empty', () => {
-    expect(pushEnvironments(undefined).size).toBe(0);
-    expect(pushEnvironments('').size).toBe(0);
-  });
-
-  it('never turns on the study by accident', () => {
-    expect(pushEnvironments('true').has('study')).toBe(false);
-    expect(pushEnvironments('lab').has('study')).toBe(false);
   });
 });
 

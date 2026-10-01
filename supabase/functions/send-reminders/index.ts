@@ -1,16 +1,15 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webPush from "https://esm.sh/web-push@3.6.7";
-import { backtrackPayload, backtrackWindow, isFirstMorningGeneric, pushEnvironments } from "./backtrack.ts";
+import { backtrackPayload, backtrackWindow, isFirstMorningGeneric } from "./backtrack.ts";
 
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT")!;
 
-// The one-time "Yesterday can still count" push, for the environments named
-// in this secret ("lab", or "lab,study"). Unset means off. Needs migration 010
-// (participants.backtrack_push_sent_at) first.
-const BACKTRACK_PUSH_ENVIRONMENTS = pushEnvironments(Deno.env.get("BACKTRACK_PUSH_ENABLED"));
+// The one-time "Yesterday can still count" push. Off unless set to "true";
+// needs migration 010 (participants.backtrack_push_sent_at) first.
+const BACKTRACK_PUSH_ENABLED = Deno.env.get("BACKTRACK_PUSH_ENABLED") === "true";
 
 // Configure web-push with VAPID keys
 webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -329,7 +328,7 @@ serve(async (req) => {
 
       let backtrackFor: { yesterday: string } | null = null;
       if (
-        BACKTRACK_PUSH_ENVIRONMENTS.has(reminder.environment)
+        BACKTRACK_PUSH_ENABLED
         && subscriptions.length > 0
         && isFirstMorningGeneric(reminder, remindersByParticipant.get(participant.id) ?? [])
       ) {
