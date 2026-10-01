@@ -36,11 +36,14 @@ interface AppStore {
   remoteRestoreSettled: boolean;
   /** The day the backtracking tip showed in this app load; that day's missed-day sheet waits. Not persisted. */
   discoveryShownOn: string | null;
+  /** This app load came from tapping the backtracking push: no tip or missed-day sheet. Not persisted. */
+  enteredViaPush: boolean;
 
   hydrate: () => Promise<void>;
   refreshDay: () => Promise<void>;
   markRemoteRestoreSettled: () => void;
   markDiscoveryShownOn: (day: string) => void;
+  markEnteredViaPush: () => void;
   setName: (name: string) => Promise<void>;
   setMeditatorStatus: (isMeditator: boolean) => Promise<void>;
   setDrawnToType: (type: DrawnToType) => Promise<void>;
@@ -93,6 +96,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   currentDay: todayKey(),
   remoteRestoreSettled: false,
   discoveryShownOn: null,
+  enteredViaPush: false,
 
   hydrate: async () => {
     const db = getDb();
@@ -121,6 +125,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   markRemoteRestoreSettled: () => set({ remoteRestoreSettled: true }),
   markDiscoveryShownOn: (day) => set({ discoveryShownOn: day }),
+  markEnteredViaPush: () => set({ enteredViaPush: true }),
 
   refreshDay: async () => {
     const day = todayKey();

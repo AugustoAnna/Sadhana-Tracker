@@ -1,10 +1,15 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webPush from "https://esm.sh/web-push@3.6.7";
+import { backtrackPayload, backtrackWindow, isFirstMorningGeneric } from "./backtrack.ts";
 
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT")!;
+
+// The one-time "Yesterday can still count" push. Off unless set to "true";
+// needs migration 010 (participants.backtrack_push_sent_at) first.
+const BACKTRACK_PUSH_ENABLED = Deno.env.get("BACKTRACK_PUSH_ENABLED") === "true";
 
 // Configure web-push with VAPID keys
 webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -106,6 +111,8 @@ async function sendOne(
   participant: ParticipantRow,
   subscription: PushSubscriptionRow,
   localDate: string,
+  // Set when this occurrence carries the backtracking push instead.
+  backtrackFor: { yesterday: string } | null,
 ): Promise<SendOutcome> {
   // Claim the occurrence first. If another run already holds a pending/sent
   // row for this (reminder, device, day) the unique index rejects the insert
@@ -117,7 +124,7 @@ async function sendOne(
       reminder_id: reminder.id,
       subscription_id: subscription.id,
       environment: reminder.environment,
-      kind: reminder.kind,
+      kind: backtrackFor ? "backtrack" : reminder.kind,
       slot: reminder.slot,
       practice_id: reminder.practice_id,
       time_local: reminder.time_local,
@@ -139,17 +146,19 @@ async function sendOne(
   // Flat payload — the service worker push handler reads slot/kind/send_id
   // from the top level of the payload JSON. send_id is what the worker echoes
   // back through mark_reminder_delivered / mark_reminder_tapped.
-  const payload = JSON.stringify({
-    title: isPresence ? "Presence time" : "Time to practice",
-    body: isPresence
-      ? "Presence time is starting soon."
-      : "Your practice reminder is here.",
-    tag: `reminder-${reminder.id}`,
-    slot: reminder.slot,
-    kind: reminder.kind,
-    practice_id: reminder.practice_id,
-    send_id: claimed.id,
-  });
+  const payload = backtrackFor
+    ? backtrackPayload(reminder.slot, claimed.id, backtrackFor.yesterday)
+    : JSON.stringify({
+      title: isPresence ? "Presence time" : "Time to practice",
+      body: isPresence
+        ? "Presence time is starting soon."
+        : "Your practice reminder is here.",
+      tag: `reminder-${reminder.id}`,
+      slot: reminder.slot,
+      kind: reminder.kind,
+      practice_id: reminder.practice_id,
+      send_id: claimed.id,
+    });
 
   try {
     const result = await webPush.sendNotification(
@@ -186,6 +195,45 @@ async function sendOne(
     console.error("Push error:", statusCode, pushError?.message);
     return "failed";
   }
+}
+
+// Whether the participant should get the backtracking push on local day
+// `today`: never sent before, has a practice list, nothing logged yesterday,
+// but something logged in the six days before that (D-7 to D-2). Any query error answers
+// no, so the normal reminder goes out instead.
+async function backtrackEligible(
+  supabase: SupabaseClient,
+  participantId: string,
+  today: string,
+): Promise<boolean> {
+  const { yesterday, from, to } = backtrackWindow(today);
+  const { data: participant, error: participantError } = await supabase
+    .from("participants")
+    .select("backtrack_push_sent_at")
+    .eq("id", participantId)
+    .single();
+  if (participantError || !participant || participant.backtrack_push_sent_at) return false;
+
+  const { count: practices, error: practicesError } = await supabase
+    .from("participant_practices")
+    .select("id", { count: "exact", head: true })
+    .eq("participant_id", participantId);
+  if (practicesError || !practices) return false;
+
+  const { count: loggedYesterday, error: yesterdayError } = await supabase
+    .from("practice_completed")
+    .select("id", { count: "exact", head: true })
+    .eq("participant_id", participantId)
+    .eq("local_date", yesterday);
+  if (yesterdayError || loggedYesterday) return false;
+
+  const { count: loggedThatWeek, error: weekError } = await supabase
+    .from("practice_completed")
+    .select("id", { count: "exact", head: true })
+    .eq("participant_id", participantId)
+    .gte("local_date", from)
+    .lte("local_date", to);
+  return !weekError && !!loggedThatWeek;
 }
 
 serve(async (req) => {
@@ -245,7 +293,20 @@ serve(async (req) => {
       // enabled reminders whose participant has no usable timezone — these
       // can never be sent, so a non-zero value here is a data problem
       skipped_no_timezone: 0,
+      // sends that carried the one-time backtracking push (also in `sent`)
+      backtrack: 0,
     };
+
+    // Every enabled reminder per participant, to find their first morning one.
+    const remindersByParticipant = new Map<string, ReminderRow[]>();
+    for (const r of (dueReminders ?? []) as unknown as ReminderRow[]) {
+      const pid = r.participants?.id;
+      if (!pid) continue;
+      remindersByParticipant.set(pid, [...(remindersByParticipant.get(pid) ?? []), r]);
+    }
+    // One eligibility answer per participant per run, so every device gets
+    // the same message even after the first send marks the participant.
+    const eligibility = new Map<string, Promise<boolean>>();
 
     for (const reminder of (dueReminders ?? []) as unknown as ReminderRow[]) {
       const participant = reminder.participants;
@@ -265,10 +326,34 @@ serve(async (req) => {
         (sub) => sub.environment === reminder.environment,
       );
 
+      let backtrackFor: { yesterday: string } | null = null;
+      if (
+        BACKTRACK_PUSH_ENABLED
+        && subscriptions.length > 0
+        && isFirstMorningGeneric(reminder, remindersByParticipant.get(participant.id) ?? [])
+      ) {
+        const key = `${participant.id}:${localDate}`;
+        if (!eligibility.has(key)) {
+          eligibility.set(key, backtrackEligible(supabase, participant.id, localDate));
+        }
+        if (await eligibility.get(key)) {
+          backtrackFor = { yesterday: backtrackWindow(localDate).yesterday };
+        }
+      }
+
       for (const subscription of subscriptions) {
-        const outcome = await sendOne(supabase, reminder, participant, subscription, localDate);
+        const outcome = await sendOne(supabase, reminder, participant, subscription, localDate, backtrackFor);
         if (outcome === "expired") counts.deleted++;
         else counts[outcome]++;
+        if (backtrackFor && outcome === "sent") {
+          counts.backtrack++;
+          // Once per person, ever. Only the first accepted send stamps it.
+          await supabase
+            .from("participants")
+            .update({ backtrack_push_sent_at: new Date().toISOString() })
+            .eq("id", participant.id)
+            .is("backtrack_push_sent_at", null);
+        }
       }
     }
 

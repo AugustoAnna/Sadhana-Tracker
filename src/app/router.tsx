@@ -1,3 +1,4 @@
+import { PushTapNavigator } from '@/features/backtracking/PushTapNavigator';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DemoModeIndicator } from '@/components/DemoModeIndicator';
 import { LabIndicator } from '@/components/LabIndicator';
@@ -30,6 +31,7 @@ import {
 export function AppRouter() {
   return (
     <BrowserRouter>
+      <PushTapNavigator />
       <div className="h-full max-w-lg mx-auto bg-page shadow-lg relative overflow-hidden">
         <LabIndicator />
         {isFeatureEnabled('mandala') && <DemoModeIndicator />}
