@@ -184,6 +184,9 @@ self.addEventListener('notificationclick', (event) => {
         type: 'REMINDER_TAPPED',
         slot: data?.slot ?? null,
         kind: data?.kind ?? 'generic',
+        // A window that was already open only gets focused, so the app has to
+        // navigate there itself (a cold open already starts at this url).
+        url: data?.url ?? null,
         minutes_since_delivered: data?.deliveredAt
           ? Math.round((Date.now() - data.deliveredAt) / 60000)
           : 0,
