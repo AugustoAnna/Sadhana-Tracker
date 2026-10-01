@@ -20,6 +20,11 @@ export const COPY = {
       logYesterday: "Log yesterday's practices",
       didntPractice: "I didn't practice yesterday",
     },
+    discovery: {
+      title: 'Log yesterday',
+      body: "Log yesterday's practice, so nothing you did is lost from the record.",
+      gotIt: 'Got it',
+    },
     minutePicker: {
       titleToday: 'How long did you practice?',
       titleYesterday: 'How long did you practice yesterday?',

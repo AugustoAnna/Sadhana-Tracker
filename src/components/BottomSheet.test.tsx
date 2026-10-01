@@ -149,6 +149,17 @@ describe('BottomSheet swipe to dismiss', () => {
     expect(panel().style.transform).toBe('');
   });
 
+  it('reports how it was closed', () => {
+    const onClose = vi.fn();
+    const { container } = sheet(onClose);
+
+    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.click(container.querySelector('.bg-black\\/50') as Element);
+    drag(panel(), 200, 20, 100);
+
+    expect(onClose.mock.calls).toEqual([['close'], ['backdrop'], ['swipe']]);
+  });
+
   it('shows a grabber only when enabled', () => {
     const { unmount } = sheet(vi.fn());
     expect(screen.queryByTestId('sheet-grabber')).not.toBeNull();

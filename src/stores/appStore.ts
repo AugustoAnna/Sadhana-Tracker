@@ -34,10 +34,13 @@ interface AppStore {
    * local logs may miss ones made on another device.
    */
   remoteRestoreSettled: boolean;
+  /** The day the backtracking tip showed in this app load; that day's missed-day sheet waits. Not persisted. */
+  discoveryShownOn: string | null;
 
   hydrate: () => Promise<void>;
   refreshDay: () => Promise<void>;
   markRemoteRestoreSettled: () => void;
+  markDiscoveryShownOn: (day: string) => void;
   setName: (name: string) => Promise<void>;
   setMeditatorStatus: (isMeditator: boolean) => Promise<void>;
   setDrawnToType: (type: DrawnToType) => Promise<void>;
@@ -89,6 +92,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   isDemoMode: false,
   currentDay: todayKey(),
   remoteRestoreSettled: false,
+  discoveryShownOn: null,
 
   hydrate: async () => {
     const db = getDb();
@@ -116,6 +120,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   markRemoteRestoreSettled: () => set({ remoteRestoreSettled: true }),
+  markDiscoveryShownOn: (day) => set({ discoveryShownOn: day }),
 
   refreshDay: async () => {
     const day = todayKey();
@@ -191,6 +196,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       onboardingComplete: true,
       onboardingCompletedAt: current?.onboardingCompletedAt ?? new Date().toISOString(),
       notificationPermissionAsked: true,
+      // Someone finishing setup now meets backtracking through the switcher,
+      // so the release tip is for people who set up before it. (Not done in
+      // completePotentialOnboarding: that marks known participants on a new
+      // device, who are exactly the tip's audience.)
+      featureDiscoveryStep: Math.max(current?.featureDiscoveryStep ?? 0, 1),
     });
     if (reminderEnabled) {
       await db.reminders.update(1, { enabled: true, time: '06:00' });
