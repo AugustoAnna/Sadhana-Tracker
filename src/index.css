@@ -12,8 +12,8 @@
   --color-primary-dark: #0A6B5E;
 
   /* Semantics → surface */
-  --color-page: #FFFFFF;              /* surface/page */
-  --color-card: #F2EFE7;              /* surface/card */
+  --color-page: #F2EFE7;              /* surface/page — warm ground behind the UI */
+  --color-card: #FFFFFF;              /* surface/card — cards, sheets, inputs sit white on it */
   --color-sunken: #E9E5DA;            /* surface/sunken */
   --color-placeholder: #E9E9E9;       /* surface/placeholder */
   --color-cream: #F2EFE7;             /* alias → surface/card */
