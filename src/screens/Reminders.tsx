@@ -219,52 +219,54 @@ export function Reminders() {
           </div>
         )}
 
-        {genericReminders.map((reminder) => (
-          <button
-            key={reminder.id}
-            type="button"
-            onClick={() => openTimeSheet(reminder.id)}
-            className="flex items-center justify-between w-full py-4 border-b border-hairline text-left"
-          >
-            <div>
-              <p className="text-body">Reminder {reminder.id}</p>
-              <p className="text-label text-secondary mt-0.5">
-                {reminder.enabled ? formatTimeDisplay(reminder.time) : 'Off'}
-              </p>
-            </div>
-            <div onClick={(e) => e.stopPropagation()}>
-              <Toggle
-                checked={reminder.enabled}
-                onChange={(enabled) => handleToggle(reminder.id, enabled)}
-              />
-            </div>
-          </button>
-        ))}
-
-        {practiceReminderIds.map((practiceId) => {
-          const reminder = reminders.find((r) => r.id === practiceId);
-          const config = PRACTICE_REMINDER_CONFIG[practiceId];
-          const name = getPractice(practiceId)?.name ?? practiceId;
-          if (!reminder || !config) return null;
-
-          return (
-            <div
-              key={practiceId}
-              className="flex items-center justify-between w-full py-4 border-b border-hairline"
+        <div className="bg-card rounded-[14px] px-3 divide-y divide-hairline">
+          {genericReminders.map((reminder) => (
+            <button
+              key={reminder.id}
+              type="button"
+              onClick={() => openTimeSheet(reminder.id)}
+              className="flex items-center justify-between w-full py-4 text-left"
             >
               <div>
-                <p className="text-body">{name}</p>
+                <p className="text-body">Reminder {reminder.id}</p>
                 <p className="text-label text-secondary mt-0.5">
-                  {reminder.enabled ? formatTimeDisplay(config.time) : 'Off'}
+                  {reminder.enabled ? formatTimeDisplay(reminder.time) : 'Off'}
                 </p>
               </div>
-              <Toggle
-                checked={reminder.enabled}
-                onChange={(enabled) => handleToggle(practiceId as ReminderKey, enabled)}
-              />
-            </div>
-          );
-        })}
+              <div onClick={(e) => e.stopPropagation()}>
+                <Toggle
+                  checked={reminder.enabled}
+                  onChange={(enabled) => handleToggle(reminder.id, enabled)}
+                />
+              </div>
+            </button>
+          ))}
+
+          {practiceReminderIds.map((practiceId) => {
+            const reminder = reminders.find((r) => r.id === practiceId);
+            const config = PRACTICE_REMINDER_CONFIG[practiceId];
+            const name = getPractice(practiceId)?.name ?? practiceId;
+            if (!reminder || !config) return null;
+
+            return (
+              <div
+                key={practiceId}
+                className="flex items-center justify-between w-full py-4"
+              >
+                <div>
+                  <p className="text-body">{name}</p>
+                  <p className="text-label text-secondary mt-0.5">
+                    {reminder.enabled ? formatTimeDisplay(config.time) : 'Off'}
+                  </p>
+                </div>
+                <Toggle
+                  checked={reminder.enabled}
+                  onChange={(enabled) => handleToggle(practiceId as ReminderKey, enabled)}
+                />
+              </div>
+            );
+          })}
+        </div>
 
         {!inSetup && (
           <div className="mt-10 pb-8 safe-bottom">
