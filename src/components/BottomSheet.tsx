@@ -119,7 +119,7 @@ export function BottomSheet({
       {!dismissOnBackdrop && <div className="absolute inset-0 bg-black/50" />}
       <div
         ref={panelRef}
-        className="relative w-full bg-page rounded-t-[18px] px-4 pt-4 pb-8 safe-bottom max-h-[85vh] overflow-y-auto"
+        className="relative w-full bg-card rounded-t-[18px] px-4 pt-4 pb-8 safe-bottom max-h-[85vh] overflow-y-auto"
         style={swipeToDismiss ? {
           transform: offset ? `translateY(${offset}px)` : undefined,
           transition: springBack ? 'transform 150ms ease-out' : undefined,
