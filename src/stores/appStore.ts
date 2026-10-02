@@ -1,15 +1,17 @@
 import { create } from 'zustand';
 import { isFeatureEnabled } from '@/features';
 import { getDb } from '@/db';
-import type { PracticeInstance, PracticeLog, Profile, Reminder, ReminderKey, SavedSession, SessionDraft, DrawnToType, DurationPreference } from '@/types';
+import type { BacktrackRoute, LocalDate, PracticeInstance, PracticeLog, Profile, Reminder, ReminderKey, SavedSession, SessionDraft, DrawnToType, DurationPreference } from '@/types';
 import { getPractice } from '@/data/catalogue';
 import { computeCurrentLevel } from '@/data/journey';
-import { generateId, todayKey, formatDateKey } from '@/utils/dates';
+import { generateId, todayKey, formatDateKey, yesterdayOf } from '@/utils/dates';
 import { queueSync } from '@/services/sync';
 import { enterDemoMode as enterDemoModeService, exitDemoMode as exitDemoModeService, type DemoStateId } from '@/services/demoMode';
 import { syncPracticeReminders } from '@/utils/practiceReminders';
 import { precachePracticeAudio } from '@/services/audio';
 import { getResolvedKind } from '@/data/practiceAssets';
+import { track } from '@/services/instrumentation';
+import { EVENTS } from '@/features/backtracking/analyticsNames';
 
 interface AppStore {
   profile: Profile | null;
@@ -25,9 +27,21 @@ interface AppStore {
   isDemoMode: boolean;
   /** Local calendar day the UI is currently rendering. See refreshDay. */
   currentDay: string;
+  /**
+   * The launch-time pull from the server has finished (or failed). Until then
+   * local logs may miss ones made on another device.
+   */
+  remoteRestoreSettled: boolean;
+  /** The day the backtracking tip showed in this app load; that day's missed-day sheet waits. Not persisted. */
+  discoveryShownOn: string | null;
+  /** The day the app was opened from the backtracking push: no tip or missed-day sheet that day. Not persisted. */
+  pushEntryOn: string | null;
 
   hydrate: () => Promise<void>;
   refreshDay: () => Promise<void>;
+  markRemoteRestoreSettled: () => void;
+  markDiscoveryShownOn: (day: string) => void;
+  markPushEntryOn: (day: string) => void;
   setName: (name: string) => Promise<void>;
   setMeditatorStatus: (isMeditator: boolean) => Promise<void>;
   setDrawnToType: (type: DrawnToType) => Promise<void>;
@@ -41,7 +55,12 @@ interface AppStore {
   removeAllInstancesForPractice: (practiceId: string) => Promise<void>;
   setPracticeInstanceCount: (practiceId: string, count: 1 | 2) => Promise<void>;
   confirmPracticeInstances: (fromFirstSetup: boolean) => Promise<void>;
-  logPractice: (instanceId: string, minutes: number, source: 'checkbox' | 'minutes' | 'player') => Promise<void>;
+  logPractice: (
+    instanceId: string,
+    minutes: number,
+    source: 'checkbox' | 'minutes' | 'player',
+    opts?: { date?: LocalDate; route?: BacktrackRoute; referenceDay?: LocalDate },
+  ) => Promise<void>;
   setReminder: (id: ReminderKey, time: string, enabled: boolean) => Promise<void>;
   ensureSadhguruPresenceReminder: () => Promise<void>;
   setSessionDraft: (draft: SessionDraft | null) => void;
@@ -54,7 +73,7 @@ interface AppStore {
   showToast: (msg: string) => void;
   clearToast: () => void;
   markInstanceEducationShown: () => Promise<void>;
-  markFirstRecordReassuranceShown: () => Promise<void>;
+  markMissedSheetShown: (runKey: LocalDate) => Promise<void>;
   setFeatureDiscoveryStep: (step: number) => Promise<void>;
   enterDemoMode: (stateId: DemoStateId) => Promise<void>;
   exitDemoMode: () => Promise<void>;
@@ -73,6 +92,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   toast: null,
   isDemoMode: false,
   currentDay: todayKey(),
+  remoteRestoreSettled: false,
+  discoveryShownOn: null,
+  pushEntryOn: null,
 
   hydrate: async () => {
     const db = getDb();
@@ -98,6 +120,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
       currentDay: todayKey(),
     });
   },
+
+  markRemoteRestoreSettled: () => set({ remoteRestoreSettled: true }),
+  markDiscoveryShownOn: (day) => set({ discoveryShownOn: day }),
+  markPushEntryOn: (day) => set({ pushEntryOn: day }),
 
   refreshDay: async () => {
     const day = todayKey();
@@ -173,6 +199,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       onboardingComplete: true,
       onboardingCompletedAt: current?.onboardingCompletedAt ?? new Date().toISOString(),
       notificationPermissionAsked: true,
+      // Someone finishing setup now meets backtracking through the switcher,
+      // so the release tip is for people who set up before it. (Not done in
+      // completePotentialOnboarding: that marks known participants on a new
+      // device, who are exactly the tip's audience.)
+      featureDiscoveryStep: Math.max(current?.featureDiscoveryStep ?? 0, 1),
     });
     if (reminderEnabled) {
       await db.reminders.update(1, { enabled: true, time: '06:00' });
@@ -286,10 +317,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // instances already persisted on add
   },
 
-  logPractice: async (instanceId, minutes, source) => {
+  logPractice: async (instanceId, minutes, source, opts = {}) => {
     const db = getDb();
     const instance = get().instances.find((i) => i.id === instanceId);
     if (!instance) return;
+
+    // referenceDay is normally currentDay; the minute picker passes the day that
+    // was current when it opened, so an Add after midnight still lands on the
+    // day the picker was opened for.
+    const referenceDay = opts.referenceDay ?? get().currentDay;
+    const date = opts.date ?? referenceDay;
+    if (date !== referenceDay && date !== yesterdayOf(referenceDay)) {
+      console.warn(`logPractice: ${date} is outside today/yesterday of ${referenceDay}; not logged`);
+      return;
+    }
+    const backtrack = date !== referenceDay;
 
     const log: PracticeLog = {
       id: generateId(),
@@ -297,13 +339,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
       instanceId,
       minutes,
       timestamp: Date.now(),
-      localDate: todayKey(),
+      localDate: date,
       source,
       wasOffline: !navigator.onLine,
+      ...(backtrack && { backtrack: true, route: opts.route ?? 'switcher' }),
     };
 
     await db.practiceLogs.add(log);
     await queueSync({ table: 'practice_completed', operation: 'insert', payload: log });
+    if (backtrack) {
+      void track(EVENTS.practiceBacktracked, {
+        log_id: log.id,
+        practice_id: log.practiceId,
+        instance: instance.instanceNumber,
+        minutes,
+        local_date: date,
+        route: log.route,
+      });
+    }
 
     const prevTotal = get().logs.reduce((s, l) => s + l.minutes, 0);
     const newTotal = prevTotal + minutes;
@@ -316,7 +369,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       await db.appMeta.update('meta', { pendingJourneyMinutes: pending });
 
       let levelCrossed = get().levelCrossed;
-      if (newLevel > prevLevel) {
+      // A yesterday write adds to the journey but never triggers a level-up screen.
+      if (newLevel > prevLevel && !backtrack) {
         const today = todayKey();
         if (meta?.lastLevelUpDate !== today) {
           levelCrossed = newLevel;
@@ -429,10 +483,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ profile: { ...get().profile!, instanceEducationShown: true } });
   },
 
-  markFirstRecordReassuranceShown: async () => {
-    const db = getDb();
-    await db.profile.update('profile', { firstRecordReassuranceShown: true });
-    set({ profile: { ...get().profile!, firstRecordReassuranceShown: true } });
+  markMissedSheetShown: async (runKey) => {
+    // Store first: practice home re-checks from the store, possibly before
+    // the write lands (StrictMode runs the check twice).
+    set({ profile: { ...get().profile!, missedSheetRunKey: runKey } });
+    await getDb().profile.update('profile', { missedSheetRunKey: runKey });
   },
 
   setFeatureDiscoveryStep: async (step) => {

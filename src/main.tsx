@@ -69,9 +69,12 @@ function Bootstrap() {
           // empty database over a history that is still sitting in Supabase.
           const restored = await restoreFromServer();
           if (restored.rowsWritten > 0) await hydrate();
+          useAppStore.getState().markRemoteRestoreSettled();
           await syncFullState();
         })
-        .catch((err) => console.error('Background sync failed:', err));
+        .catch((err) => console.error('Background sync failed:', err))
+        // Offline or failed, local data is all there is: stop waiting on it.
+        .finally(() => useAppStore.getState().markRemoteRestoreSettled());
     }
     init()
       .catch((err) => console.error('Bootstrap failed:', err))

@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
         short_name: shortName,
         description: 'Track your spiritual practice journey',
         theme_color: '#0D8A7A',
-        background_color: '#FDFBF5',
+        background_color: '#F2EFE7',
         display: 'standalone',
         orientation: 'portrait',
         icons: [

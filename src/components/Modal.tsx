@@ -39,7 +39,7 @@ export function Modal({
             className={`w-full py-3 rounded-xl font-semibold border-2 ${
               dark
                 ? 'border-white/40 text-white bg-white/10'
-                : 'border-border text-ink bg-page'
+                : 'border-border text-ink bg-card'
             }`}
           >
             {cancelLabel}

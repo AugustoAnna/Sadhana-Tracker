@@ -2,6 +2,12 @@ export type PracticeType = 'guided' | 'unguided' | 'timed';
 
 export type LogSource = 'checkbox' | 'minutes' | 'player';
 
+/** 'yyyy-MM-dd', device-local. */
+export type LocalDate = string;
+export type DayKey = 'today' | 'yesterday';
+/** How the user arrived on Yesterday for a write. */
+export type BacktrackRoute = 'switcher' | 'sheet' | 'push';
+
 export type DrawnToType = 'physical-yoga' | 'pranayama' | 'meditation' | 'chants';
 
 export type DurationPreference = 'under-5' | '5-10' | '10-20' | 'over-20';
@@ -31,6 +37,10 @@ export interface PracticeLog {
   localDate: string;
   source: LogSource;
   wasOffline?: boolean;
+  /** True when localDate was the day before the write. Absent on older rows = false. */
+  backtrack?: boolean;
+  /** How the user reached Yesterday for this write. Present only when backtrack. */
+  route?: BacktrackRoute;
 }
 
 export interface Profile {
@@ -43,10 +53,11 @@ export interface Profile {
   /** ISO timestamp of finishing setup; mirrors participants.onboarding_completed_at. */
   onboardingCompletedAt?: string;
   instanceEducationShown: boolean;
-  firstRecordReassuranceShown: boolean;
   notificationPermissionAsked: boolean;
   trackerIntroSeen: boolean;
   featureDiscoveryStep: number;
+  /** Start of the empty-day run the missed-day sheet last showed for (yyyy-MM-dd). Local only. */
+  missedSheetRunKey?: string | null;
 }
 
 export type ReminderSlot = 1 | 2 | 3;

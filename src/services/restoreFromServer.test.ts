@@ -83,6 +83,27 @@ describe('restoreFromServer', () => {
     ]);
   });
 
+  it('keeps the yesterday marker, so the next full sync does not clear it', async () => {
+    tables = {
+      participants: participant,
+      participant_practices: { data: [remoteInstance('i1', 'shambhavi', '2026-08-14T00:00:00Z')], error: null },
+      practice_completed: {
+        data: [
+          { ...remoteLog('l1', 'shambhavi', '2026-08-14'), backtrack: true, route: 'sheet' },
+          { ...remoteLog('l2', 'shambhavi', '2026-08-15'), backtrack: false, route: null },
+        ],
+        error: null,
+      },
+    };
+
+    await restoreFromServer();
+
+    const [yesterdayLog, sameDayLog] = putLogs.mock.calls[0][0];
+    expect(yesterdayLog).toMatchObject({ id: 'l1', backtrack: true, route: 'sheet' });
+    expect(sameDayLog).not.toHaveProperty('backtrack');
+    expect(sameDayLog).not.toHaveProperty('route');
+  });
+
   it('keeps the order a device already shows and appends unseen practices', async () => {
     localInstances.push({ id: 'i1', practiceId: 'shambhavi', instanceNumber: 1, order: 3, addedAt: 111 });
     tables = {
