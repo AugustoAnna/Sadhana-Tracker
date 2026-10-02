@@ -77,11 +77,29 @@ export function PracticeCalendar({ logs }: PracticeCalendarProps) {
   // Past months live to the left, so the strip opens pinned to the current one.
   const pinnedToEnd = useRef(true);
 
-  useLayoutEffect(() => {
+  const pinToEnd = () => {
     const el = scrollRef.current;
-    if (!el || !pinnedToEnd.current) return;
-    el.scrollLeft = el.scrollWidth;
-  }, [months.length]);
+    if (el && pinnedToEnd.current) el.scrollLeft = el.scrollWidth;
+  };
+
+  // Right away when the month count changes (logs restored from the server)…
+  useLayoutEffect(pinToEnd, [months.length]);
+
+  // …and again after the first paint and whenever the strip changes size:
+  // WebKit can drop an offset set before the strip's first layout, and late
+  // layout (fonts, a page drawn only once foregrounded) can widen it after.
+  // Never once the user has scrolled back to an earlier month themselves.
+  useEffect(() => {
+    const strip = scrollRef.current?.firstElementChild;
+    if (!strip) return;
+    const frame = requestAnimationFrame(pinToEnd);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(pinToEnd);
+    observer?.observe(strip);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
