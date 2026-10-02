@@ -1,4 +1,4 @@
-import { format, startOfDay, subDays, isSameDay, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, startOfDay, subDays, isSameDay, parseISO } from 'date-fns';
 import type { PracticeLog } from '@/types';
 
 export function todayKey(): string {
@@ -11,6 +11,23 @@ export function formatDateKey(date: Date): string {
 
 export function parseDateKey(key: string): Date {
   return parseISO(key);
+}
+
+// parseISO reads a bare 'yyyy-MM-dd' as local midnight, so these stay on
+// local calendar days across clock changes.
+
+/** The local calendar day before `day`. */
+export function yesterdayOf(day: string): string {
+  return formatDateKey(addDays(parseDateKey(day), -1));
+}
+
+export function dayAfter(day: string): string {
+  return formatDateKey(addDays(parseDateKey(day), 1));
+}
+
+/** Whole calendar days from `from` to `to` (0 when equal). */
+export function daysBetween(from: string, to: string): number {
+  return differenceInCalendarDays(parseDateKey(to), parseDateKey(from));
 }
 
 export function getLogsForDay(logs: PracticeLog[], dateKey: string): PracticeLog[] {
@@ -55,34 +72,40 @@ export function getCurrentStreak(logs: PracticeLog[]): number {
   return streak;
 }
 
-export function getCompletionCountToday(
+// The per-day helpers take the day explicitly rather than reading the clock:
+// callers pass the store's currentDay (or the day the switcher shows), so a
+// screen never mixes two notions of "today" around midnight.
+
+export function getCompletionCountOn(
   logs: PracticeLog[],
   instanceId: string,
+  dateKey: string,
 ): number {
-  const today = todayKey();
-  return getLogsForDay(logs, today).filter((l) => l.instanceId === instanceId).length;
+  return getLogsForDay(logs, dateKey).filter((l) => l.instanceId === instanceId).length;
 }
 
-export function isInstanceCompletedToday(
+export function isInstanceCompletedOn(
   logs: PracticeLog[],
   instanceId: string,
+  dateKey: string,
 ): boolean {
-  return getCompletionCountToday(logs, instanceId) > 0;
+  return getCompletionCountOn(logs, instanceId, dateKey) > 0;
 }
 
-export function isInstanceCompletedTwiceToday(
+export function isInstanceCompletedTwiceOn(
   logs: PracticeLog[],
   instanceId: string,
+  dateKey: string,
 ): boolean {
-  return getCompletionCountToday(logs, instanceId) >= 2;
+  return getCompletionCountOn(logs, instanceId, dateKey) >= 2;
 }
 
-export function getTimedMinutesToday(
+export function getTimedMinutesOn(
   logs: PracticeLog[],
   instanceId: string,
+  dateKey: string,
 ): number {
-  const today = todayKey();
-  return getLogsForDay(logs, today)
+  return getLogsForDay(logs, dateKey)
     .filter((l) => l.instanceId === instanceId)
     .reduce((sum, l) => sum + l.minutes, 0);
 }
@@ -103,27 +126,9 @@ export function getCurrentWeekDays(): string[] {
   return days;
 }
 
-/** @deprecated Use getCurrentWeekDays for Mon–Sun week */
-export function getWeekDays(): string[] {
-  const days: string[] = [];
-  const today = startOfDay(new Date());
-  for (let i = 6; i >= 0; i--) {
-    days.push(formatDateKey(subDays(today, i)));
-  }
-  return days;
-}
-
-export function getWeekMinutes(logs: PracticeLog[]): number {
-  const weekDays = new Set(getWeekDays());
-  return logs
-    .filter((l) => weekDays.has(formatDateKey(new Date(l.timestamp))))
-    .reduce((sum, l) => sum + l.minutes, 0);
-}
-
-export function getPracticesCompletedToday(logs: PracticeLog[]): number {
-  const today = todayKey();
+export function getPracticesCompletedOn(logs: PracticeLog[], dateKey: string): number {
   const instanceIds = new Set(
-    getLogsForDay(logs, today).map((l) => l.instanceId),
+    getLogsForDay(logs, dateKey).map((l) => l.instanceId),
   );
   return instanceIds.size;
 }

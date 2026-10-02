@@ -36,13 +36,15 @@ print(f'  -> {len(rows)} rows')
 "
 }
 
-run participants "select id, name, platform, installed_standalone, notification_permission, segment, timezone, created_at, onboarding_completed_at from participants where environment = 'study'"
+run participants "select id, name, platform, installed_standalone, notification_permission, segment, timezone, merged_into, created_at from participants where environment = 'study'"
+
+run practices "select id, name, kind, sort_order from practices"
 
 run participant_practices "select participant_id, practice_id, instance, created_at from participant_practices where environment = 'study'"
 
 run reminders "select participant_id, kind, slot, practice_id, time_local, enabled from reminders where environment = 'study'"
 
-run practice_completed "select participant_id, practice_id, instance, minutes, mode, was_offline, local_date, occurred_at from practice_completed where environment = 'study'"
+run practice_completed "select participant_id, practice_id, instance, minutes, mode, was_offline, local_date, occurred_at, backtrack from practice_completed where environment = 'study'"
 
 run events "select participant_id, name, properties, occurred_at, local_date from events where environment = 'study'"
 
