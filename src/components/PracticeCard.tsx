@@ -61,7 +61,7 @@ export function PracticeCard({
     <div className="flex items-center gap-3 py-3 px-3">
       {readOnly ? (
         <div className="w-11 h-11 flex items-center justify-center flex-shrink-0" aria-label="Completed">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D8A4E" strokeWidth="2.5">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5">
             <path d="M5 13l4 4L19 7" />
           </svg>
         </div>
@@ -79,14 +79,14 @@ export function PracticeCard({
           aria-label="Log minutes"
         >
           <span className="w-[26px] h-[26px] rounded-[7px] border-2 border-primary flex items-center justify-center">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-text)" strokeWidth="2.5">
               <path d="M12 5v14M5 12h14" />
             </svg>
           </span>
         </button>
       ) : completed ? (
         <div className="w-11 h-11 flex items-center justify-center flex-shrink-0" aria-label="Completed">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D8A4E" strokeWidth="2.5">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5">
             <path d="M5 13l4 4L19 7" />
           </svg>
         </div>
@@ -118,7 +118,7 @@ export function PracticeCard({
           className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 disabled:opacity-30"
           aria-label="Play"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--color-primary)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--color-primary-text)">
             <path d="M8 5v14l11-7z" />
           </svg>
         </button>

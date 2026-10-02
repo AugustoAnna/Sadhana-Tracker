@@ -42,8 +42,8 @@ export function MinutePicker({ initialValue, onChange }: MinutePickerProps) {
   }, [scrollToIndex]);
 
   return (
-    <div className="bg-gray-100 rounded-xl p-2 relative">
-      <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-10 bg-white/60 rounded-lg pointer-events-none z-10" />
+    <div className="bg-field rounded-xl p-2 relative">
+      <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-10 bg-field-highlight rounded-lg pointer-events-none z-10" />
       <div
         ref={scrollRef}
         className="h-40 overflow-y-auto no-scrollbar snap-y snap-mandatory"
@@ -65,7 +65,7 @@ export function MinutePicker({ initialValue, onChange }: MinutePickerProps) {
                 scrollToIndex(indexForMinute(m), 'smooth');
               }}
               className={`w-full flex items-center justify-center text-lg snap-center ${
-                m === selected ? 'font-bold text-gray-900' : 'text-gray-400'
+                m === selected ? 'font-bold text-gray-900 dark:text-ink' : 'text-gray-400 dark:text-faint'
               }`}
               style={{ height: ROW_HEIGHT }}
             >
