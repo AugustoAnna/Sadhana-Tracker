@@ -42,7 +42,7 @@ const state = {
 };
 
 vi.mock('@/stores/appStore', () => ({
-  useAppStore: (selector: (s: typeof state) => unknown) => selector(state),
+  useAppStore: Object.assign((selector: (s: typeof state) => unknown) => selector(state), { getState: () => state }),
   getDefaultLogMinutes: () => 15,
 }));
 vi.mock('@/hooks', () => ({ useHaptic: () => () => {} }));

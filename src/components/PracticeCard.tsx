@@ -1,6 +1,6 @@
 import { getPractice } from '@/data/catalogue';
 import { getResolvedKind } from '@/data/practiceAssets';
-import type { PracticeInstance } from '@/types';
+import type { DayKey, PracticeInstance } from '@/types';
 import { PracticeIllustration } from './PracticeIllustration';
 import { PracticeName } from './PracticeName';
 
@@ -16,7 +16,7 @@ interface PracticeCardProps {
   showAdd?: boolean;
   playSessionActive?: boolean;
   /** Which day the row is showing; a past day drops "so far" from timed minutes. */
-  day?: 'today' | 'yesterday';
+  day?: DayKey;
   /** A done row with no controls — a practice logged that day but since removed. */
   readOnly?: boolean;
 }
