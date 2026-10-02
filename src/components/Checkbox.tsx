@@ -25,7 +25,7 @@ export function Checkbox({ checked, disabled, onChange }: CheckboxProps) {
     >
       <div
         className={`w-[26px] h-[26px] rounded-[7px] border-2 flex items-center justify-center transition-colors ${
-          checked ? 'bg-primary border-primary' : 'border-border bg-page'
+          checked ? 'bg-primary border-primary' : 'border-border bg-card'
         } ${disabled && !checked ? 'opacity-40' : ''}`}
       >
         {checked && (
