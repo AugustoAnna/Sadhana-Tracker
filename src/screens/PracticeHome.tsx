@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PracticeCard, BottomSheet, MinutePicker, Button,
@@ -12,6 +12,7 @@ import {
   isInstanceCompletedOn, getTimedMinutesOn, yesterdayOf,
 } from '@/utils/dates';
 import { sortTrackingInstances } from '@/utils/sortInstances';
+import { UNTICK_WINDOW_MS, isUntickable } from '@/utils/untick';
 import { useHaptic } from '@/hooks';
 import { track } from '@/services/instrumentation';
 import { COPY } from '@/copy/strings';
@@ -26,6 +27,7 @@ export function PracticeHome() {
   const instances = useAppStore((s) => s.instances);
   const logs = useAppStore((s) => s.logs);
   const logPractice = useAppStore((s) => s.logPractice);
+  const unlogPractice = useAppStore((s) => s.unlogPractice);
   const setPlayerSession = useAppStore((s) => s.setPlayerSession);
   const playerSession = useAppStore((s) => s.playerSession);
   const haptic = useHaptic();
@@ -57,6 +59,24 @@ export function PracticeHome() {
   const dayLogs = useMemo(() => getLogsForDay(logs, selectedDate), [logs, selectedDate]);
   const dayMinutes = getMinutesForDay(dayLogs, selectedDate);
   const dayCompleted = getPracticesCompletedOn(dayLogs, selectedDate);
+  // Fresh ticks that can still be taken back, by instance. Read again whenever
+  // the logs change and each time one of them locks.
+  const [lockCount, setLockCount] = useState(0);
+
+  const untickable = useMemo(() => {
+    const now = Date.now();
+    return new Map(dayLogs.filter((l) => isUntickable(l, now)).map((l) => [l.instanceId, l]));
+  }, [dayLogs, lockCount]);
+
+  const nextLock = untickable.size
+    ? Math.min(...[...untickable.values()].map((l) => l.timestamp)) + UNTICK_WINDOW_MS
+    : null;
+    
+  useEffect(() => {
+    if (nextLock === null) return;
+    const timer = setTimeout(() => setLockCount((n) => n + 1), Math.max(0, nextLock - Date.now()));
+    return () => clearTimeout(timer);
+  }, [nextLock, lockCount]);
   const removedPractices = useMemo(
     () => (onYesterday ? removedPracticesOn(dayLogs, instances, selectedDate) : []),
     [onYesterday, dayLogs, instances, selectedDate],
@@ -98,6 +118,13 @@ export function PracticeHome() {
     await logPractice(instanceId, getDefaultLogMinutes(
       instances.find((i) => i.id === instanceId)!.practiceId,
     ), 'checkbox', { date: selectedDate, route });
+  };
+
+  const handleUntick = async (instanceId: string) => {
+    const log = untickable.get(instanceId);
+    if (!log) return;
+    haptic();
+    await unlogPractice(log.id);
   };
 
   const handleConfirmMinutes = async () => {
@@ -205,6 +232,7 @@ export function PracticeHome() {
                   completed={isInstanceCompletedOn(dayLogs, inst.id, selectedDate)}
                   timedMinutesToday={getTimedMinutesOn(dayLogs, inst.id, selectedDate)}
                   onCheckbox={() => handleCheckbox(inst.id)}
+                  onUntick={untickable.has(inst.id) ? () => handleUntick(inst.id) : undefined}
                   onPlus={() => openMinuteSheet(inst.id, 'log')}
                   // Nothing is played "for yesterday": logging only.
                   onPlay={onYesterday ? undefined : () => handlePlay(inst.id)}

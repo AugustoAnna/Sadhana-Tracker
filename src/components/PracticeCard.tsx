@@ -10,6 +10,8 @@ interface PracticeCardProps {
   completed: boolean;
   timedMinutesToday?: number;
   onCheckbox?: () => void;
+  /** Set while a fresh tick can still be taken back; the tick is tappable until then. */
+  onUntick?: () => void;
   onPlus?: () => void;
   onPlay?: () => void;
   onAdd?: () => void;
@@ -20,6 +22,12 @@ interface PracticeCardProps {
   /** A done row with no controls — a practice logged that day but since removed. */
   readOnly?: boolean;
 }
+
+const completedTick = (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D8A4E" strokeWidth="2.5">
+    <path d="M5 13l4 4L19 7" />
+  </svg>
+);
 
 function formatDuration(minutes: number | null): string {
   if (!minutes) return '';
@@ -32,6 +40,7 @@ export function PracticeCard({
   completed,
   timedMinutesToday = 0,
   onCheckbox,
+  onUntick,
   onPlus,
   onPlay,
   onAdd,
@@ -61,9 +70,7 @@ export function PracticeCard({
     <div className="flex items-center gap-3 py-3 px-3">
       {readOnly ? (
         <div className="w-11 h-11 flex items-center justify-center flex-shrink-0" aria-label="Completed">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D8A4E" strokeWidth="2.5">
-            <path d="M5 13l4 4L19 7" />
-          </svg>
+          {completedTick}
         </div>
       ) : showAdd ? (
         <button
@@ -84,11 +91,17 @@ export function PracticeCard({
             </svg>
           </span>
         </button>
+      ) : completed && onUntick ? (
+        <button
+          onClick={onUntick}
+          className="w-11 h-11 flex items-center justify-center flex-shrink-0"
+          aria-label="Undo, mark not done"
+        >
+          {completedTick}
+        </button>
       ) : completed ? (
         <div className="w-11 h-11 flex items-center justify-center flex-shrink-0" aria-label="Completed">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D8A4E" strokeWidth="2.5">
-            <path d="M5 13l4 4L19 7" />
-          </svg>
+          {completedTick}
         </div>
       ) : (
         <button
