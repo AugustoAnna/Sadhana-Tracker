@@ -11,6 +11,7 @@ export type InstrumentEvent =
   | 'practices_changed'
   | 'practice_started'
   | 'practice_quit'
+  | 'practice_unticked'
   | 'reminder_set'
   | 'reminder_disabled'
   | 'reminder_delivered'

@@ -14,6 +14,7 @@ No event may be added, renamed, removed, or have its properties changed without 
 | `practices_changed` | Later Save when list changed | `added` `{practice_id, instance}[]`, `removed` same, `total_after` int |
 | `practice_started` | Play tapped | `practice_id`, `instance`, `kind` |
 | `practice_quit` | Leave session confirmed | `practice_id`, `instance`, `elapsed_seconds`, `total_seconds` |
+| `practice_unticked` | A checkbox tick taken back within its first minute; the `practice_completed` row is deleted | `log_id`, `practice_id`, `instance`, `minutes`, `local_date`, `backtrack` bool |
 | `reminder_set` | Set time confirmed | `slot` int\|null, `kind`, `practice_id`\|null, `time_local`, `was_enabled_before` bool |
 | `reminder_disabled` | Reminder toggled off | `slot`\|null, `kind`, `time_local` |
 | `reminder_delivered` | SW shows notification **and an app window is open** — undercounts; use `reminder_sends.delivered_at` for the real number | `slot`\|null, `kind` |
