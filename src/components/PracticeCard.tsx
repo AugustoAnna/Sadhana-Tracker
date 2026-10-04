@@ -23,10 +23,13 @@ interface PracticeCardProps {
   readOnly?: boolean;
 }
 
+// The empty checkbox's rounded square, filled, with a white check.
 const completedTick = (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D8A4E" strokeWidth="2.5">
-    <path d="M5 13l4 4L19 7" />
-  </svg>
+  <span className="w-[26px] h-[26px] rounded-[7px] border-2 border-primary bg-primary flex items-center justify-center">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 13l4 4L19 7" />
+    </svg>
+  </span>
 );
 
 function formatDuration(minutes: number | null): string {
