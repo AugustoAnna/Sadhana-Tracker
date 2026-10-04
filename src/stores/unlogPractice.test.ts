@@ -88,8 +88,25 @@ describe('unlogPractice', () => {
     }]);
   });
 
+  it('ignores an undo in the tick\'s first half second, the second tap of a double tap', async () => {
+    const log = await tick();
+    vi.setSystemTime(NOW + 300);
+
+    await useAppStore.getState().unlogPractice(log.id);
+
+    expect(await db.practiceLogs.count()).toBe(1);
+    expect(deletesQueued).toEqual([]);
+
+    vi.setSystemTime(NOW + 2_000);
+    await useAppStore.getState().unlogPractice(log.id);
+
+    expect(await db.practiceLogs.count()).toBe(0);
+    expect(deletesQueued).toEqual([{ table: 'practice_completed', id: log.id }]);
+  });
+
   it('takes a tick back only once when tapped twice quickly', async () => {
     const log = await tick();
+    vi.setSystemTime(NOW + 2_000);
 
     await Promise.all([
       useAppStore.getState().unlogPractice(log.id),
@@ -103,6 +120,7 @@ describe('unlogPractice', () => {
   it('gives the minutes back to the journey', async () => {
     const log = await tick();
     expect(useAppStore.getState().pendingJourneyMinutes).toBe(12);
+    vi.setSystemTime(NOW + 2_000);
 
     await useAppStore.getState().unlogPractice(log.id);
 

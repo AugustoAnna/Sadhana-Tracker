@@ -75,6 +75,17 @@ describe('Practice home untick', () => {
     expect(state.unlogPractice).toHaveBeenCalledWith('isha-log');
   });
 
+  it('keeps a brand new tick untappable for half a second, so a double tap does not undo it', () => {
+    state.logs = [log('isha', 'isha-kriya', NOW)];
+    renderHome();
+    expect(within(rowFor('Isha Kriya')).queryByLabelText('Undo, mark not done')).toBeNull();
+    expect(within(rowFor('Isha Kriya')).getByLabelText('Completed')).toBeTruthy();
+
+    act(() => { vi.advanceTimersByTime(500); });
+
+    expect(within(rowFor('Isha Kriya')).queryByLabelText('Undo, mark not done')).not.toBeNull();
+  });
+
   it('locks the tick by itself once its minute is up', () => {
     state.logs = [log('isha', 'isha-kriya', NOW - 10_000)];
     renderHome();

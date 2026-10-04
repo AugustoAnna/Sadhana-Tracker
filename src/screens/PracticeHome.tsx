@@ -12,7 +12,7 @@ import {
   isInstanceCompletedOn, getTimedMinutesOn, yesterdayOf,
 } from '@/utils/dates';
 import { sortTrackingInstances } from '@/utils/sortInstances';
-import { UNTICK_WINDOW_MS, isUntickable } from '@/utils/untick';
+import { isUntickable, nextUntickChange } from '@/utils/untick';
 import { useHaptic } from '@/hooks';
 import { track } from '@/services/instrumentation';
 import { COPY } from '@/copy/strings';
@@ -59,24 +59,27 @@ export function PracticeHome() {
   const dayLogs = useMemo(() => getLogsForDay(logs, selectedDate), [logs, selectedDate]);
   const dayMinutes = getMinutesForDay(dayLogs, selectedDate);
   const dayCompleted = getPracticesCompletedOn(dayLogs, selectedDate);
-  // Fresh ticks that can still be taken back, by instance. Read again whenever
-  // the logs change and each time one of them locks.
-  const [lockCount, setLockCount] = useState(0);
+  // Fresh ticks that can be taken back, by instance, and when that next
+  // changes (a tick unlocking after its first half second, or locking after
+  // its minute). Read again whenever the logs change and at that moment.
+  const [untickRefresh, setUntickRefresh] = useState(0);
 
-  const untickable = useMemo(() => {
+  const { untickable, nextUntickAt } = useMemo(() => {
     const now = Date.now();
-    return new Map(dayLogs.filter((l) => isUntickable(l, now)).map((l) => [l.instanceId, l]));
-  }, [dayLogs, lockCount]);
+    const changes = dayLogs
+      .map((l) => nextUntickChange(l, now))
+      .filter((at): at is number => at !== null);
+    return {
+      untickable: new Map(dayLogs.filter((l) => isUntickable(l, now)).map((l) => [l.instanceId, l])),
+      nextUntickAt: changes.length ? Math.min(...changes) : null,
+    };
+  }, [dayLogs, untickRefresh]);
 
-  const nextLock = untickable.size
-    ? Math.min(...[...untickable.values()].map((l) => l.timestamp)) + UNTICK_WINDOW_MS
-    : null;
-    
   useEffect(() => {
-    if (nextLock === null) return;
-    const timer = setTimeout(() => setLockCount((n) => n + 1), Math.max(0, nextLock - Date.now()));
+    if (nextUntickAt === null) return;
+    const timer = setTimeout(() => setUntickRefresh((n) => n + 1), Math.max(0, nextUntickAt - Date.now()));
     return () => clearTimeout(timer);
-  }, [nextLock, lockCount]);
+  }, [nextUntickAt, untickRefresh]);
   const removedPractices = useMemo(
     () => (onYesterday ? removedPracticesOn(dayLogs, instances, selectedDate) : []),
     [onYesterday, dayLogs, instances, selectedDate],
