@@ -39,7 +39,6 @@
   */
   --color-primary-text: #0D8A7A;      /* teal as text/icon; brightens in dark */
   --color-raised: #FFFFFF;            /* sheets and dialogs above the page */
-  --color-success: #2D8A4E;           /* completed tick */
   --color-faint: #9B9B9B;             /* lock icons, unselected picker rows */
   --color-field: oklch(96.7% 0.003 264.542);        /* picker well, locked tile */
   --color-field-highlight: rgb(255 255 255 / 0.6);  /* picker selection band */
@@ -93,7 +92,6 @@
   --color-hairline: #2D2A25;
   --color-journey: #E8834A;
   --color-error: #F07171;
-  --color-success: #5CC27F;
 
   --color-field: #2A2723;
   --color-field-highlight: rgb(255 255 255 / 0.07);
