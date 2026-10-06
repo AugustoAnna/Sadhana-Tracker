@@ -4,6 +4,7 @@ import type { SyncQueueItem } from './sync';
 let queue: SyncQueueItem[] = [];
 const deleted: string[] = [];
 const upserted: Array<{ table: string; id: unknown }> = [];
+const serverDeletes: Array<{ table: string; id: unknown }> = [];
 let onUpsert: (() => void) | null = null;
 
 vi.mock('@/db', () => ({
@@ -31,7 +32,14 @@ vi.mock('./supabase', () => ({
     from: (table: string) => {
       const b: Record<string, unknown> = {};
       b.select = () => b;
-      b.eq = () => b;
+      b.eq = (column: string, value: unknown) => {
+        if (b.deleting && column === 'id') serverDeletes.push({ table, id: value });
+        return b;
+      };
+      b.delete = () => {
+        b.deleting = true;
+        return b;
+      };
       b.maybeSingle = () => Promise.resolve({ data: { id: 'p1' }, error: null });
       b.update = () => b;
       b.upsert = (values: { id?: unknown }) => {
@@ -62,6 +70,7 @@ beforeEach(() => {
   queue = [];
   deleted.length = 0;
   upserted.length = 0;
+  serverDeletes.length = 0;
   onUpsert = null;
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
@@ -87,6 +96,16 @@ describe('drainSyncQueue', () => {
     await drainSyncQueue();
 
     expect(upserted.map((u) => u.id)).toEqual(['1', '2']);
+    expect(queue).toEqual([]);
+  });
+
+  it('deletes an unticked practice from the server', async () => {
+    queue = [{ id: 'q1', table: 'practice_completed', operation: 'delete', createdAt: 1, payload: { id: 'log-1' } }];
+
+    await drainSyncQueue();
+
+    expect(serverDeletes).toEqual([{ table: 'practice_completed', id: 'log-1' }]);
+    expect(upserted).toEqual([]);
     expect(queue).toEqual([]);
   });
 });

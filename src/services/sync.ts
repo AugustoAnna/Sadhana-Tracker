@@ -201,8 +201,9 @@ function sourceFromLogMode(mode: 'logged' | 'minutes_added' | 'guided'): Practic
  * Merges rather than replaces: the server stores the client-generated ids
  * (participant_practices.id IS the local instance id, practice_completed.id IS
  * the local log id), so bulkPut is idempotent and leaves local-only rows alone.
- * Deletions are safe too — removePracticeInstance deletes server-side, so a
- * synced removal cannot come back.
+ * Deletions are safe too: a removed practice or an unticked log is deleted
+ * server-side, and while that delete is still waiting in the sync queue the
+ * row is skipped here, so neither comes back.
  *
  * Also restores the onboarding flag from the participant row, which counts as
  * a written row so callers re-hydrate the store.
@@ -326,9 +327,23 @@ export async function restoreFromServer(
 
   // A participants row means this is a known account. Skip first-time setup
   // even when they currently have zero practices on the server.
-  await db.transaction('rw', db.practiceInstances, db.practiceLogs, db.profile, async () => {
-    if (instances.length) await db.practiceInstances.bulkPut(instances);
-    if (logs.length) await db.practiceLogs.bulkPut(logs);
+  let rowsRestored = 0;
+  await db.transaction('rw', db.practiceInstances, db.practiceLogs, db.profile, db.syncQueue, async () => {
+    // Rows deleted on this device whose delete has not reached the server yet.
+    // Restoring them would bring them back here, and the next syncFullState
+    // would upload them again. Read in the same transaction as the writes, so
+    // a delete queued meanwhile is not missed.
+    const pendingDeletes = new Set(
+      (await db.syncQueue.toArray())
+        .filter((i) => i.operation === 'delete')
+        .map((i) => `${i.table}:${(i.payload as { id?: string }).id}`),
+    );
+    const keptInstances = instances.filter((i) => !pendingDeletes.has(`participant_practices:${i.id}`));
+    const keptLogs = logs.filter((l) => !pendingDeletes.has(`practice_completed:${l.id}`));
+    rowsRestored = keptInstances.length + keptLogs.length;
+
+    if (keptInstances.length) await db.practiceInstances.bulkPut(keptInstances);
+    if (keptLogs.length) await db.practiceLogs.bulkPut(keptLogs);
     const profile = await db.profile.get('profile');
     if (profile && !profile.onboardingComplete) {
       await db.profile.update('profile', {
@@ -346,7 +361,7 @@ export async function restoreFromServer(
     console.warn(`restoreFromServer: ${unattached} record(s) had no matching practice`);
   }
   return {
-    rowsWritten: instances.length + logs.length + profileRestored,
+    rowsWritten: rowsRestored + profileRestored,
     participantFound: true,
   };
 }
@@ -397,6 +412,21 @@ export async function queueSync(item: Omit<SyncQueueItem, 'id' | 'createdAt'>) {
   }
 }
 
+/**
+ * Queue a server delete for one row, dropping any write for it still waiting
+ * in the queue so it is not uploaded only to be deleted. The delete is queued
+ * either way: a drain already running may be uploading that write right now.
+ */
+export async function queueSyncDelete(table: SyncTable, id: string) {
+  if (isDemoDatabaseActive()) return;
+
+  const db = getDb();
+  await db.syncQueue
+    .filter((i) => i.table === table && (i.payload as { id?: string }).id === id)
+    .delete();
+  await queueSync({ table, operation: 'delete', payload: { id } });
+}
+
 async function syncItem(item: SyncQueueItem): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) return false;
@@ -411,6 +441,13 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
   switch (item.table) {
     case 'practice_completed': {
       const log = item.payload as PracticeLog & { wasOffline?: boolean };
+      if (item.operation === 'delete') {
+        const { error } = await supabase
+          .from('practice_completed')
+          .delete()
+          .eq('id', log.id);
+        return !error;
+      }
       const inst = await db.practiceInstances.get(log.instanceId);
       const { error } = await supabase.from('practice_completed').upsert({
         id: log.id,

@@ -1,7 +1,9 @@
 import type { PracticeLog } from '@/types';
 
 /** How long a tick can be taken back before it locks. */
+
 export const UNTICK_WINDOW_MS = 10_000;
+
 
 /**
  * How long a fresh tick stays untappable. The second tap of a double tap on

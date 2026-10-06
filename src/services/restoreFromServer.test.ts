@@ -6,12 +6,14 @@ let profile: Profile | undefined;
 const putInstances = vi.fn<(rows: PracticeInstance[]) => Promise<void>>();
 const putLogs = vi.fn<(rows: PracticeLog[]) => Promise<void>>();
 const updateProfile = vi.fn();
+let syncQueue: Array<{ table: string; operation: string; payload: { id: string } }> = [];
 
 vi.mock('@/db', () => ({
   getDb: () => ({
     practiceInstances: { toArray: async () => localInstances, bulkPut: putInstances },
     practiceLogs: { bulkPut: putLogs },
     profile: { get: async () => profile, update: updateProfile },
+    syncQueue: { toArray: async () => syncQueue },
     transaction: (_mode: string, ...rest: unknown[]) =>
       (rest[rest.length - 1] as () => Promise<void>)(),
   }),
@@ -64,6 +66,7 @@ beforeEach(() => {
   putInstances.mockReset();
   putLogs.mockReset();
   updateProfile.mockReset();
+  syncQueue = [];
   tables = {};
 });
 
@@ -136,6 +139,43 @@ describe('restoreFromServer', () => {
     // Known participant still marks setup complete even with no usable practices.
     expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
     expect(putLogs).not.toHaveBeenCalled();
+  });
+
+  it('does not bring back a log unticked here whose delete has not been sent yet', async () => {
+    syncQueue = [
+      { table: 'practice_completed', operation: 'delete', payload: { id: 'l1' } },
+      // A waiting upload is not a delete: that log still comes back.
+      { table: 'practice_completed', operation: 'insert', payload: { id: 'l2' } },
+    ];
+    tables = {
+      participants: participant,
+      participant_practices: { data: [remoteInstance('i1', 'shambhavi', '2026-08-14T00:00:00Z')], error: null },
+      practice_completed: {
+        data: [remoteLog('l1', 'shambhavi', '2026-08-14'), remoteLog('l2', 'shambhavi', '2026-08-15')],
+        error: null,
+      },
+    };
+
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 3, participantFound: true });
+    expect(putLogs.mock.calls[0][0].map((l) => l.id)).toEqual(['l2']);
+  });
+
+  it('does not bring back a practice removed here whose delete has not been sent yet', async () => {
+    syncQueue = [{ table: 'participant_practices', operation: 'delete', payload: { id: 'i1' } }];
+    tables = {
+      participants: participant,
+      participant_practices: {
+        data: [
+          remoteInstance('i1', 'shambhavi', '2026-08-14T00:00:00Z'),
+          remoteInstance('i2', 'guru-pooja', '2026-08-15T00:00:00Z'),
+        ],
+        error: null,
+      },
+      practice_completed: { data: [], error: null },
+    };
+
+    expect(await restoreFromServer()).toEqual({ rowsWritten: 2, participantFound: true });
+    expect(putInstances.mock.calls[0][0].map((i) => i.id)).toEqual(['i2']);
   });
 
   it('marks setup complete and restores the name when practices come back', async () => {

@@ -5,13 +5,14 @@ import type { BacktrackRoute, LocalDate, PracticeInstance, PracticeLog, Profile,
 import { getPractice } from '@/data/catalogue';
 import { computeCurrentLevel } from '@/data/journey';
 import { generateId, todayKey, formatDateKey, yesterdayOf } from '@/utils/dates';
-import { queueSync } from '@/services/sync';
+import { queueSync, queueSyncDelete } from '@/services/sync';
 import { enterDemoMode as enterDemoModeService, exitDemoMode as exitDemoModeService, type DemoStateId } from '@/services/demoMode';
 import { syncPracticeReminders } from '@/utils/practiceReminders';
 import { precachePracticeAudio } from '@/services/audio';
 import { getResolvedKind } from '@/data/practiceAssets';
 import { track } from '@/services/instrumentation';
 import { EVENTS } from '@/features/backtracking/analyticsNames';
+import { isUntickable } from '@/utils/untick';
 
 interface AppStore {
   profile: Profile | null;
@@ -61,6 +62,8 @@ interface AppStore {
     source: 'checkbox' | 'minutes' | 'player',
     opts?: { date?: LocalDate; route?: BacktrackRoute; referenceDay?: LocalDate },
   ) => Promise<void>;
+  /** Takes back a checkbox tick in its first minute; does nothing once it has locked. */
+  unlogPractice: (logId: string) => Promise<void>;
   setReminder: (id: ReminderKey, time: string, enabled: boolean) => Promise<void>;
   ensureSadhguruPresenceReminder: () => Promise<void>;
   setSessionDraft: (draft: SessionDraft | null) => void;
@@ -384,6 +387,34 @@ export const useAppStore = create<AppStore>((set, get) => ({
       });
     } else {
       set({ logs: [...get().logs, log] });
+    }
+  },
+
+  unlogPractice: async (logId) => {
+    const db = getDb();
+    const log = get().logs.find((l) => l.id === logId);
+    // Checked here as well as on screen: a row left open past the minute must
+    // not be able to take back a locked tick.
+    if (!log || !isUntickable(log, Date.now())) return;
+    // Off the screen first, so a quick second tap finds nothing to take back.
+    set({ logs: get().logs.filter((l) => l.id !== logId) });
+
+    await db.practiceLogs.delete(logId);
+    await queueSyncDelete('practice_completed', logId);
+    void track('practice_unticked', {
+      log_id: log.id,
+      practice_id: log.practiceId,
+      instance: get().instances.find((i) => i.id === log.instanceId)?.instanceNumber,
+      minutes: log.minutes,
+      local_date: log.localDate,
+      backtrack: log.backtrack ?? false,
+    });
+
+    if (isFeatureEnabled('journey')) {
+      const meta = await db.appMeta.get('meta');
+      const pending = Math.max(0, (meta?.pendingJourneyMinutes ?? 0) - log.minutes);
+      await db.appMeta.update('meta', { pendingJourneyMinutes: pending });
+      set({ pendingJourneyMinutes: pending });
     }
   },
 
