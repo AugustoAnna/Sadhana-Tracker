@@ -14,18 +14,23 @@
     <title>Sadhana Tracker</title>
     <script>
       // Pick the theme before first paint so evenings don't flash white.
-      // Mirrors readOverride()/resolveTheme() in src/services/theme.ts, which takes over once the app loads.
+      // Mirrors applyUrlSwitch()/refresh() in src/services/theme.ts, which takes over once the app loads.
       (function () {
-        var override = null;
+        var mode = null, darkWindow = null;
         try {
           var param = new URLSearchParams(location.search).get('theme');
           if (param === 'dark' || param === 'light') localStorage.setItem('theme-override', param);
           else if (param === 'auto') localStorage.removeItem('theme-override');
-          override = localStorage.getItem('theme-override');
+          mode = localStorage.getItem('theme-override');
+          darkWindow = localStorage.getItem('theme-window');
         } catch (e) {}
-        var h = new Date().getHours();
-        var dark = override === 'dark' || (override !== 'light' &&
-          (h >= 18 || h < 6 || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)));
+        if (!/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/.test(darkWindow || '')) darkWindow = '18:00-06:00';
+        var mins = function (t) { return +t.slice(0, 2) * 60 + +t.slice(3, 5); };
+        var start = mins(darkWindow.slice(0, 5)), end = mins(darkWindow.slice(6));
+        var now = new Date(), t = now.getHours() * 60 + now.getMinutes();
+        var inWindow = start !== end && (start < end ? t >= start && t < end : t >= start || t < end);
+        var dark = mode === 'dark' || (mode !== 'light' &&
+          (inWindow || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)));
         if (dark) {
           document.documentElement.dataset.theme = 'dark';
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '#141311');
