@@ -65,7 +65,7 @@ describe('PracticeHome entry points (study build)', () => {
     expect(container.innerHTML).not.toContain('practice-so-far');
   });
 
-  it('shows the app name and the reminders bell in a compact header, not a title bar', () => {
+  it('shows the app name and the settings gear in a compact header, not a title bar', () => {
     const { container } = render(
       <MemoryRouter>
         <PracticeHome />
@@ -74,6 +74,6 @@ describe('PracticeHome entry points (study build)', () => {
     const header = container.querySelector('header');
     expect(header?.textContent).toContain('Sadhana Tracker');
     expect(container.textContent).not.toMatch(/Practices of|My Practices/);
-    expect(header?.querySelector('button[aria-label="Reminders"]')).not.toBeNull();
+    expect(header?.querySelector('button[aria-label="Settings"]')).not.toBeNull();
   });
 });

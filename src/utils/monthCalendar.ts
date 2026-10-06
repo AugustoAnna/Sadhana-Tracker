@@ -3,6 +3,7 @@ import {
   addMonths, differenceInCalendarMonths, isSameYear,
 } from 'date-fns';
 import type { PracticeLog } from '@/types';
+import type { Theme } from '@/services/theme';
 import { heatmapColor } from '@/data/heatmap';
 import { formatDateKey, todayKey } from './dates';
 
@@ -17,6 +18,13 @@ export const CALENDAR_MONTH_GAP_PX = 6;
 export const COLOR_NOT_YET = '#EDE5D6';         // beige
 export const COLOR_BEFORE_TRACKING = '#E4DBCA'; // travertine
 export const COLOR_NO_PRACTICE = '#DCD3C0';     // col_bone
+
+// Dark theme counterparts: warm greys that step up in lightness from the card
+// toward "counted", mirroring the light ramp's steps down from white.
+const NEUTRALS: Record<Theme, { future: string; beforeTracking: string; noPractice: string }> = {
+  light: { future: COLOR_NOT_YET, beforeTracking: COLOR_BEFORE_TRACKING, noPractice: COLOR_NO_PRACTICE },
+  dark: { future: '#2A2723', beforeTracking: '#312D27', noPractice: '#3A352E' },
+};
 // Hardcoded rather than var(--color-primary): that token is teal, which sits
 // inside the green heatmap ramp and would make the today-ring hard to spot.
 export const COLOR_TODAY_RING = '#FFBD31';
@@ -70,7 +78,9 @@ export function buildMonthCalendar(
   logs: PracticeLog[],
   monthDate: Date = new Date(),
   now: Date = new Date(),
+  theme: Theme = 'light',
 ): MonthCalendarData {
+  const neutrals = NEUTRALS[theme];
   const monthStart = startOfMonth(monthDate);
   const daysInMonth = getDaysInMonth(monthStart);
   const firstWeekday = mondayZeroWeekday(monthStart);
@@ -96,16 +106,16 @@ export function buildMonthCalendar(
     let fill: string;
     if (isFuture) {
       state = 'future';
-      fill = COLOR_NOT_YET;
+      fill = neutrals.future;
     } else if (firstTracking && dateKey < firstTracking) {
       state = 'before-tracking';
-      fill = COLOR_BEFORE_TRACKING;
+      fill = neutrals.beforeTracking;
     } else if (minutes > 0) {
       state = 'practiced';
-      fill = heatmapColor(minutes);
+      fill = heatmapColor(minutes, theme);
     } else {
       state = 'no-practice';
-      fill = COLOR_NO_PRACTICE;
+      fill = neutrals.noPractice;
     }
 
     cells.push({
@@ -134,14 +144,18 @@ export function buildMonthCalendar(
  * Every month from the first tracked day through the current one, oldest first.
  * With no logs yet this is just the current month.
  */
-export function buildCalendarMonths(logs: PracticeLog[], now = new Date()): MonthCalendarData[] {
+export function buildCalendarMonths(
+  logs: PracticeLog[],
+  now = new Date(),
+  theme: Theme = 'light',
+): MonthCalendarData[] {
   const currentMonth = startOfMonth(now);
   const firstTracking = getFirstTrackingDate(logs);
   const firstMonth = firstTracking ? startOfMonth(parseISO(firstTracking)) : currentMonth;
   const startMonth = isBefore(firstMonth, currentMonth) ? firstMonth : currentMonth;
   const count = differenceInCalendarMonths(currentMonth, startMonth) + 1;
 
-  return Array.from({ length: count }, (_, i) => buildMonthCalendar(logs, addMonths(startMonth, i), now));
+  return Array.from({ length: count }, (_, i) => buildMonthCalendar(logs, addMonths(startMonth, i), now, theme));
 }
 
 export function cellAccessibleName(cell: CalendarCell): string {

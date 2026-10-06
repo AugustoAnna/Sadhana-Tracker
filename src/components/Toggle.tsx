@@ -10,7 +10,7 @@ export function Toggle({ checked, onChange }: ToggleProps) {
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative w-12 h-7 rounded-full transition-colors ${
-        checked ? 'bg-primary' : 'bg-gray-300'
+        checked ? 'bg-primary' : 'bg-switch-off'
       }`}
     >
       <span

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BackHeader, Toggle, BottomSheet, TimePicker, Button } from '@/components';
+import { AppearanceSettings, BackHeader, Toggle, BottomSheet, TimePicker, Button } from '@/components';
 import { useAppStore } from '@/stores/appStore';
 import { useAuthStore } from '@/stores/authStore';
 import { formatTimeDisplay } from '@/utils/dates';
@@ -182,7 +182,9 @@ export function Reminders() {
   return (
     <div className="h-full flex flex-col bg-page">
       <BackHeader
-        title="Practice reminders"
+        // The same screen is a step of first-run setup; afterwards the home
+        // gear opens it as Settings.
+        title={inSetup ? 'Practice reminders' : 'Settings'}
         onBack={() => {
           if (inSetup) {
             navigate('/practices/edit', { state: { firstSetup: true } });
@@ -192,6 +194,7 @@ export function Reminders() {
         }}
       />
       <div className="px-4 flex-1 overflow-y-auto">
+        {!inSetup && <p className="section-header mb-2">Reminders</p>}
         <p className="text-label text-secondary mb-6">
           Set up to three reminders for your practice.
         </p>
@@ -214,7 +217,7 @@ export function Reminders() {
         )}
 
         {showConfirmation && (
-          <div className="bg-primary/10 rounded-[14px] p-4 mb-6 text-center text-body text-primary">
+          <div className="bg-primary/10 rounded-[14px] p-4 mb-6 text-center text-body text-primary-text">
             Reminders are on
           </div>
         )}
@@ -267,6 +270,12 @@ export function Reminders() {
             );
           })}
         </div>
+
+        {!inSetup && (
+          <div className="mt-10">
+            <AppearanceSettings />
+          </div>
+        )}
 
         {!inSetup && (
           <div className="mt-10 pb-8 safe-bottom">

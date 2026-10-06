@@ -96,11 +96,11 @@ export function PracticeHome() {
     track(EVENTS.daySwitched, to === 'yesterday' ? { to, route: 'switcher' } : { to });
   };
 
-  const bellAction = (
-    <button onClick={() => navigate('/reminders')} aria-label="Reminders" className="w-11 h-11 flex items-center justify-center">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 01-3.46 0" />
+  const settingsAction = (
+    <button onClick={() => navigate('/reminders')} aria-label="Settings" className="w-11 h-11 flex items-center justify-center">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
       </svg>
     </button>
   );
@@ -176,7 +176,7 @@ export function PracticeHome() {
       {/* Compact header: app name left, reminders bell right, no bar behind it. */}
       <header className="flex items-center justify-between px-4 pt-3 text-ink">
         <h1 className="font-serif text-headline flex-1 text-center pl-11" style={{ fontSize: '22px' }}>Sadhana Tracker</h1>
-        {bellAction}
+        {settingsAction}
       </header>
 
       <div className="px-4">
@@ -207,7 +207,7 @@ export function PracticeHome() {
             <p className="section-header">My practices</p>
             <button
               onClick={() => navigate('/practices/edit')}
-              className="w-11 h-11 flex items-center justify-center text-primary"
+              className="w-11 h-11 flex items-center justify-center text-primary-text"
               aria-label="Edit practices"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

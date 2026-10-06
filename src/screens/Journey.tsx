@@ -89,12 +89,12 @@ export function Journey() {
             >
               <div className="flex flex-col items-center">
                 <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                  isCurrent ? 'border-2 border-journey' : 'bg-gray-100'
+                  isCurrent ? 'border-2 border-journey' : 'bg-field'
                 }`}>
                   {reached ? (
                     <PlantVisual level={level} size="sm" />
                   ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#9B9B9B">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--color-faint)">
                       <rect x="5" y="11" width="14" height="10" rx="2" />
                       <path d="M8 11V7a4 4 0 018 0v4" />
                     </svg>
@@ -122,7 +122,7 @@ export function Journey() {
         {/* Later phases */}
         {PHASES.slice(1).map((phase) => (
           <div key={phase.phase} className="flex items-center gap-3 py-4 border-t border-border opacity-50">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="#9B9B9B">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--color-faint)">
               <rect x="5" y="11" width="14" height="10" rx="2" />
               <path d="M8 11V7a4 4 0 018 0v4" />
             </svg>
