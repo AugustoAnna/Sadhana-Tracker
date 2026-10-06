@@ -19,8 +19,9 @@ export const COLOR_NOT_YET = '#EDE5D6';         // beige
 export const COLOR_BEFORE_TRACKING = '#E4DBCA'; // travertine
 export const COLOR_NO_PRACTICE = '#DCD3C0';     // col_bone
 
-// Dark theme counterparts: warm greys that step up in lightness from the card
-// toward "counted", mirroring the light ramp's steps down from white.
+// Dark theme counterparts for the empty states: warm greys that step up in
+// lightness from the card toward "counted". Practised days keep the same
+// green ramp in both themes.
 const NEUTRALS: Record<Theme, { future: string; beforeTracking: string; noPractice: string }> = {
   light: { future: COLOR_NOT_YET, beforeTracking: COLOR_BEFORE_TRACKING, noPractice: COLOR_NO_PRACTICE },
   dark: { future: '#2A2723', beforeTracking: '#312D27', noPractice: '#3A352E' },
@@ -112,7 +113,7 @@ export function buildMonthCalendar(
       fill = neutrals.beforeTracking;
     } else if (minutes > 0) {
       state = 'practiced';
-      fill = heatmapColor(minutes, theme);
+      fill = heatmapColor(minutes);
     } else {
       state = 'no-practice';
       fill = neutrals.noPractice;

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { PracticeLog } from '@/types';
 import { useAppStore } from '@/stores/appStore';
 import { COPY } from '@/copy/strings';
-import { heatmapShades } from '@/data/heatmap';
+import { HEATMAP_SHADES } from '@/data/heatmap';
 import { useThemeStore } from '@/services/theme';
 import { getTotalDaysPracticed, getTotalMinutes, getCurrentStreak } from '@/utils/dates';
 import {
@@ -156,7 +156,7 @@ export function PracticeCalendar({ logs }: PracticeCalendarProps) {
       <div className="mt-4 flex items-center gap-2">
         <span className="text-meta text-secondary">{COPY.progress.legend.less}</span>
         <div className="flex flex-1 gap-[2px]" style={{ height: 12 }}>
-          {heatmapShades(theme).map((color, i) => (
+          {HEATMAP_SHADES.map((color, i) => (
             <div
               key={i}
               className="flex-1"
