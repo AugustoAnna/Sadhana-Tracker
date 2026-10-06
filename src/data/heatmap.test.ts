@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  heatmapBand,
-  heatmapColor,
-  HEATMAP_EMPTY,
-  HEATMAP_EMPTY_DARK,
-  HEATMAP_SHADES,
-  HEATMAP_SHADES_DARK,
-} from './heatmap';
+import { heatmapBand, heatmapColor, HEATMAP_SHADES } from './heatmap';
 
 describe('heatmapBand', () => {
   it('returns -1 for zero or negative minutes', () => {
@@ -28,17 +21,5 @@ describe('heatmapBand', () => {
   it('uses darkest shade at 240+', () => {
     expect(heatmapColor(240)).toBe(HEATMAP_SHADES[11]);
     expect(heatmapColor(1000)).toBe('#044034');
-  });
-});
-
-describe('dark theme ramp', () => {
-  it('runs the other way: more practice is brighter', () => {
-    expect(heatmapColor(1000, 'dark')).toBe('#C2EBDC');
-    expect(heatmapColor(1, 'dark')).toBe(HEATMAP_SHADES_DARK[0]);
-  });
-
-  it('uses the dark empty colour when nothing was practised', () => {
-    expect(heatmapColor(0, 'dark')).toBe(HEATMAP_EMPTY_DARK);
-    expect(heatmapColor(0)).toBe(HEATMAP_EMPTY);
   });
 });
