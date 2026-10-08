@@ -452,18 +452,13 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
     }
     case 'reminders': {
       const queued = item.payload as Reminder;
-      // Reminders created before remoteId existed have local ids ("1",
-      // "sadhguru-presence") that the uuid id column rejects — backfill a
-      // remoteId so these queue items can ever succeed.
       const reminder = (await db.reminders.get(queued.id)) ?? queued;
-      let remoteId = reminder.remoteId;
-      if (!remoteId) {
-        remoteId = crypto.randomUUID();
-        await db.reminders.update(reminder.id, { remoteId });
-      }
       const slot = reminder.kind === 'generic' ? reminder.slot : null;
+      // Keyed on the slot, not a per-install id: a reinstall starts with an
+      // empty local database, and an id-keyed upsert added a second copy of
+      // every reminder that send-reminders then pushed as well. The row id is
+      // left to the column default and kept on conflict.
       const { error } = await supabase.from('reminders').upsert({
-        id: remoteId,
         participant_id: pid,
         kind: reminder.kind,
         slot,
@@ -471,7 +466,7 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
         time_local: reminder.time,
         enabled: reminder.enabled,
         environment: APP_ENV,
-      });
+      }, { onConflict: 'participant_id,environment,kind,slot,practice_id' });
       return !error;
     }
     case 'events': {
