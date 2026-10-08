@@ -155,3 +155,26 @@ describe('settings', () => {
     expect(store.has('theme-override')).toBe(false);
   });
 });
+
+describe('theme-color tag', () => {
+  beforeEach(() => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+    document.head.innerHTML = '<meta name="theme-color" content="#0D8A7A">';
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('replaces the tag when the theme changes, so Android repaints its status bar', () => {
+    const before = document.querySelector('meta[name="theme-color"]');
+    setThemeMode('dark');
+    const after = document.querySelectorAll('meta[name="theme-color"]');
+    expect(after).toHaveLength(1);
+    expect(after[0]).not.toBe(before);
+    expect(after[0].getAttribute('content')).toBe('#141311');
+  });
+});
