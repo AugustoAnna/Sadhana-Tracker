@@ -119,6 +119,21 @@ export const useThemeStore = create<ThemeState>(() => ({
   darkWindow: readWindow(),
 }));
 
+/**
+ * Swaps in a fresh theme-color tag rather than editing the existing one:
+ * Android Chrome keeps painting the status bar from the tag it first saw and
+ * doesn't repaint when only its content changes.
+ */
+function setThemeColor(color: string): void {
+  const current = document.querySelector('meta[name="theme-color"]');
+  if (current?.getAttribute('content') === color) return;
+  const meta = document.createElement('meta');
+  meta.name = 'theme-color';
+  meta.content = color;
+  if (current) current.replaceWith(meta);
+  else document.head.appendChild(meta);
+}
+
 const darkQuery = () => window.matchMedia?.('(prefers-color-scheme: dark)');
 
 function refresh(): void {
@@ -130,7 +145,7 @@ function refresh(): void {
 
   const root = document.documentElement;
   if (root.dataset.theme !== theme) root.dataset.theme = theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOR[theme]);
+  setThemeColor(THEME_COLOR[theme]);
   useThemeStore.setState({ theme, mode, darkWindow });
 }
 

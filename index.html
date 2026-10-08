@@ -33,7 +33,11 @@
           (inWindow || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)));
         if (dark) {
           document.documentElement.dataset.theme = 'dark';
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#141311');
+          // A fresh tag, not an edited one: Android only repaints its status bar for a new tag.
+          var meta = document.createElement('meta');
+          meta.name = 'theme-color';
+          meta.content = '#141311';
+          document.querySelector('meta[name="theme-color"]').replaceWith(meta);
         }
       })();
     </script>
