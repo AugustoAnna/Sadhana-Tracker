@@ -2,9 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { PracticeInstance, PracticeLog } from '@/types';
+import { UNTICK_WINDOW_MS } from '@/utils/untick';
 
 const TODAY = '2026-09-30';
 const NOW = Date.parse(`${TODAY}T08:00:00`);
+/** Age of a tick still inside its untick window. */
+const FRESH = UNTICK_WINDOW_MS / 2;
 
 function inst(id: string, practiceId: string, order: number): PracticeInstance {
   return { id, practiceId, instanceNumber: 1, order, addedAt: NOW };
@@ -67,7 +70,7 @@ afterEach(() => {
 
 describe('Practice home untick', () => {
   it('lets a fresh tick be taken back', () => {
-    state.logs = [log('isha', 'isha-kriya', NOW - 10_000)];
+    state.logs = [log('isha', 'isha-kriya', NOW - FRESH)];
     renderHome();
 
     fireEvent.click(within(rowFor('Isha Kriya')).getByLabelText('Undo, mark not done'));
@@ -86,12 +89,12 @@ describe('Practice home untick', () => {
     expect(within(rowFor('Isha Kriya')).queryByLabelText('Undo, mark not done')).not.toBeNull();
   });
 
-  it('locks the tick by itself once its minute is up', () => {
-    state.logs = [log('isha', 'isha-kriya', NOW - 10_000)];
+  it('locks the tick by itself once its window is up', () => {
+    state.logs = [log('isha', 'isha-kriya', NOW - FRESH)];
     renderHome();
     expect(within(rowFor('Isha Kriya')).queryByLabelText('Undo, mark not done')).not.toBeNull();
 
-    act(() => { vi.advanceTimersByTime(50_000); });
+    act(() => { vi.advanceTimersByTime(UNTICK_WINDOW_MS - FRESH); });
 
     expect(within(rowFor('Isha Kriya')).queryByLabelText('Undo, mark not done')).toBeNull();
     expect(within(rowFor('Isha Kriya')).getByLabelText('Completed')).toBeTruthy();
