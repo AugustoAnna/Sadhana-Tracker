@@ -23,6 +23,7 @@ export type InstrumentEvent =
   | 'passkey_registered'
   | 'passkey_removed'
   | 'theme_changed'
+  | 'dark_window_changed'
   | BacktrackEvent;
 
 interface TrackPayload {

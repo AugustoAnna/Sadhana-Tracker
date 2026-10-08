@@ -5,6 +5,12 @@ import { setThemeMode } from '@/services/theme';
 import { track } from '@/services/instrumentation';
 
 vi.mock('@/services/instrumentation', () => ({ track: vi.fn() }));
+// The real wheels scroll to pick a time, which jsdom can't do.
+vi.mock('./TimePicker', () => ({
+  TimePicker: ({ onChange }: { onChange: (time: string) => void }) => (
+    <button type="button" onClick={() => onChange('21:30')}>Pick 9:30 PM</button>
+  ),
+}));
 
 describe('AppearanceSettings', () => {
   beforeEach(() => {
@@ -54,6 +60,22 @@ describe('AppearanceSettings', () => {
   it('records nothing when the current mode is tapped again', () => {
     render(<AppearanceSettings />);
     fireEvent.click(screen.getByRole('radio', { name: 'Auto' }));
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  it('records a new dark-mode window when a time is changed', () => {
+    render(<AppearanceSettings />);
+    fireEvent.click(screen.getByText('Dark mode starts'));
+    fireEvent.click(screen.getByRole('button', { name: 'Pick 9:30 PM' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set time' }));
+    expect(track).toHaveBeenCalledWith('dark_window_changed', { start: '21:30', end: '06:00' });
+    expect(screen.getByText('Dark mode starts').nextSibling?.textContent).toBe('9:30 PM');
+  });
+
+  it('records nothing when a time is confirmed unchanged', () => {
+    render(<AppearanceSettings />);
+    fireEvent.click(screen.getByText('Dark mode ends'));
+    fireEvent.click(screen.getByRole('button', { name: 'Set time' }));
     expect(track).not.toHaveBeenCalled();
   });
 });

@@ -33,7 +33,11 @@ export function AppearanceSettings() {
   };
 
   const handleConfirm = () => {
-    if (editing) setDarkWindow({ ...darkWindow, [editing]: selectedTime });
+    if (editing && selectedTime !== darkWindow[editing]) {
+      const next = { ...darkWindow, [editing]: selectedTime };
+      void track('dark_window_changed', { start: next.start, end: next.end });
+      setDarkWindow(next);
+    }
     setEditing(null);
   };
 

@@ -46,7 +46,8 @@ export async function reportAppOpen(): Promise<void> {
     ...(standalone ? { installed_standalone: true } : {}),
     notification_permission: permission === 'unsupported' ? 'default' : permission,
   });
-  await track('app_open', { standalone, platform: detectPlatform(), theme: useThemeStore.getState().theme });
+  const { theme, mode } = useThemeStore.getState();
+  await track('app_open', { standalone, platform: detectPlatform(), theme, mode });
 }
 
 export async function initAppLifecycle(): Promise<void> {
