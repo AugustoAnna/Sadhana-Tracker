@@ -62,8 +62,6 @@ export const YOUR_NEXT_PRACTICE_IDS = [
   'mahamantra', 'isha-kriya', 'nadi-shuddhi',
 ];
 
-export const MAX_PRACTICE_INSTANCES = 21;
-
 export const INVOCATION_PRACTICE_ID = '__invocation__';
 
 export function getPractice(id: string): Practice | undefined {
