@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SadhanaDB } from '@/db';
 import type { PracticeInstance } from '@/types';
+import { UNTICK_WINDOW_MS } from '@/utils/untick';
 
 const db = new SadhanaDB('UnlogPracticeTest');
 const queued: Array<{ table: string; operation: string; payload: unknown }> = [];
@@ -66,9 +67,9 @@ afterEach(() => {
 });
 
 describe('unlogPractice', () => {
-  it('takes back a tick within its first minute, here and on the server', async () => {
+  it('takes back a tick within its untick window, here and on the server', async () => {
     const log = await tick();
-    vi.setSystemTime(NOW + 59_000);
+    vi.setSystemTime(NOW + UNTICK_WINDOW_MS - 1_000);
 
     await useAppStore.getState().unlogPractice(log.id);
 
