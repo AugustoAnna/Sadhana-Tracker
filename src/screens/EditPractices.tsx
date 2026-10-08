@@ -136,7 +136,7 @@ export function EditPractices() {
   return (
     <div className="h-full flex flex-col bg-page">
       <div className="flex-1 overflow-y-auto pb-28">
-        <BackHeader title={COPY.setup.header.title} onBack={handleBack} hideBack={inSetup} compact />
+        <BackHeader title={COPY.setup.header.title} onBack={handleBack} hideBack={inSetup} compact centered />
         {showSubtitle && (
           <p className="px-4 text-label text-secondary mb-5">
             {COPY.setup.header.subtitle.fromTracker}
