@@ -44,7 +44,29 @@ npm run build     # type-check and production build
 | Vercel project | Study (Production tracks `main`) | Lab (Production tracks `lab`) |
 | `VITE_APP_ENV` | unset (`study`) | `lab` |
 
-Feature work merges into `lab`; a release merges `lab` into `main`. Both environments share **one Supabase project** and every row is tagged with `environment`. Edge-function settings (secrets) therefore apply to both. See [docs/vercel-deployments.md](./docs/vercel-deployments.md).
+Features are tested on `lab` and ship to `main` through a release branch, chosen one by one (see [Branches and releases](#branches-and-releases)). Both environments share **one Supabase project** and every row is tagged with `environment`. Edge-function settings (secrets) therefore apply to both. See [docs/vercel-deployments.md](./docs/vercel-deployments.md).
+
+## Branches and releases
+
+`lab` is for trying features; `main` is what study participants run. A feature can sit on `lab` for as long as it needs without holding up, or being dragged into, a release.
+
+| Branch | Starts from | Merges into |
+|---|---|---|
+| Feature (e.g. `feature/augusto/dark-mode`, `edit-practices-revamp`) | `main` | `lab` to test; a release branch when chosen |
+| Release (e.g. `sadhana-trackerv2-week2-release`) | `main` | `main` |
+| `lab` | — | never into `main` |
+
+1. **Start every feature branch from `main`**, never from `lab`. If it needs newer code, merge `main` into it, not `lab`.
+2. **Test on `lab`**: open a PR from the feature branch into `lab`. Fixes go on the same feature branch, so every PR from it picks them up.
+3. **Cut a release branch from `main`** for each release, named `sadhana-trackerv2-week<N>-release`.
+4. **Choose what ships**: each feature going out gets its own PR from its feature branch into the release branch. Features not chosen stay on `lab` only.
+5. **Ship**: open a PR from the release branch into `main`.
+6. **Keep `lab` close**: after a release, merge `main` into `lab`.
+
+- **Never merge `lab` into `main`** or into a feature branch: that ships everything on `lab` at once.
+- **A feature that builds on another** starts from that feature's branch, and the two ship together or in order.
+- **Work already built on `lab`** can still ship alone: cherry-pick its commits (`git cherry-pick -x`) onto a branch cut from `main`, and PR that into the feature branch. Dark mode went this way in #63, leaving the untick work behind.
+- **Longer work** can go to `main` switched off behind a flag in `src/features.ts` (`LAB_FEATURES` / `STUDY_FEATURES`).
 
 ## Supabase
 
