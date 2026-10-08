@@ -25,7 +25,8 @@ export default defineConfig(({ mode }) => {
         name: appName,
         short_name: shortName,
         description: 'Track your spiritual practice journey',
-        theme_color: '#0D8A7A',
+        // Status bar on the launch screen; the app sets its own once loaded (src/services/theme.ts).
+        theme_color: '#141311',
         // Launch screen of the installed app: dark, matching the dark page (--color-page).
         background_color: '#141311',
         display: 'standalone',
