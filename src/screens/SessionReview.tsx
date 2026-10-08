@@ -126,7 +126,7 @@ export function SessionReview() {
               setSessionDraft({ practiceInstanceIds: orderedIds, includeInvocation });
               navigate('/session/select');
             }}
-            className="mx-4 mt-2 flex items-center gap-3 py-3 w-[calc(100%-2rem)] border border-dashed border-primary rounded-xl px-4 text-primary font-medium"
+            className="mx-4 mt-2 flex items-center gap-3 py-3 w-[calc(100%-2rem)] border border-dashed border-primary rounded-xl px-4 text-primary-text font-medium"
           >
             <span className="w-8 h-8 rounded-full border-2 border-primary flex items-center justify-center">+</span>
             Add practice
@@ -137,7 +137,7 @@ export function SessionReview() {
       <div className="fixed bottom-0 left-0 right-0 bg-page/95 backdrop-blur-sm border-t border-hairline px-4 py-3 safe-bottom z-50">
         <button
           onClick={handleSave}
-          className="w-full py-2 text-primary text-meta mb-2 min-h-11"
+          className="w-full py-2 text-primary-text text-meta mb-2 min-h-11"
         >
           Save this session
         </button>

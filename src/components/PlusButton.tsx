@@ -11,7 +11,7 @@ export function PlusButton({ onClick, totalMinutes }: PlusButtonProps) {
       aria-label="Add minutes"
     >
       <span className="w-[26px] h-[26px] rounded-[7px] border-2 border-primary flex items-center justify-center">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-primary" strokeWidth="2.5">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-primary-text" strokeWidth="2.5">
           <path d="M12 5v14M5 12h14" />
         </svg>
       </span>

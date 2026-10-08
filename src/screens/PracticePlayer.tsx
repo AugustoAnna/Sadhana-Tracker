@@ -329,7 +329,7 @@ export function PracticePlayer() {
     <div
       className="h-full flex flex-col text-white"
       style={{
-        background: 'radial-gradient(ellipse at center, #A88B34 0%, #7D6528 100%)',
+        background: 'var(--gradient-player)',
       }}
     >
       <audio ref={audioRef} className="hidden" preload="auto" playsInline />
