@@ -5,10 +5,17 @@ import {
 } from '@/components';
 import { COPY } from '@/copy/strings';
 import { useAppStore } from '@/stores/appStore';
-import {
-  PRACTICES, COMMONLY_PRACTICED_IDS, MAX_PRACTICE_INSTANCES, getPractice,
-} from '@/data/catalogue';
+import { PRACTICES, COMMONLY_PRACTICED_IDS } from '@/data/catalogue';
+import { getSortOrder } from '@/data/idealSequence';
 import { getResolvedKind } from '@/data/practiceAssets';
+import type { PracticeInstance } from '@/types';
+
+/** How many instances (1 or 2) each practice has. */
+function countsByPractice(instances: PracticeInstance[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const i of instances) counts.set(i.practiceId, (counts.get(i.practiceId) ?? 0) + 1);
+  return counts;
+}
 
 function OtherSectionHeader({
   title,
@@ -58,7 +65,15 @@ export function EditPractices() {
 
   const [otherOpen, setOtherOpen] = useState(false);
 
-  const atCap = instances.length >= MAX_PRACTICE_INSTANCES;
+  // What was saved when the screen opened. The lists are built from this, so a
+  // row stays where it is while it is added or removed (each tap still saves at
+  // once); the next visit shows it in its new list.
+  const [openedCounts] = useState(() => countsByPractice(instances));
+
+  // Practices added, removed or switched between 1X and 2X since the screen opened.
+  const currentCounts = countsByPractice(instances);
+  const changedCount = [...new Set([...openedCounts.keys(), ...currentCounts.keys()])]
+    .filter((id) => openedCounts.get(id) !== currentCounts.get(id)).length;
 
   const getInstanceCount = (practiceId: string) =>
     instances.filter((i) => i.practiceId === practiceId).length;
@@ -69,13 +84,11 @@ export function EditPractices() {
       await removeAllInstancesForPractice(practiceId);
       return;
     }
-    if (atCap) return;
     await addPracticeInstance(practiceId);
   };
 
   const handleChipSelect = async (practiceId: string, count: 1 | 2) => {
     if (getInstanceCount(practiceId) === 0) return;
-    if (count === 2 && atCap && getInstanceCount(practiceId) === 1) return;
     await setPracticeInstanceCount(practiceId, count);
   };
 
@@ -95,14 +108,30 @@ export function EditPractices() {
     }
   };
 
-  const commonlyPracticed = [...COMMONLY_PRACTICED_IDS]
-    .map((id) => getPractice(id))
-    .filter(Boolean)
-    .sort((a, b) => a!.name.localeCompare(b!.name));
-
+  // Each practice is in exactly one list: My Practices (in tracker order), or
+  // else Commonly Practiced or Other Practices (alphabetical).
+  const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+  const myPractices = PRACTICES
+    .filter((p) => openedCounts.has(p.id))
+    .sort((a, b) => getSortOrder(a.id) - getSortOrder(b.id) || byName(a, b));
+  const commonlyPracticed = PRACTICES
+    .filter((p) => !openedCounts.has(p.id) && COMMONLY_PRACTICED_IDS.includes(p.id))
+    .sort(byName);
   const otherPractices = PRACTICES
-    .filter((p) => !COMMONLY_PRACTICED_IDS.includes(p.id))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .filter((p) => !openedCounts.has(p.id) && !COMMONLY_PRACTICED_IDS.includes(p.id))
+    .sort(byName);
+
+  const renderRow = (p: { id: string; name: string }) => (
+    <SetupPracticeRow
+      key={p.id}
+      practiceId={p.id}
+      name={p.name}
+      instanceCount={getInstanceCount(p.id)}
+      isTimed={getResolvedKind(p.id) === 'timed'}
+      onToggle={() => handleTogglePractice(p.id)}
+      onSelectCount={(n) => handleChipSelect(p.id, n)}
+    />
+  );
 
   return (
     <div className="h-full flex flex-col bg-page">
@@ -115,57 +144,42 @@ export function EditPractices() {
         )}
         {!showSubtitle && <div className="mb-5" />}
 
-        <div className="px-4 mb-5">
-          <p className="section-header mb-2">{COPY.setup.section.common}</p>
-          <div className="bg-card rounded-[14px] mt-1">
-            {commonlyPracticed.map((p) => p && (
-              <SetupPracticeRow
-                key={p.id}
-                practiceId={p.id}
-                name={p.name}
-                instanceCount={getInstanceCount(p.id)}
-                atCap={atCap}
-                isTimed={getResolvedKind(p.id) === 'timed'}
-                onToggle={() => handleTogglePractice(p.id)}
-                onSelectCount={(n) => handleChipSelect(p.id, n)}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="px-4 mb-5">
-          <OtherSectionHeader
-            title={COPY.setup.section.other}
-            open={otherOpen}
-            onToggle={() => setOtherOpen(!otherOpen)}
-          />
-          {otherOpen && (
+        {myPractices.length > 0 && (
+          <div className="px-4 mb-5">
+            <p className="section-header mb-2">{COPY.setup.section.mine}</p>
             <div className="bg-card rounded-[14px] mt-1">
-              {otherPractices.map((p) => (
-                <SetupPracticeRow
-                  key={p.id}
-                  practiceId={p.id}
-                  name={p.name}
-                  instanceCount={getInstanceCount(p.id)}
-                  atCap={atCap}
-                  isTimed={getResolvedKind(p.id) === 'timed'}
-                  onToggle={() => handleTogglePractice(p.id)}
-                  onSelectCount={(n) => handleChipSelect(p.id, n)}
-                />
-              ))}
+              {myPractices.map(renderRow)}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {atCap && (
-          <p className="px-4 text-label text-secondary text-center">
-            You can add up to 21 practices.
-          </p>
+        {commonlyPracticed.length > 0 && (
+          <div className="px-4 mb-5">
+            <p className="section-header mb-2">{COPY.setup.section.common}</p>
+            <div className="bg-card rounded-[14px] mt-1">
+              {commonlyPracticed.map(renderRow)}
+            </div>
+          </div>
+        )}
+
+        {otherPractices.length > 0 && (
+          <div className="px-4 mb-5">
+            <OtherSectionHeader
+              title={COPY.setup.section.other}
+              open={otherOpen}
+              onToggle={() => setOtherOpen(!otherOpen)}
+            />
+            {otherOpen && (
+              <div className="bg-card rounded-[14px] mt-1">
+                {otherPractices.map(renderRow)}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       <ConfirmFooter
-        count={instances.length}
+        count={changedCount}
         disabled={instances.length === 0}
         onClick={handleDone}
       />
@@ -177,7 +191,6 @@ function SetupPracticeRow({
   practiceId,
   name,
   instanceCount,
-  atCap,
   isTimed,
   onToggle,
   onSelectCount,
@@ -185,7 +198,6 @@ function SetupPracticeRow({
   practiceId: string;
   name: string;
   instanceCount: number;
-  atCap: boolean;
   isTimed: boolean;
   onToggle: () => void;
   onSelectCount: (count: 1 | 2) => void;
@@ -198,26 +210,29 @@ function SetupPracticeRow({
       <PracticeIllustration practiceId={practiceId} size={40} />
       <div className="flex-1 min-w-0">
         <p className="text-body truncate">{name}</p>
-        {added && !isTimed && (
-          <div className="flex gap-2 mt-2">
-            <ChipButton
-              label={COPY.setup.chip.once}
-              selected={selectedCount === 1}
-              onClick={() => onSelectCount(1)}
-            />
-            <ChipButton
-              label={COPY.setup.chip.twice}
-              selected={selectedCount === 2}
-              onClick={() => onSelectCount(2)}
-            />
-          </div>
-        )}
+        {/* The chip line is always there, empty when there are no chips, so
+            every row is the same height and nothing shifts on Add/Remove. */}
+        <div className="flex gap-2 mt-2 h-8">
+          {added && !isTimed && (
+            <>
+              <ChipButton
+                label={COPY.setup.chip.once}
+                selected={selectedCount === 1}
+                onClick={() => onSelectCount(1)}
+              />
+              <ChipButton
+                label={COPY.setup.chip.twice}
+                selected={selectedCount === 2}
+                onClick={() => onSelectCount(2)}
+              />
+            </>
+          )}
+        </div>
       </div>
       <button
         type="button"
         onClick={onToggle}
-        disabled={!added && atCap}
-        className={`px-3 py-1.5 rounded-[7px] text-meta font-semibold min-h-11 flex-shrink-0 disabled:opacity-30 ${
+        className={`px-3 py-1.5 rounded-[7px] text-meta font-semibold min-h-11 flex-shrink-0 ${
           added
             ? 'border-2 border-primary text-primary-text'
             : 'bg-primary text-white'

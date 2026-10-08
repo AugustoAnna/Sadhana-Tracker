@@ -38,6 +38,7 @@ export const COPY = {
       },
     },
     section: {
+      mine: 'My Practices',
       common: 'Commonly Practiced',
       other: 'Other Practices',
     },
