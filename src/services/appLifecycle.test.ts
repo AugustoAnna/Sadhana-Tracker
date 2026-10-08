@@ -16,13 +16,13 @@ describe('reportAppOpen', () => {
     useAuthStore.setState({ state: 'signed-in' });
   });
 
-  it('records the theme the app is showing', async () => {
-    useThemeStore.setState({ theme: 'dark' });
+  it('records the theme on screen and the mode picked in Settings', async () => {
+    useThemeStore.setState({ theme: 'dark', mode: 'auto' });
     await reportAppOpen();
-    expect(track).toHaveBeenCalledWith('app_open', expect.objectContaining({ theme: 'dark' }));
+    expect(track).toHaveBeenCalledWith('app_open', expect.objectContaining({ theme: 'dark', mode: 'auto' }));
 
-    useThemeStore.setState({ theme: 'light' });
+    useThemeStore.setState({ theme: 'light', mode: 'light' });
     await reportAppOpen();
-    expect(track).toHaveBeenLastCalledWith('app_open', expect.objectContaining({ theme: 'light' }));
+    expect(track).toHaveBeenLastCalledWith('app_open', expect.objectContaining({ theme: 'light', mode: 'light' }));
   });
 });

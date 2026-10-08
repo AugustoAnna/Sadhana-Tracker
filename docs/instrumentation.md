@@ -8,7 +8,7 @@ No event may be added, renamed, removed, or have its properties changed without 
 
 | Event | Trigger | Properties |
 | --- | --- | --- |
-| `app_open` | App visible after cold launch or backgrounded >30 min | `standalone` bool, `platform` string, `theme` `light`\|`dark` (what the app is showing) |
+| `app_open` | App visible after cold launch or backgrounded >30 min | `standalone` bool, `platform` string, `theme` `light`\|`dark` (what the app is showing), `mode` `light`\|`dark`\|`auto` (what is picked in Settings) |
 | `setup_completed` | First Save on add practices | `practices` slug[], `instance_count` int, `distinct_count` int |
 | `onboarding_completed` | Done on the reminders step of setup | `reminder_enabled` bool, `practice_count` int, `notification_permission` string |
 | `practices_changed` | Later Save when list changed | `added` `{practice_id, instance}[]`, `removed` same, `total_after` int |
@@ -19,7 +19,8 @@ No event may be added, renamed, removed, or have its properties changed without 
 | `reminder_delivered` | SW shows notification **and an app window is open** — undercounts; use `reminder_sends.delivered_at` for the real number | `slot`\|null, `kind` |
 | `reminder_tapped` | SW notificationclick | `slot`\|null, `minutes_since_delivered` int |
 | `sync_failed` | Queue flush fails after retries | `queued_count` int, `error` string |
-| `theme_changed` | Light or Dark picked in Settings → Appearance, when it differs from the current theme | `from` `light`\|`dark`, `to` `light`\|`dark` |
+| `theme_changed` | Light, Dark or Auto picked in Settings → Appearance, when it differs from the current one | `from` `light`\|`dark`\|`auto`, `to` same |
+| `dark_window_changed` | Auto's dark-mode start or end time set to a new time in Settings → Appearance | `start` `HH:mm`, `end` `HH:mm` (the whole window after the change) |
 
 ## Reminder delivery (not an event)
 
