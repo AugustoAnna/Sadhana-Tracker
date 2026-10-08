@@ -245,8 +245,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // rejected on every sync drain from then on and never reaches the server.
     const instance = await db.transaction('rw', db.practiceInstances, async () => {
       const all = await db.practiceInstances.toArray();
-      if (all.length >= 21) return null;
-
       const existing = all.filter((i) => i.practiceId === practiceId);
       if (kind === 'timed' && existing.length >= 1) return null;
       if (existing.length >= 2) return null;
