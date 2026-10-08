@@ -210,20 +210,24 @@ function SetupPracticeRow({
       <PracticeIllustration practiceId={practiceId} size={40} />
       <div className="flex-1 min-w-0">
         <p className="text-body truncate">{name}</p>
-        {added && !isTimed && (
-          <div className="flex gap-2 mt-2">
-            <ChipButton
-              label={COPY.setup.chip.once}
-              selected={selectedCount === 1}
-              onClick={() => onSelectCount(1)}
-            />
-            <ChipButton
-              label={COPY.setup.chip.twice}
-              selected={selectedCount === 2}
-              onClick={() => onSelectCount(2)}
-            />
-          </div>
-        )}
+        {/* The chip line is always there, empty when there are no chips, so
+            every row is the same height and nothing shifts on Add/Remove. */}
+        <div className="flex gap-2 mt-2 h-8">
+          {added && !isTimed && (
+            <>
+              <ChipButton
+                label={COPY.setup.chip.once}
+                selected={selectedCount === 1}
+                onClick={() => onSelectCount(1)}
+              />
+              <ChipButton
+                label={COPY.setup.chip.twice}
+                selected={selectedCount === 2}
+                onClick={() => onSelectCount(2)}
+              />
+            </>
+          )}
+        </div>
       </div>
       <button
         type="button"
