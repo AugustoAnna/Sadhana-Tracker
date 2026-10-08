@@ -1,6 +1,7 @@
 import { updateParticipantFields } from './sync';
 import { track } from './instrumentation';
 import { getNotificationPermission } from './notifications';
+import { useThemeStore } from './theme';
 import { useAuthStore } from '@/stores/authStore';
 
 let lastHiddenAt: number | null = null;
@@ -45,7 +46,7 @@ export async function reportAppOpen(): Promise<void> {
     ...(standalone ? { installed_standalone: true } : {}),
     notification_permission: permission === 'unsupported' ? 'default' : permission,
   });
-  await track('app_open', { standalone, platform: detectPlatform() });
+  await track('app_open', { standalone, platform: detectPlatform(), theme: useThemeStore.getState().theme });
 }
 
 export async function initAppLifecycle(): Promise<void> {
