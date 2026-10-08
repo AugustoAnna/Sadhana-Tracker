@@ -22,6 +22,7 @@ export type InstrumentEvent =
   | 'sign_out'
   | 'passkey_registered'
   | 'passkey_removed'
+  | 'theme_changed'
   | BacktrackEvent;
 
 interface TrackPayload {
