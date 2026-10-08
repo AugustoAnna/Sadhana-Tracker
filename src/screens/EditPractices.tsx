@@ -107,7 +107,7 @@ export function EditPractices() {
   return (
     <div className="h-full flex flex-col bg-page">
       <div className="flex-1 overflow-y-auto pb-28">
-        <BackHeader title={COPY.setup.header.title} onBack={handleBack} hideBack={inSetup} />
+        <BackHeader title={COPY.setup.header.title} onBack={handleBack} hideBack={inSetup} compact centered />
         {showSubtitle && (
           <p className="px-4 text-label text-secondary mb-5">
             {COPY.setup.header.subtitle.fromTracker}
@@ -219,7 +219,7 @@ function SetupPracticeRow({
         disabled={!added && atCap}
         className={`px-3 py-1.5 rounded-[7px] text-meta font-semibold min-h-11 flex-shrink-0 disabled:opacity-30 ${
           added
-            ? 'border-2 border-primary text-primary'
+            ? 'border-2 border-primary text-primary-text'
             : 'bg-primary text-white'
         }`}
       >

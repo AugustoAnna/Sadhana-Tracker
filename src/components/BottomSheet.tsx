@@ -119,7 +119,7 @@ export function BottomSheet({
       {!dismissOnBackdrop && <div className="absolute inset-0 bg-black/50" />}
       <div
         ref={panelRef}
-        className="relative w-full bg-card rounded-t-[18px] px-4 pt-4 pb-8 safe-bottom max-h-[85vh] overflow-y-auto"
+        className="relative w-full bg-raised rounded-t-[18px] px-4 pt-4 pb-8 safe-bottom max-h-[85vh] overflow-y-auto"
         style={swipeToDismiss ? {
           transform: offset ? `translateY(${offset}px)` : undefined,
           transition: springBack ? 'transform 150ms ease-out' : undefined,
@@ -131,7 +131,7 @@ export function BottomSheet({
         onPointerCancel={swipeToDismiss ? onPointerCancel : undefined}
       >
         {swipeToDismiss && (
-          <div className="mx-auto -mt-1 mb-3 w-9 h-1 rounded-[2px] bg-[#D9D9D9]" data-testid="sheet-grabber" aria-hidden />
+          <div className="mx-auto -mt-1 mb-3 w-9 h-1 rounded-[2px] bg-border" data-testid="sheet-grabber" aria-hidden />
         )}
         <div className={`flex items-center justify-between mb-4 ${hideCloseButton ? '' : 'pr-8'}`}>
           {title && <h2 className="font-serif text-headline flex-1 text-center">{title}</h2>}

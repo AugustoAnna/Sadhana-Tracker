@@ -19,7 +19,7 @@ export function PracticeIllustration({
   if (missing) {
     return (
       <div
-        className={`rounded-[8px] flex-shrink-0 bg-[#E6E4E0] ${className}`}
+        className={`rounded-[8px] flex-shrink-0 bg-[#E6E4E0] dark:bg-placeholder ${className}`}
         style={{ width: size, height: size }}
         aria-hidden
       />

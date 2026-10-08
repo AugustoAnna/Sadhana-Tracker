@@ -38,7 +38,7 @@ export function MissedDaySheet({
         <button
           type="button"
           onClick={() => onAnswer('didnt')}
-          className="mt-2 min-h-11 px-4 font-semibold text-primary"
+          className="mt-2 min-h-11 px-4 font-semibold text-primary-text"
         >
           {copy.didntPractice}
         </button>
