@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { applyUrlSwitch, setTheme, useThemeStore } from './theme';
+import { applyUrlSwitch, readTheme, setTheme, useThemeStore } from './theme';
 
 describe('theme', () => {
   const visit = (search: string) => window.history.replaceState(null, '', `/${search}`);
@@ -19,6 +19,14 @@ describe('theme', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     visit('');
+  });
+
+  it('is dark until someone picks light', () => {
+    expect(readTheme()).toBe('dark');
+    setTheme('light');
+    expect(readTheme()).toBe('light');
+    setTheme('dark');
+    expect(readTheme()).toBe('dark');
   });
 
   it('applies and saves the theme picked in Settings', () => {

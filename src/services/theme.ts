@@ -12,12 +12,12 @@ const THEME_COLOR: Record<Theme, string> = {
   dark: '#141311',
 };
 
-/** The theme picked in Settings on this device; light until someone picks dark. */
-function readTheme(): Theme {
+/** The theme picked in Settings on this device; dark until someone picks light. */
+export function readTheme(): Theme {
   try {
-    return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
+    return localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark';
   } catch {
-    return 'light';
+    return 'dark';
   }
 }
 

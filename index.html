@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
     <title>Sadhana Tracker</title>
     <script>
-      // Apply the theme picked in Settings before first paint, so dark mode doesn't flash white.
+      // Apply the theme before first paint, so dark mode (the default) doesn't flash light.
       // Mirrors applyUrlSwitch()/readTheme() in src/services/theme.ts, which takes over once the app loads.
       (function () {
         var theme = null;
@@ -22,7 +22,7 @@
           if (param === 'dark' || param === 'light') localStorage.setItem('theme-override', param);
           theme = localStorage.getItem('theme-override');
         } catch (e) {}
-        if (theme === 'dark') {
+        if (theme !== 'light') {
           document.documentElement.dataset.theme = 'dark';
           // A fresh tag, not an edited one: Android only repaints its status bar for a new tag.
           var meta = document.createElement('meta');
