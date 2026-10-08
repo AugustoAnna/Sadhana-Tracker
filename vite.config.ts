@@ -26,7 +26,8 @@ export default defineConfig(({ mode }) => {
         short_name: shortName,
         description: 'Track your spiritual practice journey',
         theme_color: '#0D8A7A',
-        background_color: '#F2EFE7',
+        // Launch screen of the installed app: dark, matching the dark page (--color-page).
+        background_color: '#141311',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
