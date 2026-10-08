@@ -13,27 +13,22 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
     <title>Sadhana Tracker</title>
     <script>
-      // Pick the theme before first paint so evenings don't flash white.
-      // Mirrors applyUrlSwitch()/refresh() in src/services/theme.ts, which takes over once the app loads.
+      // Apply the theme before first paint, so dark mode (the default) doesn't flash light.
+      // Mirrors applyUrlSwitch()/readTheme() in src/services/theme.ts, which takes over once the app loads.
       (function () {
-        var mode = null, darkWindow = null;
+        var theme = null;
         try {
           var param = new URLSearchParams(location.search).get('theme');
           if (param === 'dark' || param === 'light') localStorage.setItem('theme-override', param);
-          else if (param === 'auto') localStorage.removeItem('theme-override');
-          mode = localStorage.getItem('theme-override');
-          darkWindow = localStorage.getItem('theme-window');
+          theme = localStorage.getItem('theme-override');
         } catch (e) {}
-        if (!/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/.test(darkWindow || '')) darkWindow = '18:00-06:00';
-        var mins = function (t) { return +t.slice(0, 2) * 60 + +t.slice(3, 5); };
-        var start = mins(darkWindow.slice(0, 5)), end = mins(darkWindow.slice(6));
-        var now = new Date(), t = now.getHours() * 60 + now.getMinutes();
-        var inWindow = start !== end && (start < end ? t >= start && t < end : t >= start || t < end);
-        var dark = mode === 'dark' || (mode !== 'light' &&
-          (inWindow || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)));
-        if (dark) {
+        if (theme !== 'light') {
           document.documentElement.dataset.theme = 'dark';
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#141311');
+          // A fresh tag, not an edited one: Android only repaints its status bar for a new tag.
+          var meta = document.createElement('meta');
+          meta.name = 'theme-color';
+          meta.content = '#141311';
+          document.querySelector('meta[name="theme-color"]').replaceWith(meta);
         }
       })();
     </script>
