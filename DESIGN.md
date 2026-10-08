@@ -24,6 +24,17 @@
 
 Heat map bands (R5) are unchanged.
 
+## Dark mode
+
+`<html data-theme="dark">` swaps the Semantics values above (`src/services/theme.ts`; `index.html` sets it before first paint). Settings → Appearance picks Light or Dark, saved per device; Dark is the default. `?theme=dark` or `?theme=light` on the URL sets the same choice, for testing.
+
+- Warm near-blacks (page `#141311`, card `#211F1B`) and off-white ink `#ECE8DF`, not pure black/white. Every text/surface pair clears WCAG AA.
+- Filled teal (`bg-primary`) is unchanged so white labels read the same. Teal as text/icon uses `text-primary-text`, which brightens to `#35B5A2`.
+- Journey, error and brass lighten so they still read on dark.
+- Heat map keeps the same greens as light mode; only the empty-day greys darken.
+- Type steps down one weight (600→500, 700→600): light text on dark reads heavier.
+- New components: use tokens, not hex or Tailwind greys. For a one-off, pair it with a `dark:` variant.
+
 ## Typography (D3)
 
 | Token | Class | Size | Weight | Use |

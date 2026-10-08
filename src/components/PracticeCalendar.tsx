@@ -3,6 +3,7 @@ import type { PracticeLog } from '@/types';
 import { useAppStore } from '@/stores/appStore';
 import { COPY } from '@/copy/strings';
 import { HEATMAP_SHADES } from '@/data/heatmap';
+import { useThemeStore } from '@/services/theme';
 import { getTotalDaysPracticed, getTotalMinutes, getCurrentStreak } from '@/utils/dates';
 import {
   buildCalendarMonths,
@@ -31,7 +32,7 @@ function MonthBlock({ month }: { month: MonthCalendarData }) {
   return (
     <div style={{ width: gridWidth, flex: '0 0 auto' }}>
       <p
-        className="text-[15px] font-semibold text-[#1C1C1C] whitespace-nowrap"
+        className="text-[15px] font-semibold text-ink whitespace-nowrap"
         style={{ height: LABEL_ROW_HEIGHT, lineHeight: `${LABEL_ROW_HEIGHT}px` }}
       >
         {month.monthLabel}
@@ -72,7 +73,8 @@ export function PracticeCalendar({ logs }: PracticeCalendarProps) {
   // currentDay is a dependency, not an input: the grid has to be rebuilt when
   // the calendar day rolls over so today's ring and heat move with it.
   const currentDay = useAppStore((s) => s.currentDay);
-  const months = useMemo(() => buildCalendarMonths(logs), [logs, currentDay]);
+  const theme = useThemeStore((s) => s.theme);
+  const months = useMemo(() => buildCalendarMonths(logs, new Date(), theme), [logs, currentDay, theme]);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Past months live to the left, so the strip opens pinned to the current one.
   const pinnedToEnd = useRef(true);
@@ -128,7 +130,7 @@ export function PracticeCalendar({ logs }: PracticeCalendarProps) {
             {DAY_LABELS.map((label, row) => (
               <span
                 key={`label-${row}`}
-                className="text-[13px] font-medium text-[#1C1C1C] flex items-center justify-center"
+                className="text-[13px] font-medium text-ink flex items-center justify-center"
               >
                 {label}
               </span>
