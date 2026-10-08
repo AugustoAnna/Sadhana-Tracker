@@ -183,6 +183,7 @@ export function Reminders() {
     <div className="h-full flex flex-col bg-page">
       <BackHeader
         compact
+        centered={!inSetup}
         // The same screen is a step of first-run setup; afterwards the home
         // gear opens it as Settings.
         title={inSetup ? 'Practice reminders' : 'Settings'}
