@@ -9,9 +9,13 @@ interface BackHeaderProps {
   hideBack?: boolean;
   /** Less space above the title, matching the home header. */
   compact?: boolean;
+  /** Title centred on the screen; a spacer on the right balances the back arrow. */
+  centered?: boolean;
 }
 
-export function BackHeader({ title, onBack, rightAction, dark = false, hideBack = false, compact = false }: BackHeaderProps) {
+export function BackHeader({
+  title, onBack, rightAction, dark = false, hideBack = false, compact = false, centered = false,
+}: BackHeaderProps) {
   const navigate = useNavigate();
 
   return (
@@ -36,11 +40,12 @@ export function BackHeader({ title, onBack, rightAction, dark = false, hideBack 
         <div className="w-0" />
       )}
       {title && (
-        <h1 className={`font-serif text-display flex-1 ${dark ? 'text-white' : 'text-ink'}`}>
+        <h1 className={`font-serif text-display flex-1 ${centered ? 'text-center' : ''} ${dark ? 'text-white' : 'text-ink'}`}>
           {title}
         </h1>
       )}
       {rightAction && <div className="ml-auto flex items-center">{rightAction}</div>}
+      {centered && !rightAction && !hideBack && <div className="w-11 -mr-2" aria-hidden />}
     </header>
   );
 }
