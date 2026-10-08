@@ -9,7 +9,7 @@ interface BackHeaderProps {
   hideBack?: boolean;
   /** Less space above the title, matching the home header. */
   compact?: boolean;
-  /** Title centred on the screen; a spacer on the right balances the back arrow. */
+  /** Title centred on the screen; a spacer on the right mirrors whatever is on the left. */
   centered?: boolean;
 }
 
@@ -45,7 +45,7 @@ export function BackHeader({
         </h1>
       )}
       {rightAction && <div className="ml-auto flex items-center">{rightAction}</div>}
-      {centered && !rightAction && !hideBack && <div className="w-11 -mr-2" aria-hidden />}
+      {centered && !rightAction && <div className={hideBack ? 'w-0' : 'w-11 -mr-2'} aria-hidden />}
     </header>
   );
 }
