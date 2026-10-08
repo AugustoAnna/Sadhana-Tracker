@@ -7,14 +7,16 @@ interface BackHeaderProps {
   rightAction?: ReactNode;
   dark?: boolean;
   hideBack?: boolean;
+  /** Less space above the title, matching the home header. */
+  compact?: boolean;
 }
 
-export function BackHeader({ title, onBack, rightAction, dark = false, hideBack = false }: BackHeaderProps) {
+export function BackHeader({ title, onBack, rightAction, dark = false, hideBack = false, compact = false }: BackHeaderProps) {
   const navigate = useNavigate();
 
   return (
     <header
-      className={`flex items-center gap-2 px-4 ${dark ? 'pt-6 pb-2' : 'pt-10 pb-3'} ${
+      className={`flex items-center gap-2 px-4 ${dark ? 'pt-6 pb-2' : compact ? 'pt-3 pb-3' : 'pt-10 pb-3'} ${
         dark
           ? 'bg-header text-white'
           : 'bg-page text-ink'
