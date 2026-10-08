@@ -8,6 +8,7 @@
     "prebuild": "node scripts/generate-asset-manifest.mjs",
     "build": "npm run prebuild && tsc -b && vite build",
     "generate-icons": "node scripts/generate-icons.mjs",
+    "generate-splash": "node scripts/generate-splash.mjs",
     "preview": "vite preview",
     "test": "vitest run"
   },
