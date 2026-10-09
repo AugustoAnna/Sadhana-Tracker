@@ -67,7 +67,6 @@ export function EditPractices() {
   const todayLogs = useMemo(() => getLogsForDay(logs, today), [logs, today]);
 
   const inSetup = firstSetup || !profile?.onboardingComplete;
-  const showSubtitle = profile?.onboardingComplete && !firstSetup;
 
   const [otherOpen, setOtherOpen] = useState(false);
 
@@ -155,18 +154,14 @@ export function EditPractices() {
     <div className="h-full flex flex-col bg-page">
       <div className="flex-1 overflow-y-auto pb-28">
         <BackHeader title={COPY.setup.header.title} onBack={handleBack} hideBack={inSetup} compact centered />
-        {showSubtitle && (
-          <p className="px-4 text-label text-secondary mb-5">
-            {COPY.setup.header.subtitle.fromTracker}
-          </p>
-        )}
-        {!showSubtitle && <div className="mb-5" />}
+        {inSetup && <div className="mb-5" />}
 
         {!inSetup && (
           // The tracker's top, read-only: always today, and the bar does nothing.
-          // It fills the space above My Practices so the list stays near where
-          // it was on the tracker.
-          <div className="px-4 mb-5">
+          // Bar, counters, subtitle and the My Practices heading take the same
+          // height as the tracker's switcher, counters and heading row, so the
+          // practices start on the same line as on the tracker.
+          <div className="px-4">
             <div className="mb-3">
               <DayBar />
             </div>
@@ -174,16 +169,16 @@ export function EditPractices() {
               completed={getPracticesCompletedOn(todayLogs, today)}
               minutes={getMinutesForDay(todayLogs, today)}
             />
+            <p className="text-label text-secondary mt-3 mb-2">
+              {COPY.setup.header.subtitle.fromTracker}
+            </p>
           </div>
         )}
 
         {myPractices.length > 0 && (
           // Padding, not margin: a margin here would merge with the subtitle's.
           <div className="px-4 mb-5" style={{ paddingTop: myListOffset }}>
-            {/* Laid out like the tracker's "My practices" heading row. */}
-            <div className="flex items-center h-11 mb-2">
-              <p className="section-header">{COPY.setup.section.mine}</p>
-            </div>
+            <p className="section-header mb-2">{COPY.setup.section.mine}</p>
             <div ref={myListRef} className="bg-card rounded-[14px]">
               {myPractices.map(renderRow)}
             </div>
