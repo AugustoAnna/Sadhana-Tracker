@@ -210,8 +210,10 @@ function SetupPracticeRow({
       <PracticeIllustration practiceId={practiceId} size={40} />
       <div className="flex-1 min-w-0">
         <p className="text-body truncate">{name}</p>
+        {/* Name and chips together are no taller than the Add/Remove button,
+            so a row is the same height with or without chips. */}
         {added && !isTimed && (
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-2 mt-px">
             <ChipButton
               label={COPY.setup.chip.once}
               selected={selectedCount === 1}
@@ -253,13 +255,15 @@ function ChipButton({
     <button
       type="button"
       onClick={onClick}
-      className={`px-2.5 py-1 rounded-[7px] text-meta font-semibold min-h-8 ${
+      className={`relative inline-flex items-center justify-center h-[22px] min-w-10 px-2.5 rounded-[6px] text-[12px] font-semibold ${
         selected
           ? 'bg-primary text-white'
           : 'border border-hairline text-secondary'
       }`}
     >
       {label}
+      {/* A 44x44 tap area around the small chip. */}
+      <span aria-hidden className="absolute -inset-x-0.5 -inset-y-[11px]" />
     </button>
   );
 }
