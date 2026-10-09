@@ -44,3 +44,14 @@ export function DaySwitcher({ day, onChange }: { day: DayKey; onChange: (day: Da
     </div>
   );
 }
+
+/** The switcher's card without its controls: a plain "Today" bar, same size. */
+export function DayBar() {
+  return (
+    <div className="bg-card rounded-[14px] border border-hairline px-1 text-ink">
+      <p className="h-11 flex items-center justify-center text-[16px] font-semibold">
+        {COPY.tracker.day.today}
+      </p>
+    </div>
+  );
+}

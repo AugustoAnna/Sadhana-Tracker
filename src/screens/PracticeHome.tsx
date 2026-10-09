@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PracticeCard, BottomSheet, MinutePicker, Button,
-  PracticeCalendar, ProgressStatBoxes,
+  PracticeCalendar, ProgressStatBoxes, DayStatCards,
 } from '@/components';
 import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
@@ -191,16 +191,7 @@ export function PracticeHome() {
           ) : (
             <p className="section-header mb-2">{COPY.tracker.day.today}</p>
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-card rounded-[14px] p-3 border border-hairline">
-              <p className="text-stat text-ink">{dayCompleted}</p>
-              <p className="text-label text-secondary mt-1">practices completed</p>
-            </div>
-            <div className="bg-card rounded-[14px] p-3 border border-hairline">
-              <p className="text-stat text-ink">{dayMinutes}</p>
-              <p className="text-label text-secondary mt-1">minutes practiced</p>
-            </div>
-          </div>
+          <DayStatCards completed={dayCompleted} minutes={dayMinutes} />
         </section>
 
         <section className="mt-5">

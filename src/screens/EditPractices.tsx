@@ -1,13 +1,15 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  BackHeader, PracticeIllustration, ConfirmFooter,
+  BackHeader, PracticeIllustration, ConfirmFooter, DayStatCards,
 } from '@/components';
 import { COPY } from '@/copy/strings';
 import { useAppStore } from '@/stores/appStore';
 import { PRACTICES, COMMONLY_PRACTICED_IDS } from '@/data/catalogue';
 import { getSortOrder } from '@/data/idealSequence';
 import { getResolvedKind } from '@/data/practiceAssets';
+import { DayBar } from '@/features/backtracking/DaySwitcher';
+import { getLogsForDay, getMinutesForDay, getPracticesCompletedOn } from '@/utils/dates';
 import type { PracticeInstance } from '@/types';
 
 /** How many instances (1 or 2) each practice has. */
@@ -60,6 +62,9 @@ export function EditPractices() {
   const removeAllInstancesForPractice = useAppStore((s) => s.removeAllInstancesForPractice);
   const setPracticeInstanceCount = useAppStore((s) => s.setPracticeInstanceCount);
   const profile = useAppStore((s) => s.profile);
+  const logs = useAppStore((s) => s.logs);
+  const today = useAppStore((s) => s.currentDay);
+  const todayLogs = useMemo(() => getLogsForDay(logs, today), [logs, today]);
 
   const inSetup = firstSetup || !profile?.onboardingComplete;
   const showSubtitle = profile?.onboardingComplete && !firstSetup;
@@ -156,6 +161,21 @@ export function EditPractices() {
           </p>
         )}
         {!showSubtitle && <div className="mb-5" />}
+
+        {!inSetup && (
+          // The tracker's top, read-only: always today, and the bar does nothing.
+          // It fills the space above My Practices so the list stays near where
+          // it was on the tracker.
+          <div className="px-4 mb-5">
+            <div className="mb-3">
+              <DayBar />
+            </div>
+            <DayStatCards
+              completed={getPracticesCompletedOn(todayLogs, today)}
+              minutes={getMinutesForDay(todayLogs, today)}
+            />
+          </div>
+        )}
 
         {myPractices.length > 0 && (
           // Padding, not margin: a margin here would merge with the subtitle's.
