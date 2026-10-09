@@ -17,6 +17,7 @@ export { PracticeIllustration } from './PracticeIllustration';
 export { PracticeName } from './PracticeName';
 export { PracticeCard } from './PracticeCard';
 export { ConfirmFooter } from './ConfirmFooter';
+export { DayStatCards } from './DayStatCards';
 export { PracticeCalendar, ProgressStatBoxes } from './PracticeCalendar';
 export { DemoModePicker, useDemoModeEntry } from './DemoMode';
 export { DemoModeIndicator } from './DemoModeIndicator';
