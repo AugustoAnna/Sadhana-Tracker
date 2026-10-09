@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   BackHeader, PracticeIllustration, ConfirmFooter,
@@ -52,7 +52,8 @@ function OtherSectionHeader({
 export function EditPractices() {
   const navigate = useNavigate();
   const location = useLocation();
-  const firstSetup = (location.state as { firstSetup?: boolean })?.firstSetup ?? false;
+  const navState = location.state as { firstSetup?: boolean; listTop?: number } | null;
+  const firstSetup = navState?.firstSetup ?? false;
 
   const instances = useAppStore((s) => s.instances);
   const addPracticeInstance = useAppStore((s) => s.addPracticeInstance);
@@ -69,6 +70,18 @@ export function EditPractices() {
   // row stays where it is while it is added or removed (each tap still saves at
   // once); the next visit shows it in its new list.
   const [openedCounts] = useState(() => countsByPractice(instances));
+
+  // Opened from the tracker: push My Practices down to where the tracker's
+  // list was on screen, so the list stays in place instead of jumping up.
+  // Measured before the first paint, so it never shows in the wrong place.
+  const myListRef = useRef<HTMLDivElement>(null);
+  const [myListOffset, setMyListOffset] = useState(0);
+  useLayoutEffect(() => {
+    const target = navState?.listTop;
+    if (target == null || !myListRef.current) return;
+    setMyListOffset(Math.max(0, Math.round(target - myListRef.current.getBoundingClientRect().top)));
+    // Only on opening: later edits must not move the list.
+  }, []);
 
   // Practices added, removed or switched between 1X and 2X since the screen opened.
   const currentCounts = countsByPractice(instances);
@@ -145,9 +158,13 @@ export function EditPractices() {
         {!showSubtitle && <div className="mb-5" />}
 
         {myPractices.length > 0 && (
-          <div className="px-4 mb-5">
-            <p className="section-header mb-2">{COPY.setup.section.mine}</p>
-            <div className="bg-card rounded-[14px] mt-1">
+          // Padding, not margin: a margin here would merge with the subtitle's.
+          <div className="px-4 mb-5" style={{ paddingTop: myListOffset }}>
+            {/* Laid out like the tracker's "My practices" heading row. */}
+            <div className="flex items-center h-11 mb-2">
+              <p className="section-header">{COPY.setup.section.mine}</p>
+            </div>
+            <div ref={myListRef} className="bg-card rounded-[14px]">
               {myPractices.map(renderRow)}
             </div>
           </div>
