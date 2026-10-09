@@ -42,6 +42,7 @@ export function PracticeHome() {
   // Screen state, so every new visit to this screen opens on Today.
   const [yesterdayPick, setYesterdayPick] = useState<YesterdayPick | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const sortedInstances = useMemo(() => sortTrackingInstances(instances), [instances]);
 
@@ -176,7 +177,10 @@ export function PracticeHome() {
           <div className="flex items-center justify-between mb-2">
             <p className="section-header">My practices</p>
             <button
-              onClick={() => navigate('/practices/edit')}
+              // Edit Practices opens with its list where this one is on screen.
+              onClick={() => navigate('/practices/edit', {
+                state: { listTop: listRef.current?.getBoundingClientRect().top },
+              })}
               className="w-11 h-11 flex items-center justify-center text-primary-text"
               aria-label="Edit practices"
             >
@@ -195,7 +199,7 @@ export function PracticeHome() {
               </Button>
             </div>
           ) : (
-            <div className="bg-card rounded-[14px] divide-y divide-hairline">
+            <div ref={listRef} className="bg-card rounded-[14px] divide-y divide-hairline">
               {sortedInstances.map((inst) => (
                 <PracticeCard
                   key={inst.id}
