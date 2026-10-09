@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PracticeCard, BottomSheet, MinutePicker, Button,
-  PracticeCalendar, ProgressStatBoxes,
+  PracticeCalendar, ProgressStatBoxes, DayStatCards,
 } from '@/components';
 import { useAppStore, getDefaultLogMinutes } from '@/stores/appStore';
 import { getPractice } from '@/data/catalogue';
@@ -44,6 +44,7 @@ export function PracticeHome() {
   // Screen state, so every new visit to this screen opens on Today.
   const [yesterdayPick, setYesterdayPick] = useState<YesterdayPick | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const sortedInstances = useMemo(() => sortTrackingInstances(instances), [instances]);
 
@@ -190,23 +191,17 @@ export function PracticeHome() {
           ) : (
             <p className="section-header mb-2">{COPY.tracker.day.today}</p>
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-card rounded-[14px] p-3 border border-hairline">
-              <p className="text-stat text-ink">{dayCompleted}</p>
-              <p className="text-label text-secondary mt-1">practices completed</p>
-            </div>
-            <div className="bg-card rounded-[14px] p-3 border border-hairline">
-              <p className="text-stat text-ink">{dayMinutes}</p>
-              <p className="text-label text-secondary mt-1">minutes practiced</p>
-            </div>
-          </div>
+          <DayStatCards completed={dayCompleted} minutes={dayMinutes} />
         </section>
 
         <section className="mt-5">
           <div className="flex items-center justify-between mb-2">
             <p className="section-header">My practices</p>
             <button
-              onClick={() => navigate('/practices/edit')}
+              // Edit Practices opens with its list where this one is on screen.
+              onClick={() => navigate('/practices/edit', {
+                state: { listTop: listRef.current?.getBoundingClientRect().top },
+              })}
               className="w-11 h-11 flex items-center justify-center text-primary-text"
               aria-label="Edit practices"
             >
@@ -225,7 +220,7 @@ export function PracticeHome() {
               </Button>
             </div>
           ) : (
-            <div className="bg-card rounded-[14px] divide-y divide-hairline">
+            <div ref={listRef} className="bg-card rounded-[14px] divide-y divide-hairline">
               {sortedInstances.map((inst) => (
                 <PracticeCard
                   key={inst.id}
