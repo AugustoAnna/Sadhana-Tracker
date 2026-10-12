@@ -276,14 +276,30 @@ export async function restoreFromServer(
     return { rowsWritten: profileRestored, participantFound: true };
   }
 
-  const localInstances = await db.practiceInstances.toArray();
-  const known = new Map(localInstances.map((i) => [i.id, i]));
+  const localInstances = [...await db.practiceInstances.toArray()].sort((a, b) => a.order - b.order);
+  const remoteRows = remoteInstances.data ?? [];
+  const remoteIds = new Set(remoteRows.map((row) => row.id));
+  const slotOf = (practiceId: string, instanceNumber: number) => `${practiceId}:${instanceNumber}`;
+
+  // A device can hold a practice slot (practice + 1st/2nd) under a different id
+  // than the server: an account merge keeps the other account's rows, and a
+  // reinstall can set practices up again before this restore runs. Matching by
+  // id alone kept both copies, so the tracker listed the practice four times
+  // and the local copy never synced (unique(participant, practice, instance)).
+  // One row per slot: the server's, else the device's first.
+  const localBySlot = new Map<string, PracticeInstance>();
+  for (const inst of localInstances) {
+    const slot = slotOf(inst.practiceId, inst.instanceNumber);
+    const held = localBySlot.get(slot);
+    if (!held || (!remoteIds.has(held.id) && remoteIds.has(inst.id))) localBySlot.set(slot, inst);
+  }
+
   // Server has no column for display order; keep whatever the device already
   // shows and append anything it has never seen, oldest first.
   let nextOrder = localInstances.reduce((max, i) => Math.max(max, i.order + 1), 0);
 
-  const instances: PracticeInstance[] = (remoteInstances.data ?? []).map((row) => {
-    const local = known.get(row.id);
+  const instances: PracticeInstance[] = remoteRows.map((row) => {
+    const local = localBySlot.get(slotOf(row.practice_id, row.instance));
     return {
       id: row.id,
       practiceId: row.practice_id,
@@ -294,9 +310,16 @@ export async function restoreFromServer(
   });
 
   const byPractice = new Map<string, string>();
-  for (const inst of [...instances, ...localInstances]) {
-    const key = `${inst.practiceId}:${inst.instanceNumber}`;
+  for (const inst of [...instances, ...localBySlot.values()]) {
+    const key = slotOf(inst.practiceId, inst.instanceNumber);
     if (!byPractice.has(key)) byPractice.set(key, inst.id);
+  }
+
+  // Local duplicates, each mapped to the row that now stands for its slot.
+  const replacedBy = new Map<string, string>();
+  for (const inst of localInstances) {
+    const kept = byPractice.get(slotOf(inst.practiceId, inst.instanceNumber))!;
+    if (kept !== inst.id) replacedBy.set(inst.id, kept);
   }
 
   let unattached = 0;
@@ -326,9 +349,11 @@ export async function restoreFromServer(
 
   // A participants row means this is a known account. Skip first-time setup
   // even when they currently have zero practices on the server.
-  await db.transaction('rw', db.practiceInstances, db.practiceLogs, db.profile, async () => {
+  const tables = [db.practiceInstances, db.practiceLogs, db.profile, db.savedSessions, db.syncQueue];
+  await db.transaction('rw', tables, async () => {
     if (instances.length) await db.practiceInstances.bulkPut(instances);
     if (logs.length) await db.practiceLogs.bulkPut(logs);
+    if (replacedBy.size) await mergeDuplicateInstances(replacedBy);
     const profile = await db.profile.get('profile');
     if (profile && !profile.onboardingComplete) {
       await db.profile.update('profile', {
@@ -346,9 +371,40 @@ export async function restoreFromServer(
     console.warn(`restoreFromServer: ${unattached} record(s) had no matching practice`);
   }
   return {
-    rowsWritten: instances.length + logs.length + profileRestored,
+    rowsWritten: instances.length + logs.length + replacedBy.size + profileRestored,
     participantFound: true,
   };
+}
+
+/**
+ * Folds duplicate practice instances into the row kept for their slot: logs,
+ * saved sessions and queued log uploads move over, the duplicate goes, and its
+ * queued insert is dropped (the server would reject it on every drain).
+ */
+async function mergeDuplicateInstances(replacedBy: Map<string, string>): Promise<void> {
+  const db = getDb();
+  const replaced = [...replacedBy.keys()];
+
+  await db.practiceLogs.where('instanceId').anyOf(replaced).modify((log) => {
+    log.instanceId = replacedBy.get(log.instanceId)!;
+  });
+  await db.savedSessions.toCollection().modify((session) => {
+    if (!session.practiceInstanceIds.some((id) => replacedBy.has(id))) return;
+    session.practiceInstanceIds = [...new Set(
+      session.practiceInstanceIds.map((id) => replacedBy.get(id) ?? id),
+    )];
+  });
+  for (const item of await db.syncQueue.toArray()) {
+    const payload = item.payload as { id?: string; instanceId?: string };
+    if (item.table === 'participant_practices' && payload.id && replacedBy.has(payload.id)) {
+      await db.syncQueue.delete(item.id);
+    } else if (item.table === 'practice_completed' && payload.instanceId && replacedBy.has(payload.instanceId)) {
+      await db.syncQueue.update(item.id, {
+        payload: { ...payload, instanceId: replacedBy.get(payload.instanceId) },
+      });
+    }
+  }
+  await db.practiceInstances.bulkDelete(replaced);
 }
 
 export async function updateParticipantFields(

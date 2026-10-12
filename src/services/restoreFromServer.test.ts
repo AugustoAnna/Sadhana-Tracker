@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { PracticeInstance, PracticeLog, Profile } from '@/types';
+import type { PracticeInstance, PracticeLog, Profile, SavedSession, SyncQueueItem } from '@/types';
 
 const localInstances: PracticeInstance[] = [];
+const localLogs: PracticeLog[] = [];
+const sessions: SavedSession[] = [];
+const queue: SyncQueueItem[] = [];
+const deleteInstances = vi.fn<(ids: string[]) => Promise<void>>();
 let profile: Profile | undefined;
 const putInstances = vi.fn<(rows: PracticeInstance[]) => Promise<void>>();
 const putLogs = vi.fn<(rows: PracticeLog[]) => Promise<void>>();
@@ -9,8 +13,25 @@ const updateProfile = vi.fn();
 
 vi.mock('@/db', () => ({
   getDb: () => ({
-    practiceInstances: { toArray: async () => localInstances, bulkPut: putInstances },
-    practiceLogs: { bulkPut: putLogs },
+    practiceInstances: { toArray: async () => localInstances, bulkPut: putInstances, bulkDelete: deleteInstances },
+    practiceLogs: {
+      bulkPut: putLogs,
+      where: () => ({
+        anyOf: (ids: string[]) => ({
+          modify: async (fn: (l: PracticeLog) => void) => {
+            localLogs.filter((l) => ids.includes(l.instanceId)).forEach(fn);
+          },
+        }),
+      }),
+    },
+    savedSessions: { toCollection: () => ({ modify: async (fn: (s: SavedSession) => void) => sessions.forEach(fn) }) },
+    syncQueue: {
+      toArray: async () => [...queue],
+      delete: async (id: string) => { queue.splice(queue.findIndex((q) => q.id === id), 1); },
+      update: async (id: string, changes: Partial<SyncQueueItem>) => {
+        Object.assign(queue.find((q) => q.id === id)!, changes);
+      },
+    },
     profile: { get: async () => profile, update: updateProfile },
     transaction: (_mode: string, ...rest: unknown[]) =>
       (rest[rest.length - 1] as () => Promise<void>)(),
@@ -48,8 +69,8 @@ const onboarded = {
   error: null,
 };
 
-function remoteInstance(id: string, practice_id: string, created_at: string) {
-  return { id, practice_id, instance: 1, created_at };
+function remoteInstance(id: string, practice_id: string, created_at: string, instance = 1) {
+  return { id, practice_id, instance, created_at };
 }
 function remoteLog(id: string, practice_id: string, local_date: string) {
   return {
@@ -60,6 +81,10 @@ function remoteLog(id: string, practice_id: string, local_date: string) {
 
 beforeEach(() => {
   localInstances.length = 0;
+  localLogs.length = 0;
+  sessions.length = 0;
+  queue.length = 0;
+  deleteInstances.mockReset();
   profile = { id: 'profile', name: '', onboardingComplete: false } as Profile;
   putInstances.mockReset();
   putLogs.mockReset();
@@ -124,6 +149,77 @@ describe('restoreFromServer', () => {
       expect.objectContaining({ id: 'i1', order: 3, addedAt: 111 }),
       expect.objectContaining({ id: 'i2', order: 4 }),
     ]);
+  });
+
+  it('folds a device copy of a practice slot into the server row', async () => {
+    // Shoonya 1st and 2nd on the device, the same two under other ids on the
+    // server: the tracker showed Shoonya four times.
+    localInstances.push(
+      { id: 'local-1', practiceId: 'shoonya', instanceNumber: 1, order: 2, addedAt: 111 },
+      { id: 'local-2', practiceId: 'shoonya', instanceNumber: 2, order: 3, addedAt: 222 },
+    );
+    localLogs.push({
+      id: 'l-local', practiceId: 'shoonya', instanceId: 'local-2', minutes: 15,
+      timestamp: 0, localDate: '2026-10-11', source: 'checkbox',
+    });
+    sessions.push({ id: 's1', name: 'Morning', practiceInstanceIds: ['local-1', 'srv-1'], lastUsedAt: 0 });
+    queue.push(
+      { id: 'q1', table: 'participant_practices', operation: 'insert', payload: localInstances[0], createdAt: 0 },
+      { id: 'q2', table: 'practice_completed', operation: 'insert', payload: { ...localLogs[0] }, createdAt: 0 },
+    );
+    tables = {
+      participants: participant,
+      participant_practices: {
+        data: [
+          remoteInstance('srv-1', 'shoonya', '2026-08-14T00:00:00Z', 1),
+          remoteInstance('srv-2', 'shoonya', '2026-08-14T00:00:00Z', 2),
+        ],
+        error: null,
+      },
+      practice_completed: { data: [{ ...remoteLog('l-srv', 'shoonya', '2026-10-10'), instance: 2 }], error: null },
+    };
+
+    const result = await restoreFromServer();
+
+    expect(putInstances.mock.calls[0][0]).toEqual([
+      expect.objectContaining({ id: 'srv-1', instanceNumber: 1, order: 2, addedAt: 111 }),
+      expect.objectContaining({ id: 'srv-2', instanceNumber: 2, order: 3, addedAt: 222 }),
+    ]);
+    expect(deleteInstances).toHaveBeenCalledWith(['local-1', 'local-2']);
+    expect(putLogs.mock.calls[0][0]).toEqual([expect.objectContaining({ id: 'l-srv', instanceId: 'srv-2' })]);
+    expect(localLogs[0].instanceId).toBe('srv-2');
+    expect(sessions[0].practiceInstanceIds).toEqual(['srv-1']);
+    expect(queue).toEqual([expect.objectContaining({ id: 'q2', payload: expect.objectContaining({ instanceId: 'srv-2' }) })]);
+    expect(result.rowsWritten).toBe(2 + 1 + 2 + 1);
+  });
+
+  it('keeps one of two device rows for the same slot when the server has neither', async () => {
+    localInstances.push(
+      { id: 'a', practiceId: 'shoonya', instanceNumber: 1, order: 0, addedAt: 1 },
+      { id: 'b', practiceId: 'shoonya', instanceNumber: 1, order: 1, addedAt: 2 },
+    );
+    tables = {
+      participants: participant,
+      participant_practices: { data: [], error: null },
+      practice_completed: { data: [], error: null },
+    };
+
+    await restoreFromServer();
+
+    expect(deleteInstances).toHaveBeenCalledWith(['b']);
+  });
+
+  it('leaves a device whose ids already match the server alone', async () => {
+    localInstances.push({ id: 'i1', practiceId: 'shoonya', instanceNumber: 1, order: 0, addedAt: 1 });
+    tables = {
+      participants: participant,
+      participant_practices: { data: [remoteInstance('i1', 'shoonya', '2026-08-14T00:00:00Z')], error: null },
+      practice_completed: { data: [], error: null },
+    };
+
+    await restoreFromServer();
+
+    expect(deleteInstances).not.toHaveBeenCalled();
   });
 
   it('skips completions whose practice was removed', async () => {
