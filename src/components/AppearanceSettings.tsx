@@ -1,4 +1,5 @@
 import { setTheme, useThemeStore, type Theme } from '@/services/theme';
+import { track } from '@/services/instrumentation';
 
 const THEMES: { value: Theme; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -8,6 +9,12 @@ const THEMES: { value: Theme; label: string }[] = [
 /** Light or dark, saved on this device. */
 export function AppearanceSettings() {
   const theme = useThemeStore((s) => s.theme);
+
+  const choose = (value: Theme) => {
+    if (value === theme) return;
+    void track('theme_changed', { from: theme, to: value });
+    setTheme(value);
+  };
 
   return (
     <section>
@@ -22,7 +29,7 @@ export function AppearanceSettings() {
                 type="button"
                 role="radio"
                 aria-checked={selected}
-                onClick={() => setTheme(value)}
+                onClick={() => choose(value)}
                 className={`min-h-11 rounded-[7px] text-body transition-colors ${
                   selected ? 'bg-card dark:bg-field text-ink shadow-sm' : 'text-secondary'
                 }`}

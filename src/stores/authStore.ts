@@ -28,6 +28,7 @@ import {
   resetParticipantCache,
   restoreFromServer,
   syncFullState,
+  type OnServerIds,
 } from '@/services/sync';
 import { useAppStore } from './appStore';
 
@@ -265,6 +266,7 @@ async function completeSignIn(
 
   const app = useAppStore.getState();
   let knownParticipant = false;
+  let onServer: OnServerIds | undefined;
 
   if (opts.mode === 'sign-in') {
     // Always restore under the verified user id before routing. Sign-out wipes
@@ -273,6 +275,7 @@ async function completeSignIn(
     try {
       const restored = await restoreFromServer(userId);
       knownParticipant = restored.participantFound;
+      onServer = restored.onServer;
       await app.hydrate();
     } catch (err) {
       // OTP/passkey verification already established the session. A failed
@@ -319,7 +322,7 @@ async function completeSignIn(
     await app.completePotentialOnboarding();
   }
 
-  void syncFullState();
+  void syncFullState(onServer);
 
   useAuthStore.setState({
     state: 'signed-in',
