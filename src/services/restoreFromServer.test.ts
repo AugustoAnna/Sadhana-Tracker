@@ -52,7 +52,11 @@ vi.mock('./supabase', () => ({
       const b: Record<string, unknown> = {};
       b.select = () => b;
       b.eq = () => b;
-      b.order = () => Promise.resolve(result);
+      b.order = () => b;
+      // Pages through an array result the way PostgREST's range does.
+      b.range = (from: number, to: number) => Promise.resolve(
+        Array.isArray(result.data) ? { ...result, data: result.data.slice(from, to + 1) } : result,
+      );
       b.maybeSingle = () => Promise.resolve(result);
       b.then = (r: (v: unknown) => unknown) => Promise.resolve(result).then(r);
       return b;
@@ -102,7 +106,7 @@ describe('restoreFromServer', () => {
 
     const result = await restoreFromServer();
 
-    expect(result).toEqual({ rowsWritten: 3, participantFound: true });
+    expect(result).toMatchObject({ rowsWritten: 3, participantFound: true });
     expect(putLogs.mock.calls[0][0]).toEqual([
       expect.objectContaining({ id: 'l1', instanceId: 'i1', source: 'checkbox', minutes: 21 }),
     ]);
@@ -222,6 +226,42 @@ describe('restoreFromServer', () => {
     expect(deleteInstances).not.toHaveBeenCalled();
   });
 
+  it('reports the ids the server already holds, so they are not uploaded again', async () => {
+    tables = {
+      participants: participant,
+      participant_practices: { data: [remoteInstance('i1', 'shambhavi', '2026-08-14T00:00:00Z')], error: null },
+      practice_completed: { data: [remoteLog('l1', 'shambhavi', '2026-08-14')], error: null },
+    };
+
+    const { onServer } = await restoreFromServer();
+
+    expect(onServer).toEqual({ instanceIds: new Set(['i1']), logIds: new Set(['l1']) });
+  });
+
+  it('reads a history longer than one server page', async () => {
+    const history = Array.from({ length: 1001 }, (_, n) => remoteLog(`l${n}`, 'shambhavi', '2026-08-14'));
+    tables = {
+      participants: participant,
+      participant_practices: { data: [remoteInstance('i1', 'shambhavi', '2026-08-14T00:00:00Z')], error: null },
+      practice_completed: { data: history, error: null },
+    };
+
+    const { onServer } = await restoreFromServer();
+
+    expect(putLogs.mock.calls[0][0]).toHaveLength(1001);
+    expect(onServer?.logIds.size).toBe(1001);
+  });
+
+  it('reports no server ids when the history could not be read', async () => {
+    tables = {
+      participants: participant,
+      participant_practices: { data: [], error: null },
+      practice_completed: { data: null, error: { message: 'offline' } },
+    };
+
+    expect((await restoreFromServer()).onServer).toBeUndefined();
+  });
+
   it('skips completions whose practice was removed', async () => {
     tables = {
       participants: participant,
@@ -230,7 +270,7 @@ describe('restoreFromServer', () => {
     };
 
     // Known participant still marks setup complete even with no usable practices.
-    expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
+    expect(await restoreFromServer()).toMatchObject({ rowsWritten: 1, participantFound: true });
     expect(putLogs).not.toHaveBeenCalled();
   });
 
@@ -257,7 +297,7 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [], error: null },
     };
 
-    expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
+    expect(await restoreFromServer()).toMatchObject({ rowsWritten: 1, participantFound: true });
     expect(updateProfile).toHaveBeenCalledWith('profile', {
       onboardingComplete: true,
     });
@@ -283,7 +323,7 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [], error: null },
     };
 
-    expect(await restoreFromServer()).toEqual({ rowsWritten: 1, participantFound: true });
+    expect(await restoreFromServer()).toMatchObject({ rowsWritten: 1, participantFound: true });
     expect(updateProfile).toHaveBeenCalledWith('profile', {
       onboardingComplete: true,
       name: 'Neha Sharma',
@@ -298,7 +338,7 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [], error: null },
     };
 
-    expect(await restoreFromServer()).toEqual({ rowsWritten: 0, participantFound: true });
+    expect(await restoreFromServer()).toMatchObject({ rowsWritten: 0, participantFound: true });
     expect(updateProfile).not.toHaveBeenCalled();
   });
 
@@ -315,7 +355,7 @@ describe('restoreFromServer', () => {
       practice_completed: { data: [], error: null },
     };
 
-    expect(await restoreFromServer('auth-user-1')).toEqual({ rowsWritten: 2, participantFound: true });
+    expect(await restoreFromServer('auth-user-1')).toMatchObject({ rowsWritten: 2, participantFound: true });
     expect(putInstances).toHaveBeenCalled();
   });
 });
