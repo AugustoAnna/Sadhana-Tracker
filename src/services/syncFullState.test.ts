@@ -57,7 +57,7 @@ describe('syncFullState', () => {
     expect(queuedIds('practice_completed')).toEqual(['l3']);
   });
 
-  it('queues everything local when the server ids are unknown', async () => {
+  it('queues everything local when no server ids are given (link-mode sign-in)', async () => {
     instances.push(instance('i1'));
     logs.push(log('l1'), log('l2'));
 
@@ -65,6 +65,15 @@ describe('syncFullState', () => {
 
     expect(queuedIds('participant_practices')).toEqual(['i1']);
     expect(queuedIds('practice_completed')).toEqual(['l1', 'l2']);
+  });
+
+  it('does not re-send practices or logs when the server could not be read', async () => {
+    instances.push(instance('i1'));
+    logs.push(log('l1'), log('l2'));
+
+    await syncFullState('unread');
+
+    expect(queue).toEqual([]);
   });
 
   it('does not queue a row that is already waiting', async () => {
