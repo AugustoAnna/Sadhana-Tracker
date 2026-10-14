@@ -70,7 +70,7 @@ function Bootstrap() {
           const restored = await restoreFromServer();
           if (restored.rowsWritten > 0) await hydrate();
           useAppStore.getState().markRemoteRestoreSettled();
-          await syncFullState(restored.onServer);
+          await syncFullState(restored.onServer ?? 'unread');
         })
         .catch((err) => console.error('Background sync failed:', err))
         // Offline or failed, local data is all there is: stop waiting on it.
