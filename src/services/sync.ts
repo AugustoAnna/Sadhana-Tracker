@@ -1,6 +1,7 @@
 import { APP_ENV } from '@/config/environment';
 import { getDb, isDemoDatabaseActive } from '@/db';
 import type { PracticeInstance, PracticeLog, Profile, Reminder } from '@/types';
+import type { Database } from '@/types/database';
 import { getAuthUser, getAuthUserId } from './auth';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { isFeatureEnabled } from '@/features';
@@ -207,14 +208,49 @@ function sourceFromLogMode(mode: 'logged' | 'minutes_added' | 'guided'): Practic
  * Also restores the onboarding flag from the participant row, which counts as
  * a written row so callers re-hydrate the store.
  *
- * Returns the number of rows written, 0 when there was nothing to restore.
+ * Returns the number of rows written, 0 when there was nothing to restore, and
+ * the ids the server already holds so syncFullState can skip them.
  */
 export type RestoreFromServerResult = {
   /** Rows written into local storage (practices/logs/profile fields). */
   rowsWritten: number;
   /** True when a participants row already existed for this Auth user. */
   participantFound: boolean;
+  /** Ids already on the server; absent when they could not be read. */
+  onServer?: OnServerIds;
 };
+
+export type OnServerIds = {
+  instanceIds: Set<string>;
+  logIds: Set<string>;
+};
+
+// PostgREST returns at most max_rows (1000) per request, so a long history has
+// to be read a page at a time or the oldest logs silently go missing.
+const SERVER_PAGE_ROWS = 1000;
+
+type RemoteLogRow = Pick<
+  Database['public']['Tables']['practice_completed']['Row'],
+  'id' | 'practice_id' | 'instance' | 'minutes' | 'mode' | 'was_offline' | 'local_date' | 'occurred_at' | 'backtrack' | 'route'
+>;
+
+async function fetchRemoteLogs(
+  supabase: NonNullable<ReturnType<typeof getSupabase>>,
+  participantId: string,
+): Promise<{ data: RemoteLogRow[]; error: null } | { data: null; error: unknown }> {
+  const rows: RemoteLogRow[] = [];
+  for (let from = 0; ; from += SERVER_PAGE_ROWS) {
+    const page = await supabase
+      .from('practice_completed')
+      .select('id, practice_id, instance, minutes, mode, was_offline, local_date, occurred_at, backtrack, route')
+      .eq('participant_id', participantId)
+      .order('id')
+      .range(from, from + SERVER_PAGE_ROWS - 1);
+    if (page.error) return { data: null, error: page.error };
+    rows.push(...(page.data ?? []));
+    if ((page.data ?? []).length < SERVER_PAGE_ROWS) return { data: rows, error: null };
+  }
+}
 
 export async function restoreFromServer(
   authUserIdOverride?: string | null,
@@ -267,10 +303,7 @@ export async function restoreFromServer(
       .select('id, practice_id, instance, created_at')
       .eq('participant_id', participant.id)
       .order('created_at'),
-    supabase
-      .from('practice_completed')
-      .select('id, practice_id, instance, minutes, mode, was_offline, local_date, occurred_at, backtrack, route')
-      .eq('participant_id', participant.id),
+    fetchRemoteLogs(supabase, participant.id),
   ]);
   if (remoteInstances.error || remoteLogs.error) {
     return { rowsWritten: profileRestored, participantFound: true };
@@ -342,7 +375,7 @@ export async function restoreFromServer(
       localDate: row.local_date,
       source: sourceFromLogMode(row.mode as 'logged' | 'minutes_added' | 'guided'),
       wasOffline: row.was_offline ?? false,
-      // Carried back so syncFullState's re-upload doesn't clear the marker.
+      // Carried back so a re-upload from this device keeps the marker.
       ...(row.backtrack && { backtrack: true, route: row.route ?? 'switcher' }),
     });
   }
@@ -373,6 +406,10 @@ export async function restoreFromServer(
   return {
     rowsWritten: instances.length + logs.length + replacedBy.size + profileRestored,
     participantFound: true,
+    onServer: {
+      instanceIds: remoteIds,
+      logIds: new Set((remoteLogs.data ?? []).map((row) => row.id)),
+    },
   };
 }
 
@@ -468,6 +505,9 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
     case 'practice_completed': {
       const log = item.payload as PracticeLog & { wasOffline?: boolean };
       const inst = await db.practiceInstances.get(log.instanceId);
+      // Logs are never edited, only added or removed: a row already there
+      // (sent before, or by the other app on this account) is left as it is,
+      // so a re-send can't relabel its environment.
       const { error } = await supabase.from('practice_completed').upsert({
         id: log.id,
         participant_id: pid,
@@ -482,7 +522,7 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
         // Needs migration 009; rows logged before it have no backtrack field.
         backtrack: log.backtrack ?? false,
         route: log.backtrack ? (log.route ?? 'switcher') : null,
-      });
+      }, { ignoreDuplicates: true });
       return !error;
     }
     case 'participant_practices': {
@@ -500,7 +540,7 @@ async function syncItem(item: SyncQueueItem): Promise<boolean> {
         practice_id: inst.practiceId,
         instance: inst.instanceNumber,
         environment: APP_ENV,
-      });
+      }, { ignoreDuplicates: true });
       return !error;
     }
     case 'participants': {
@@ -605,7 +645,15 @@ export async function drainSyncQueue() {
   }
 }
 
-export async function syncFullState(): Promise<void> {
+/**
+ * Queues every local row the server does not have yet.
+ *
+ * Pass the ids restoreFromServer just read: since sign-in, a device holds the
+ * account's whole history, and re-sending all of it on every launch put each
+ * new tick behind hundreds of uploads (days late on short sessions). Without
+ * them, everything local is sent; the inserts ignore rows already there.
+ */
+export async function syncFullState(onServer?: OnServerIds): Promise<void> {
   if (!isSupabaseConfigured() || isDemoDatabaseActive()) return;
 
   const db = getDb();
@@ -627,13 +675,13 @@ export async function syncFullState(): Promise<void> {
 
   for (const inst of instances) {
     const key = `participant_practices:${inst.id}`;
-    if (!queued.has(key)) {
+    if (!queued.has(key) && !onServer?.instanceIds.has(inst.id)) {
       await queueSync({ table: 'participant_practices', operation: 'insert', payload: inst });
     }
   }
   for (const log of logs) {
     const key = `practice_completed:${log.id}`;
-    if (!queued.has(key)) {
+    if (!queued.has(key) && !onServer?.logIds.has(log.id)) {
       await queueSync({ table: 'practice_completed', operation: 'insert', payload: log });
     }
   }
