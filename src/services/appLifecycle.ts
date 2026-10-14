@@ -1,6 +1,7 @@
-import { updateParticipantFields } from './sync';
+import { drainSyncQueue, updateParticipantFields } from './sync';
 import { track } from './instrumentation';
 import { getNotificationPermission } from './notifications';
+import { requestPersistentStorage } from './storagePersistence';
 import { useThemeStore } from './theme';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -30,8 +31,9 @@ function isStandalone(): boolean {
 }
 
 /**
- * Record how this open happened (platform, installed, notification permission)
- * on the participant row and as an `app_open` event. Needs a session (anonymous
+ * Record how this open happened (platform, installed, notification permission,
+ * whether local storage is safe from eviction) on the participant row and as
+ * an `app_open` event. Needs a session (anonymous
  * or email): without one there is no row to update and the event would just
  * describe someone looking at the sign-in screen.
  */
@@ -46,7 +48,12 @@ export async function reportAppOpen(): Promise<void> {
     ...(standalone ? { installed_standalone: true } : {}),
     notification_permission: permission === 'unsupported' ? 'default' : permission,
   });
-  await track('app_open', { standalone, platform: detectPlatform(), theme: useThemeStore.getState().theme });
+  await track('app_open', {
+    standalone,
+    platform: detectPlatform(),
+    theme: useThemeStore.getState().theme,
+    storage_persisted: await requestPersistentStorage(),
+  });
 }
 
 export async function initAppLifecycle(): Promise<void> {
@@ -61,6 +68,10 @@ export async function initAppLifecycle(): Promise<void> {
       lastHiddenAt = Date.now();
       return;
     }
+    // Uploads otherwise retry only on the next tick, the next launch or the
+    // 'online' event. A tick made offline should leave the device as soon as
+    // the app is back in front, before the browser can evict local storage.
+    void drainSyncQueue();
     if (lastHiddenAt && Date.now() - lastHiddenAt > 30 * 60 * 1000) {
       await reportAppOpen();
     }
