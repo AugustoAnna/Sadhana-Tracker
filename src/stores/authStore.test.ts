@@ -16,6 +16,9 @@ let passkeySignIn: { session: { user: { id: string; email?: string } } | null; e
 let passkeyRegister: { error: string | null; cancelled: boolean } = { error: null, cancelled: false };
 let anonTokens: { access_token: string; refresh_token: string } | null = { access_token: 'anon-at', refresh_token: 'anon-rt' };
 let mergeResult: { error: string | null } = { error: null };
+type Restored = { rowsWritten: number; participantFound: boolean; onServer?: { instanceIds: Set<string>; logIds: Set<string> } };
+let restoreImpl: () => Promise<Restored> = async () => ({ rowsWritten: 0, participantFound: false });
+const fullSyncArgs: unknown[] = [];
 
 vi.mock('@/services/auth', () => ({
   getOwnerUserId: () => ownerId,
@@ -52,13 +55,13 @@ vi.mock('@/services/sync', () => ({
   resetParticipantCache: () => { calls.push('resetParticipantCache'); },
   restoreFromServer: async () => {
     calls.push('restoreFromServer');
-    return { rowsWritten: 0, participantFound: false };
+    return restoreImpl();
   },
   ensureParticipantDetailed: async () => {
     calls.push('ensureParticipantDetailed');
     return { id: 'p1', created: true };
   },
-  syncFullState: async () => { calls.push('syncFullState'); },
+  syncFullState: async (onServer?: unknown) => { calls.push('syncFullState'); fullSyncArgs.push(onServer); },
 }));
 
 vi.mock('@/db', () => ({
@@ -90,6 +93,8 @@ beforeEach(() => {
   passkeyRegister = { error: null, cancelled: false };
   anonTokens = { access_token: 'anon-at', refresh_token: 'anon-rt' };
   mergeResult = { error: null };
+  restoreImpl = async () => ({ rowsWritten: 0, participantFound: false });
+  fullSyncArgs.length = 0;
   resolveImpl = async () => ({ state: 'signed-out', userId: null, email: null });
   verifyResult = { session: { user: { id: 'user-b', email: 'b@x.co' } }, error: null };
   useAuthStore.setState({ state: 'signed-out', userId: null, email: null, passkeyOnDevice: false });
@@ -277,5 +282,42 @@ describe('signOut', () => {
     await useAuthStore.getState().signOut();
     expect(calls).toEqual(['drainSyncQueue', 'signOutSupabase', 'resetParticipantCache', 'wipe', 'reseed', 'hydrate']);
     expect(useAuthStore.getState()).toMatchObject({ state: 'signed-out', userId: null, email: null, passkeyOnDevice: false });
+  });
+});
+
+describe('what the first full sync after sign-in re-sends', () => {
+  it('skips what restore saw on the server', async () => {
+    const onServer = { instanceIds: new Set(['i1']), logIds: new Set(['l1']) };
+    restoreImpl = async () => ({ rowsWritten: 2, participantFound: true, onServer });
+
+    await useAuthStore.getState().verifyCode('b@x.co', '123456', 'Priya');
+
+    expect(fullSyncArgs).toEqual([onServer]);
+  });
+
+  it('re-sends nothing when restore could not read the server', async () => {
+    restoreImpl = async () => ({ rowsWritten: 0, participantFound: false });
+
+    await useAuthStore.getState().verifyCode('b@x.co', '123456', 'Priya');
+
+    expect(fullSyncArgs).toEqual(['unread']);
+  });
+
+  it('re-sends nothing when restore throws', async () => {
+    restoreImpl = async () => { throw new Error('offline'); };
+
+    await useAuthStore.getState().verifyCode('b@x.co', '123456', 'Priya');
+
+    expect(fullSyncArgs).toEqual(['unread']);
+  });
+
+  it('sends everything when an anonymous account adds its email (link mode, no restore)', async () => {
+    useAuthStore.setState({ state: 'anonymous', userId: 'anon-1' });
+    ownerId = 'anon-1';
+
+    await useAuthStore.getState().verifyCode('b@x.co', '123456', 'Priya');
+
+    expect(calls).not.toContain('restoreFromServer');
+    expect(fullSyncArgs).toEqual([undefined]);
   });
 });
