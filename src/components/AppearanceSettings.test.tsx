@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, cleanup } from '@testing-library/react';
 import { AppearanceSettings } from './AppearanceSettings';
 import { setTheme } from '@/services/theme';
+import { track } from '@/services/instrumentation';
+
+vi.mock('@/services/instrumentation', () => ({ track: vi.fn() }));
 
 describe('AppearanceSettings', () => {
   beforeEach(() => {
@@ -13,6 +16,7 @@ describe('AppearanceSettings', () => {
       removeItem: (k: string) => void store.delete(k),
     });
     setTheme('light');
+    vi.mocked(track).mockClear();
   });
 
   afterEach(() => {
@@ -31,5 +35,17 @@ describe('AppearanceSettings', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
     expect(screen.getByRole('radio', { name: 'Dark' }).getAttribute('aria-checked')).toBe('true');
     expect(document.documentElement.dataset.theme).toBe('dark');
+  });
+
+  it('records a switch, with where it came from', () => {
+    render(<AppearanceSettings />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
+    expect(track).toHaveBeenCalledWith('theme_changed', { from: 'light', to: 'dark' });
+  });
+
+  it('records nothing when the current theme is tapped again', () => {
+    render(<AppearanceSettings />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
+    expect(track).not.toHaveBeenCalled();
   });
 });
