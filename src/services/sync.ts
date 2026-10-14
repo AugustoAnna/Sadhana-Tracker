@@ -217,9 +217,11 @@ export type RestoreFromServerResult = {
   rowsWritten: number;
   /** True when a participants row already existed for this Auth user. */
   participantFound: boolean;
-  /** Ids already on the server; absent when they could not be read. */
+  /** Ids already on the server (empty for an account with no row yet); absent when they could not be read. */
   onServer?: OnServerIds;
 };
+
+const NOTHING_ON_SERVER = (): OnServerIds => ({ instanceIds: new Set(), logIds: new Set() });
 
 export type OnServerIds = {
   instanceIds: Set<string>;
@@ -277,7 +279,8 @@ export async function restoreFromServer(
     console.error('Failed to look up participant:', participantError.message);
     return { rowsWritten: 0, participantFound: false };
   }
-  if (!participant) return { rowsWritten: 0, participantFound: false };
+  // No row for this user: the server definitely holds none of this device's rows.
+  if (!participant) return { rowsWritten: 0, participantFound: false, onServer: NOTHING_ON_SERVER() };
 
   const db = getDb();
 
@@ -687,10 +690,18 @@ export async function drainSyncQueue() {
  *
  * Pass the ids restoreFromServer just read: since sign-in, a device holds the
  * account's whole history, and re-sending all of it on every launch put each
- * new tick behind hundreds of uploads (days late on short sessions). Without
- * them, everything local is sent; the inserts ignore rows already there.
+ * new tick behind hundreds of uploads (days late on short sessions).
+ *
+ * 'unread' means restore could not read them (offline, error): practices and
+ * logs are not re-sent this launch, since every new row queues itself when it
+ * is made, and the next launch that reaches the server catches anything
+ * missing. Queuing everything instead left hundreds of redundant uploads in
+ * front of new ticks once the connection came back.
+ *
+ * Omitted, everything local is sent: link-mode sign-in keeps a history the
+ * server has never seen. The inserts ignore rows already there.
  */
-export async function syncFullState(onServer?: OnServerIds): Promise<void> {
+export async function syncFullState(onServer?: OnServerIds | 'unread'): Promise<void> {
   if (!isSupabaseConfigured() || isDemoDatabaseActive()) return;
 
   const db = getDb();
@@ -710,15 +721,18 @@ export async function syncFullState(onServer?: OnServerIds): Promise<void> {
     existingQueue.map((i) => `${i.table}:${(i.payload as { id?: string }).id}`),
   );
 
-  for (const inst of instances) {
+  const resend = onServer !== 'unread';
+  const known = onServer === 'unread' ? undefined : onServer;
+
+  for (const inst of resend ? instances : []) {
     const key = `participant_practices:${inst.id}`;
-    if (!queued.has(key) && !onServer?.instanceIds.has(inst.id)) {
+    if (!queued.has(key) && !known?.instanceIds.has(inst.id)) {
       await queueSync({ table: 'participant_practices', operation: 'insert', payload: inst });
     }
   }
-  for (const log of logs) {
+  for (const log of resend ? logs : []) {
     const key = `practice_completed:${log.id}`;
-    if (!queued.has(key) && !onServer?.logIds.has(log.id)) {
+    if (!queued.has(key) && !known?.logIds.has(log.id)) {
       await queueSync({ table: 'practice_completed', operation: 'insert', payload: log });
     }
   }

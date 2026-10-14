@@ -262,6 +262,12 @@ describe('restoreFromServer', () => {
     expect((await restoreFromServer()).onServer).toBeUndefined();
   });
 
+  it('reports no server ids when the participant lookup fails', async () => {
+    tables = { participants: { data: null, error: { message: 'offline' } } };
+
+    expect((await restoreFromServer()).onServer).toBeUndefined();
+  });
+
   it('skips completions whose practice was removed', async () => {
     tables = {
       participants: participant,
@@ -381,7 +387,12 @@ describe('restoreFromServer', () => {
 
   it('reports no participant when this auth user has no row', async () => {
     tables = { participants: { data: null, error: null } };
-    expect(await restoreFromServer()).toEqual({ rowsWritten: 0, participantFound: false });
+    // Nothing is on the server for a new account, so everything local goes up.
+    expect(await restoreFromServer()).toEqual({
+      rowsWritten: 0,
+      participantFound: false,
+      onServer: { instanceIds: new Set(), logIds: new Set() },
+    });
     expect(putInstances).not.toHaveBeenCalled();
   });
 

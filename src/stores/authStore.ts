@@ -266,7 +266,8 @@ async function completeSignIn(
 
   const app = useAppStore.getState();
   let knownParticipant = false;
-  let onServer: OnServerIds | undefined;
+  // Link mode leaves this unset: its history is not on the server yet, so all of it goes up.
+  let onServer: OnServerIds | 'unread' | undefined;
 
   if (opts.mode === 'sign-in') {
     // Always restore under the verified user id before routing. Sign-out wipes
@@ -275,12 +276,13 @@ async function completeSignIn(
     try {
       const restored = await restoreFromServer(userId);
       knownParticipant = restored.participantFound;
-      onServer = restored.onServer;
+      onServer = restored.onServer ?? 'unread';
       await app.hydrate();
     } catch (err) {
       // OTP/passkey verification already established the session. A failed
       // restore must not block sign-in completion.
       console.error('Post-sign-in restore failed:', err);
+      onServer = 'unread';
       await app.hydrate().catch(() => undefined);
     }
   }
