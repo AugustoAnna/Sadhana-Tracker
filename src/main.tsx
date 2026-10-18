@@ -4,6 +4,7 @@ import { AppRouter } from '@/app/router';
 import { useAppStore } from '@/stores/appStore';
 import { useAuthStore } from '@/stores/authStore';
 import { initSyncListener, restoreFromServer, syncFullState } from '@/services/sync';
+import { requestPersistentStorage } from '@/services/storagePersistence';
 import { initAppLifecycle } from '@/services/appLifecycle';
 import { initDayRollover } from '@/services/dayRollover';
 import { initServiceWorkerUpdates } from '@/services/swUpdate';
@@ -51,6 +52,8 @@ function Bootstrap() {
   useEffect(() => {
     async function init() {
       await ensureDatabasesReady();
+      // Not awaited: the answer is only reported, and must not hold up first render.
+      void requestPersistentStorage();
       await recoverFromInterruptedDemo();
       // Reads the stored session; offline it falls back to the recorded owner
       // rather than the network, so this does not hold up first render.
@@ -70,7 +73,7 @@ function Bootstrap() {
           const restored = await restoreFromServer();
           if (restored.rowsWritten > 0) await hydrate();
           useAppStore.getState().markRemoteRestoreSettled();
-          await syncFullState();
+          await syncFullState(restored.onServer ?? 'unread');
         })
         .catch((err) => console.error('Background sync failed:', err))
         // Offline or failed, local data is all there is: stop waiting on it.
