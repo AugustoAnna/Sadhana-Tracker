@@ -291,9 +291,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   removeAllInstancesForPractice: async (practiceId) => {
-    const ids = get().instances.filter((i) => i.practiceId === practiceId).map((i) => i.id);
-    for (const id of ids) {
-      await get().removePracticeInstance(id);
+    // All copies in one step. Removing them one at a time redrew the screen in
+    // between, so a 2X practice flashed as 1X before disappearing, and a
+    // failure after the first left it at 1X.
+    const db = getDb();
+    const { instances } = get();
+    const removed = instances.filter((i) => i.practiceId === practiceId);
+    if (removed.length === 0) return;
+    const reordered = instances
+      .filter((i) => i.practiceId !== practiceId)
+      .map((inst, idx) => ({ ...inst, order: idx }));
+    await db.transaction('rw', db.practiceInstances, async () => {
+      await db.practiceInstances.bulkDelete(removed.map((i) => i.id));
+      for (const inst of reordered) {
+        await db.practiceInstances.update(inst.id, { order: inst.order });
+      }
+    });
+    const reminders = await syncPracticeReminders(db);
+    set({ instances: reordered, reminders });
+    for (const inst of removed) {
+      await queueSync({
+        table: 'participant_practices',
+        operation: 'delete',
+        payload: { id: inst.id } as PracticeInstance,
+      });
     }
   },
 
